@@ -7,7 +7,31 @@ namespace Shane32.GraphQL.AspNetCore;
 public static class GraphQLHttpApplicationBuilderExtensions
 {
     /// <summary>
-    /// Add the GraphQL middleware to the HTTP request pipeline
+    /// Add the GraphQL middleware to the HTTP request pipeline.
+    /// <br/><br/>
+    /// Uses the GraphQL schema registered as <see cref="ISchema"/> within the dependency injection
+    /// framework to execute the query.
+    /// </summary>
+    /// <param name="builder">The application builder</param>
+    /// <param name="path">The path to the GraphQL endpoint which defaults to '/graphql'</param>
+    /// <returns>The <see cref="IApplicationBuilder"/> received as parameter</returns>
+    public static IApplicationBuilder UseGraphQL(this IApplicationBuilder builder, string path = "/graphql")
+        => builder.UseGraphQL<ISchema>(path);
+
+    /// <summary>
+    /// Add the GraphQL middleware to the HTTP request pipeline.
+    /// <br/><br/>
+    /// Uses the GraphQL schema registered as <see cref="ISchema"/> within the dependency injection
+    /// framework to execute the query.
+    /// </summary>
+    /// <param name="builder">The application builder</param>
+    /// <param name="path">The path to the GraphQL endpoint</param>
+    /// <returns>The <see cref="IApplicationBuilder"/> received as parameter</returns>
+    public static IApplicationBuilder UseGraphQL(this IApplicationBuilder builder, PathString path)
+        => builder.UseGraphQL<ISchema>(path);
+
+    /// <summary>
+    /// Add the GraphQL middleware to the HTTP request pipeline for the specified schema.
     /// </summary>
     /// <typeparam name="TSchema">The implementation of <see cref="ISchema"/> to use</typeparam>
     /// <param name="builder">The application builder</param>
@@ -18,7 +42,7 @@ public static class GraphQLHttpApplicationBuilderExtensions
         => builder.UseGraphQL<TSchema>(new PathString(path));
 
     /// <summary>
-    /// Add the GraphQL middleware to the HTTP request pipeline
+    /// Add the GraphQL middleware to the HTTP request pipeline for the specified schema.
     /// </summary>
     /// <typeparam name="TSchema">The implementation of <see cref="ISchema"/> to use</typeparam>
     /// <param name="builder">The application builder</param>
@@ -33,7 +57,7 @@ public static class GraphQLHttpApplicationBuilderExtensions
     }
 
     /// <summary>
-    /// Add the GraphQL custom middleware to the HTTP request pipeline
+    /// Add the GraphQL custom middleware to the HTTP request pipeline for the specified schema.
     /// </summary>
     /// <typeparam name="TSchema">The implementation of <see cref="ISchema"/> to use</typeparam>
     /// <typeparam name="TMiddleware">Custom middleware inherited from <see cref="GraphQLHttpMiddleware{TSchema}"/></typeparam>
@@ -46,7 +70,7 @@ public static class GraphQLHttpApplicationBuilderExtensions
         => builder.UseGraphQL<TSchema, TMiddleware>(new PathString(path));
 
     /// <summary>
-    /// Add the GraphQL custom middleware to the HTTP request pipeline
+    /// Add the GraphQL custom middleware to the HTTP request pipeline for the specified schema.
     /// </summary>
     /// <typeparam name="TSchema">The implementation of <see cref="ISchema"/> to use</typeparam>
     /// <typeparam name="TMiddleware">Custom middleware inherited from <see cref="GraphQLHttpMiddleware{TSchema}"/></typeparam>
