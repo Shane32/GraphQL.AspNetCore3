@@ -1,0 +1,33 @@
+<Project>
+
+  <PropertyGroup>
+    <VersionPrefix>1.0.0-preview</VersionPrefix>
+    <LangVersion>10.0</LangVersion>
+    <Copyright>Shane Krueger</Copyright>
+    <Authors>Shane Krueger</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon>logo.64x64.png</PackageIcon>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <Deterministic>true</Deterministic>
+    <!-- https://help.github.com/en/actions/configuring-and-managing-workflows/using-environment-variables -->
+    <!-- https://github.com/clairernovotny/DeterministicBuilds -->
+    <ContinuousIntegrationBuild Condition="'$(Configuration)' != 'Debug'">True</ContinuousIntegrationBuild>
+    <DebugType>embedded</DebugType>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <ImplicitUsings>true</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" Condition="'$(IsPackable)' == 'true'"/>
+    <None Include="..\..\logo.64x64.png" Pack="true" PackagePath="\" Condition="'$(IsPackable)' == 'true'"/>
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" Condition="'$(IsPackable)' == 'true'"/>
+    <Using Include="System"/>
+    <Using Include="System.Threading"/>
+    <Using Include="System.Threading.Tasks"/>
+  </ItemGroup>
+
+</Project>

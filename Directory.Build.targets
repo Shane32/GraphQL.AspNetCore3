@@ -1,0 +1,7 @@
+<Project>
+
+  <PropertyGroup Condition="'$(IsPackable)' != 'True'">
+    <WarningsNotAsErrors>IDE0060</WarningsNotAsErrors>
+  </PropertyGroup>
+
+</Project>

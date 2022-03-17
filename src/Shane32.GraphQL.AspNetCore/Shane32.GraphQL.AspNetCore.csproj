@@ -1,0 +1,34 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netcoreapp3.1;net5.0</TargetFrameworks>
+    <Description>
+      Simple server for GraphQL projects
+    </Description>
+    <RootNamespace>Shane32.GraphQL.AspNetCore</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="GraphQL" Version="5.0.0-preview-500" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="GraphQL"/>
+    <Using Include="GraphQL.DI"/>
+    <Using Include="GraphQL.Subscription"/>
+    <Using Include="GraphQL.Transport"/>
+    <Using Include="GraphQL.Types"/>
+    <Using Include="GraphQL.Validation"/>
+    <Using Include="GraphQLParser.AST"/>
+    <Using Include="Microsoft.AspNetCore.Builder"/>
+    <Using Include="Microsoft.AspNetCore.Http"/>
+    <Using Include="Microsoft.AspNetCore.Mvc"/>
+    <Using Include="Microsoft.AspNetCore.Routing"/>
+    <Using Include="Microsoft.Extensions.DependencyInjection"/>
+    <Using Include="Shane32.GraphQL.AspNetCore.WebSockets"/>
+    <Using Include="System.Net"/>
+    <Using Include="System.Net.Http.Headers"/>
+    <Using Include="System.Net.WebSockets"/>
+  </ItemGroup>
+</Project>
