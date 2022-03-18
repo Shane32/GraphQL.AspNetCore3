@@ -72,10 +72,21 @@ app.UseDeveloperExceptionPage();
 app.UseGraphQL("/graphql");
 await app.RunAsync();
 
-// schema
+// Sample schema
 public class Query
 {
     public static string Hero() => "Luke Skywalker";
 }
 ```
 
+#### Sample request
+
+```
+http://localhost:5000/graphql?query={hero}
+```
+
+#### Sample response
+
+```json
+{"data":{"hero":"Luke Skywalker"}}
+```
