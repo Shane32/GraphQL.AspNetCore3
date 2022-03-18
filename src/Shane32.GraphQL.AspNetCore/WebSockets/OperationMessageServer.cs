@@ -53,10 +53,8 @@ public abstract class OperationMessageServer : IOperationMessageReceiveStream
     /// <inheritdoc/>
     public void StartConnectionInitTimer()
     {
-        if (_connectionInitWaitTimeout != Timeout.InfiniteTimeSpan)
-        {
-            Task.Run(async () =>
-            {
+        if (_connectionInitWaitTimeout != Timeout.InfiniteTimeSpan) {
+            Task.Run(async () => {
                 await Task.Delay(_connectionInitWaitTimeout, CancellationToken);
                 if (_initialized == 0)
                     await OnConnectionInitWaitTimeoutAsync();
@@ -78,8 +76,7 @@ public abstract class OperationMessageServer : IOperationMessageReceiveStream
     public virtual void Dispose()
     {
         var cts = Interlocked.Exchange(ref _cancellationTokenSource, null);
-        if (cts != null)
-        {
+        if (cts != null) {
             cts.Cancel();
             cts.Dispose();
             Subscriptions.Dispose(); //redundant
@@ -161,12 +158,9 @@ public abstract class OperationMessageServer : IOperationMessageReceiveStream
     protected virtual async Task OnConnectionInitAsync(OperationMessage message)
     {
         await OnConnectionAcknowledgeAsync(message);
-        if (_keepAliveTimeout > TimeSpan.Zero)
-        {
-            _ = Task.Run(async () =>
-            {
-                while (true)
-                {
+        if (_keepAliveTimeout > TimeSpan.Zero) {
+            _ = Task.Run(async () => {
+                while (true) {
                     await Task.Delay(_keepAliveTimeout, CancellationToken);
                     await OnSendKeepAliveAsync();
                 }
@@ -190,24 +184,18 @@ public abstract class OperationMessageServer : IOperationMessageReceiveStream
     /// </summary>
     protected virtual async Task SubscribeAsync(OperationMessage message, bool overwrite)
     {
-        if (string.IsNullOrEmpty(message.Id))
-        {
+        if (string.IsNullOrEmpty(message.Id)) {
             await ErrorIdCannotBeBlankAsync();
             return;
         }
 
         var dummyDisposer = new DummyDisposer();
 
-        try
-        {
-            if (overwrite)
-            {
+        try {
+            if (overwrite) {
                 Subscriptions[message.Id] = dummyDisposer;
-            }
-            else
-            {
-                if (!Subscriptions.TryAdd(message.Id, dummyDisposer))
-                {
+            } else {
+                if (!Subscriptions.TryAdd(message.Id, dummyDisposer)) {
                     await ErrorIdAlreadyExistsAsync(message.Id);
                     return;
                 }
@@ -216,42 +204,29 @@ public abstract class OperationMessageServer : IOperationMessageReceiveStream
             var result = await ExecuteRequestAsync(message);
             if (!Subscriptions.Contains(message.Id, dummyDisposer))
                 return;
-            if (result is SubscriptionExecutionResult subscriptionExecutionResult && subscriptionExecutionResult.Streams?.Count == 1)
-            {
+            if (result is SubscriptionExecutionResult subscriptionExecutionResult && subscriptionExecutionResult.Streams?.Count == 1) {
                 // do not return a result, but set up a subscription
                 var stream = subscriptionExecutionResult.Streams!.Single().Value;
                 // note that this may immediately trigger some notifications
                 var disposer = stream.Subscribe(new Observer(this, message.Id));
-                try
-                {
-                    if (Subscriptions.CompareExchange(message.Id, dummyDisposer, disposer))
-                    {
+                try {
+                    if (Subscriptions.CompareExchange(message.Id, dummyDisposer, disposer)) {
                         disposer = null;
                     }
-                }
-                finally
-                {
+                } finally {
                     disposer?.Dispose();
                 }
-            }
-            else if (result.Executed && result.Data != null)
-            {
+            } else if (result.Executed && result.Data != null) {
                 await SendSingleResultAsync(message.Id, result);
-            }
-            else
-            {
+            } else {
                 await SendErrorResultAsync(message.Id, result);
             }
-        }
-        catch (OperationCanceledException) when (CancellationToken.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (CancellationToken.IsCancellationRequested) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             if (!Subscriptions.Contains(message.Id, dummyDisposer))
                 return;
-            var error = await HandleErrorAsync(ex);
+            var error = await HandleErrorDuringSubscribeAsync(ex);
             await SendErrorResultAsync(message.Id, error);
         }
     }
@@ -259,8 +234,8 @@ public abstract class OperationMessageServer : IOperationMessageReceiveStream
     /// <summary>
     /// Creates an <see cref="ExecutionError"/> for an unknown <see cref="Exception"/>.
     /// </summary>
-    protected virtual Task<ExecutionError> HandleErrorAsync(Exception ex)
-        => Task.FromResult(new ExecutionError("Unable to set up subscription for the requested field.", ex));
+    protected virtual Task<ExecutionError> HandleErrorDuringSubscribeAsync(Exception ex)
+        => Task.FromResult<ExecutionError>(new UnhandledError("Unable to set up subscription for the requested field.", ex));
 
     /// <summary>
     /// Sends a single result to the client for a subscription or request, along with a notice
@@ -309,10 +284,20 @@ public abstract class OperationMessageServer : IOperationMessageReceiveStream
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Wraps an unhandled exception within an <see cref="ExecutionError"/> instance.
+    /// </summary>
+    protected virtual Task<ExecutionError> HandleErrorFromSourceAsync(Exception exception)
+        => Task.FromResult<ExecutionError>(new UnhandledError("Unhandled exception", exception));
+
+    /// <summary>
+    /// Handles messages from the event source.
+    /// </summary>
     private class Observer : IObserver<ExecutionResult>
     {
         private readonly OperationMessageServer _handler;
         private readonly string _id;
+        private int _done;
 
         public Observer(OperationMessageServer handler, string id)
         {
@@ -322,27 +307,40 @@ public abstract class OperationMessageServer : IOperationMessageReceiveStream
 
         public void OnCompleted()
         {
-            try
-            {
+            if (Interlocked.Exchange(ref _done, 1) == 1)
+                return;
+            try {
                 _ = _handler.SendCompletedAsync(_id);
-            }
-            catch
-            {
-            }
+            } catch { }
         }
 
-        public void OnError(Exception error)
-            => throw new NotSupportedException();
+        public async void OnError(Exception error)
+        {
+            if (Interlocked.Exchange(ref _done, 1) == 1)
+                return;
+            try {
+                if (error != null) {
+                    var executionError = error is ExecutionError ee ? ee : await _handler.HandleErrorFromSourceAsync(error);
+                    if (executionError != null) {
+                        var result = new ExecutionResult {
+                            Errors = new ExecutionErrors { executionError },
+                        };
+                        await _handler.SendDataAsync(_id, result);
+                    }
+                }
+            } catch { }
+            await _handler.SendCompletedAsync(_id);
+        }
 
         public void OnNext(ExecutionResult value)
         {
-            try
-            {
+            if (Interlocked.CompareExchange(ref _done, 0, 0) == 0)
+                return;
+            if (value == null)
+                return;
+            try {
                 _ = _handler.SendDataAsync(_id, value);
-            }
-            catch
-            {
-            }
+            } catch { }
         }
     }
 

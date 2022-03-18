@@ -23,13 +23,17 @@ public class WebSocketConnection : IOperationMessageSendStream
     private readonly WebSocketWriterStream _stream;
     private readonly TaskCompletionSource<bool> _outputClosed = new();
     private readonly CancellationToken _cancellationToken;
+    private readonly int _closeTimeoutMs;
     private int _executed;
 
     /// <summary>
     /// Initializes an instance with the specified parameters.
     /// </summary>
-    public WebSocketConnection(WebSocket webSocket, IGraphQLSerializer serializer, CancellationToken cancellationToken)
+    public WebSocketConnection(WebSocket webSocket, IGraphQLSerializer serializer, TimeSpan closeTimeout, CancellationToken cancellationToken)
     {
+        if (closeTimeout.TotalMilliseconds < -1 || closeTimeout.TotalMilliseconds > int.MaxValue)
+            throw new ArgumentOutOfRangeException(nameof(closeTimeout));
+        _closeTimeoutMs = (int)closeTimeout.TotalMilliseconds;
         _webSocket = webSocket ?? throw new ArgumentNullException(nameof(webSocket));
         _stream = new(webSocket);
         _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
@@ -58,30 +62,27 @@ public class WebSocketConnection : IOperationMessageSendStream
             // prep a MemoryStream instance pointing to the block
             var bufferStream = new MemoryStream(buffer, false);
             // read messages until an exception occurs, the cancellation token is signaled, or a 'close' message is received
-            while (true)
-            {
+            while (true) {
                 var result = await _webSocket.ReceiveAsync(bufferMemory, _cancellationToken);
-                if (result.MessageType == WebSocketMessageType.Close)
-                {
+                if (result.MessageType == WebSocketMessageType.Close) {
                     // prevent any more messages from being queued
                     operationMessageReceiveStream.Dispose();
                     // send a close request if none was sent yet
-                    if (!_outputClosed.Task.IsCompleted)
-                    {
+                    if (!_outputClosed.Task.IsCompleted) {
                         // queue the closure
-                        await CloseConnectionAsync();
+                        _ = CloseConnectionAsync();
                         // wait until the close has been sent
-                        await _outputClosed.Task;
+                        var completedTask = Task.WhenAny(
+                            _outputClosed.Task,
+                            Task.Delay(_closeTimeoutMs, _cancellationToken));
                     }
                     // quit
                     return;
                 }
                 // if this is the last block terminating a message
-                if (result.EndOfMessage)
-                {
+                if (result.EndOfMessage) {
                     // if only one block of data was sent for this message
-                    if (receiveStream.Length == 0)
-                    {
+                    if (receiveStream.Length == 0) {
                         // if the message is empty, skip to the next message
                         if (result.Count == 0)
                             continue;
@@ -91,9 +92,7 @@ public class WebSocketConnection : IOperationMessageSendStream
                         // dispatch the message
                         if (message != null)
                             await operationMessageReceiveStream.OnMessageReceivedAsync(message);
-                    }
-                    else
-                    {
+                    } else {
                         // if there is any data in this block, add it to the buffer
                         if (result.Count > 0)
                             receiveStream.Write(buffer, 0, result.Count);
@@ -106,21 +105,15 @@ public class WebSocketConnection : IOperationMessageSendStream
                         if (message != null)
                             await operationMessageReceiveStream.OnMessageReceivedAsync(message);
                     }
-                }
-                else
-                {
+                } else {
                     // if there is any data in this block, add it to the buffer
                     if (result.Count > 0)
                         receiveStream.Write(buffer, 0, result.Count);
                 }
             }
-        }
-        catch (WebSocketException)
-        {
+        } catch (WebSocketException) {
             return;
-        }
-        finally
-        {
+        } finally {
             // prevent any more messages from being sent
             _outputClosed.TrySetResult(false);
             // prevent any more messages from attempting to send
@@ -150,13 +143,10 @@ public class WebSocketConnection : IOperationMessageSendStream
     {
         if (_outputClosed.Task.IsCompleted)
             return;
-        if (message.OperationMessage != null)
-        {
+        if (message.OperationMessage != null) {
             await _serializer.WriteAsync(_stream, message.OperationMessage, _cancellationToken);
             await _stream.FlushAsync(_cancellationToken);
-        }
-        else
-        {
+        } else {
             _outputClosed.TrySetResult(true);
             await _webSocket.CloseOutputAsync(message.CloseStatus, message.CloseDescription, _cancellationToken);
         }

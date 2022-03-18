@@ -30,13 +30,11 @@ public sealed class SubscriptionList : IDisposable
     public void Dispose()
     {
         List<IDisposable> subscriptionsToDispose;
-        lock (_lock)
-        {
+        lock (_lock) {
             subscriptionsToDispose = _subscriptions.Values.ToList();
             _subscriptions.Clear();
         }
-        foreach (var disposer in subscriptionsToDispose)
-        {
+        foreach (var disposer in subscriptionsToDispose) {
             disposer.Dispose();
         }
     }
@@ -52,8 +50,7 @@ public sealed class SubscriptionList : IDisposable
         if (subscription == null)
             throw new ArgumentNullException(nameof(subscription));
 
-        lock (_lock)
-        {
+        lock (_lock) {
             _cancellationToken.ThrowIfCancellationRequested();
             return _subscriptions.TryAdd(id, subscription);
         }
@@ -64,27 +61,21 @@ public sealed class SubscriptionList : IDisposable
     /// When overwriting an existing registration, the old registration is disposed.
     /// </summary>
     /// <exception cref="OperationCanceledException"/>
-    public IDisposable this[string id]
-    {
-        set
-        {
+    public IDisposable this[string id] {
+        set {
             if (id == null)
                 throw new ArgumentNullException(nameof(id));
             if (value == null)
                 throw new ArgumentNullException(nameof(value));
 
             IDisposable? oldDisposable = null;
-            try
-            {
-                lock (_lock)
-                {
+            try {
+                lock (_lock) {
                     _cancellationToken.ThrowIfCancellationRequested();
                     _subscriptions.TryGetValue(id, out oldDisposable);
                     _subscriptions[id] = value;
                 }
-            }
-            finally
-            {
+            } finally {
                 oldDisposable?.Dispose();
             }
         }
@@ -101,8 +92,7 @@ public sealed class SubscriptionList : IDisposable
         if (subscription == null)
             throw new ArgumentNullException(nameof(subscription));
 
-        lock (_lock)
-        {
+        lock (_lock) {
             _cancellationToken.ThrowIfCancellationRequested();
             return _subscriptions.TryGetValue(id, out var value) && value == subscription;
         }
@@ -117,8 +107,7 @@ public sealed class SubscriptionList : IDisposable
         if (id == null)
             throw new ArgumentNullException(nameof(id));
 
-        lock (_lock)
-        {
+        lock (_lock) {
             _cancellationToken.ThrowIfCancellationRequested();
             return _subscriptions.ContainsKey(id);
         }
@@ -139,10 +128,8 @@ public sealed class SubscriptionList : IDisposable
             throw new ArgumentNullException(nameof(newSubscription));
 
         bool dispose = false;
-        try
-        {
-            lock (_lock)
-            {
+        try {
+            lock (_lock) {
                 _cancellationToken.ThrowIfCancellationRequested();
                 if (!_subscriptions.TryGetValue(id, out var value) || value != oldSubscription)
                     return false;
@@ -150,9 +137,7 @@ public sealed class SubscriptionList : IDisposable
                 dispose = true;
                 return true;
             }
-        }
-        finally
-        {
+        } finally {
             if (dispose)
                 oldSubscription.Dispose();
         }
@@ -168,21 +153,16 @@ public sealed class SubscriptionList : IDisposable
             throw new ArgumentNullException(nameof(id));
 
         IDisposable? subscription = null;
-        try
-        {
-            lock (_lock)
-            {
+        try {
+            lock (_lock) {
                 _cancellationToken.ThrowIfCancellationRequested();
-                if (_subscriptions.TryGetValue(id, out subscription))
-                {
+                if (_subscriptions.TryGetValue(id, out subscription)) {
                     _subscriptions.Remove(id);
                     return true;
                 }
                 return false;
             }
-        }
-        finally
-        {
+        } finally {
             subscription?.Dispose();
         }
     }
@@ -200,10 +180,8 @@ public sealed class SubscriptionList : IDisposable
             throw new ArgumentNullException(nameof(oldSubscription));
 
         bool dispose = false;
-        try
-        {
-            lock (_lock)
-            {
+        try {
+            lock (_lock) {
                 _cancellationToken.ThrowIfCancellationRequested();
                 if (!_subscriptions.TryGetValue(id, out var value) || value != oldSubscription)
                     return false;
@@ -211,9 +189,7 @@ public sealed class SubscriptionList : IDisposable
                 dispose = true;
                 return true;
             }
-        }
-        finally
-        {
+        } finally {
             if (dispose)
                 oldSubscription.Dispose();
         }

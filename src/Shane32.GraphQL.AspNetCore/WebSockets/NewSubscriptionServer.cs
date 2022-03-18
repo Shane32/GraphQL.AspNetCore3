@@ -52,29 +52,21 @@ public class NewSubscriptionServer : OperationMessageServer
     /// <inheritdoc/>
     public override async Task OnMessageReceivedAsync(OperationMessage message)
     {
-        if (message.Type == NewMessageType.GQL_PING)
-        {
+        if (message.Type == NewMessageType.GQL_PING) {
             await OnPing(message);
-        }
-        else if (message.Type == NewMessageType.GQL_CONNECTION_INIT)
-        {
-            if (!TryInitialize())
-            {
+        } else if (message.Type == NewMessageType.GQL_CONNECTION_INIT) {
+            if (!TryInitialize()) {
                 await ErrorTooManyInitializationRequestsAsync();
-            }
-            else
-            {
+            } else {
                 await OnConnectionInitAsync(message);
             }
             return;
         }
-        if (!Initialized)
-        {
+        if (!Initialized) {
             await ErrorNotInitializedAsync();
             return;
         }
-        switch (message.Type)
-        {
+        switch (message.Type) {
             case NewMessageType.GQL_SUBSCRIBE:
                 await OnSubscribe(message);
                 break;
@@ -119,10 +111,8 @@ public class NewSubscriptionServer : OperationMessageServer
     /// <inheritdoc/>
     protected override async Task SendErrorResultAsync(string id, ExecutionResult result)
     {
-        if (Subscriptions.TryRemove(id))
-        {
-            await Client.SendMessageAsync(new OperationMessage
-            {
+        if (Subscriptions.TryRemove(id)) {
+            await Client.SendMessageAsync(new OperationMessage {
                 Id = id,
                 Type = NewMessageType.GQL_ERROR,
                 Payload = result,
@@ -133,10 +123,8 @@ public class NewSubscriptionServer : OperationMessageServer
     /// <inheritdoc/>
     protected override async Task SendDataAsync(string id, ExecutionResult result)
     {
-        if (Subscriptions.Contains(id))
-        {
-            await Client.SendMessageAsync(new OperationMessage
-            {
+        if (Subscriptions.Contains(id)) {
+            await Client.SendMessageAsync(new OperationMessage {
                 Id = id,
                 Type = NewMessageType.GQL_NEXT,
                 Payload = result,
@@ -147,10 +135,8 @@ public class NewSubscriptionServer : OperationMessageServer
     /// <inheritdoc/>
     protected override async Task SendCompletedAsync(string id)
     {
-        if (Subscriptions.TryRemove(id))
-        {
-            await Client.SendMessageAsync(new OperationMessage
-            {
+        if (Subscriptions.TryRemove(id)) {
+            await Client.SendMessageAsync(new OperationMessage {
                 Id = id,
                 Type = NewMessageType.GQL_COMPLETE,
             });

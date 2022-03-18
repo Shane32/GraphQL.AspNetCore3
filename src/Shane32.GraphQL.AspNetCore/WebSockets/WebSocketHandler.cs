@@ -10,7 +10,7 @@ public class WebSocketHandler<TSchema> : WebSocketHandler, IWebSocketHandler<TSc
         IDocumentExecuter<TSchema> executer,
         IServiceScopeFactory serviceScopeFactory,
         WebSocketHandlerOptions options)
-    : base(serializer, executer, serviceScopeFactory, options)
+        : base(serializer, executer, serviceScopeFactory, options)
     {
     }
 }
@@ -22,6 +22,10 @@ public class WebSocketHandler : IWebSocketHandler
     private readonly IDocumentExecuter _executer;
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly WebSocketHandlerOptions _webSocketHandlerOptions;
+
+    private static readonly TimeSpan _defaultConnectionTimeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan _defaultKeepAliveTimeout = TimeSpan.FromSeconds(25);
+    private static readonly TimeSpan _defaultDisconnectionTimeout = TimeSpan.FromSeconds(10);
 
     /// <summary>
     /// Initializes a new instance.
@@ -55,17 +59,15 @@ public class WebSocketHandler : IWebSocketHandler
             throw new ArgumentNullException(nameof(webSocket));
         if (userContext == null)
             throw new ArgumentNullException(nameof(userContext));
-        var webSocketConnection = new WebSocketConnection(webSocket, _serializer, cancellationToken);
+        var webSocketConnection = new WebSocketConnection(webSocket, _serializer, _webSocketHandlerOptions.DisconnectionTimeout ?? _defaultDisconnectionTimeout, cancellationToken);
         IOperationMessageReceiveStream? operationMessageReceiveStream = null;
-        try
-        {
-            switch (subProtocol)
-            {
+        try {
+            switch (subProtocol) {
                 case "graphql-transport-ws":
                     operationMessageReceiveStream = new NewSubscriptionServer(
                         webSocketConnection,
-                        _webSocketHandlerOptions.ConnectionInitWaitTimeout,
-                        _webSocketHandlerOptions.KeepAliveTimeout,
+                        _webSocketHandlerOptions.ConnectionInitWaitTimeout ?? _defaultConnectionTimeout,
+                        _webSocketHandlerOptions.KeepAliveTimeout ?? _defaultKeepAliveTimeout,
                         _executer,
                         _serializer,
                         _serviceScopeFactory,
@@ -74,8 +76,8 @@ public class WebSocketHandler : IWebSocketHandler
                 case "graphql-ws":
                     operationMessageReceiveStream = new OldSubscriptionServer(
                         webSocketConnection,
-                        _webSocketHandlerOptions.ConnectionInitWaitTimeout,
-                        _webSocketHandlerOptions.KeepAliveTimeout,
+                        _webSocketHandlerOptions.ConnectionInitWaitTimeout ?? _defaultConnectionTimeout,
+                        _webSocketHandlerOptions.KeepAliveTimeout ?? _defaultKeepAliveTimeout,
                         _executer,
                         _serializer,
                         _serviceScopeFactory,
@@ -85,9 +87,7 @@ public class WebSocketHandler : IWebSocketHandler
                     throw new ArgumentOutOfRangeException(nameof(subProtocol));
             }
             return webSocketConnection.ExecuteAsync(operationMessageReceiveStream);
-        }
-        finally
-        {
+        } finally {
             operationMessageReceiveStream?.Dispose();
         }
     }

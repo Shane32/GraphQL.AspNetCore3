@@ -41,8 +41,7 @@ internal class AsyncMessagePump<T>
     {
         if (callback == null)
             throw new ArgumentNullException(nameof(callback));
-        _callback = message =>
-        {
+        _callback = message => {
             callback(message);
             return Task.CompletedTask;
         };
@@ -60,20 +59,15 @@ internal class AsyncMessagePump<T>
     public void Post(Task<T> messageTask)
     {
         bool attach = false;
-        lock (_queue)
-        {
+        lock (_queue) {
             _queue.Enqueue(messageTask);
             attach = _queue.Count == 1;
         }
 
-        if (attach)
-        {
-            if (messageTask.IsCompleted)
-            {
+        if (attach) {
+            if (messageTask.IsCompleted) {
                 _ = CompleteAsync();
-            }
-            else
-            {
+            } else {
                 _ = messageTask.ContinueWith(_ => CompleteAsync());
             }
         }
@@ -86,31 +80,23 @@ internal class AsyncMessagePump<T>
     {
         // grab the message at the start of the queue, but don't remove it from the queue
         Task<T> messageTask;
-        lock (_queue)
-        {
+        lock (_queue) {
             // should always successfully peek from the queue here
             messageTask = _queue.Peek();
         }
-        while (true)
-        {
+        while (true) {
             // process the message
-            try
-            {
+            try {
                 var message = await messageTask.ConfigureAwait(false);
                 await _callback(message).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                try
-                {
+            } catch (Exception ex) {
+                try {
                     await HandleErrorAsync(ex);
-                }
-                catch { }
+                } catch { }
             }
 
             // once the message has been passed along, dequeue it
-            lock (_queue)
-            {
+            lock (_queue) {
                 _ = _queue.Dequeue();
                 // if the queue is empty, immedately quit the loop, as any new
                 // events queued will start CompleteAsync
