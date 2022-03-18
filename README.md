@@ -19,6 +19,8 @@ framework in order to use them.
 
 ## Configuration
 
+### Typical configuration with HTTP middleware
+
 First add the `Shane32.GraphQL.AspNetCore` nuget package to your application.  It requires
 `GraphQL` version 5.0 or later and will default to the newest available 5.x version if none
 are installed in your application.
@@ -32,7 +34,7 @@ the HTTP middleware and WebSocket services.  Also configure GraphQL in the HTTP 
 `UseGraphQL` at the appropriate point.  Below is a complete sample of a .NET 6 console app that
 hosts a GraphQL endpoint at `http://localhost:5000/graphql`:
 
-#### Project file:
+#### Project file
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk.Web">
@@ -52,7 +54,7 @@ hosts a GraphQL endpoint at `http://localhost:5000/graphql`:
 </Project>
 ```
 
-#### Program.cs file:
+#### Program.cs file
 
 ```csharp
 using GraphQL;
@@ -61,7 +63,6 @@ using GraphQL.SystemTextJson;
 using Shane32.GraphQL.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
-
 builder.Services.AddGraphQL(b => b
     .AddAutoSchema<Query>()  // schema
     .AddSystemTextJson()     // serializer
@@ -69,17 +70,20 @@ builder.Services.AddGraphQL(b => b
 
 var app = builder.Build();
 app.UseDeveloperExceptionPage();
-app.UseGraphQL("/graphql");
+app.UseGraphQL("/graphql");  // url to host GraphQL endpoint
 await app.RunAsync();
+```
 
-// Sample schema
+#### Schema
+
+```csharp
 public class Query
 {
     public static string Hero() => "Luke Skywalker";
 }
 ```
 
-#### Sample request
+#### Sample request url
 
 ```
 http://localhost:5000/graphql?query={hero}
@@ -90,3 +94,158 @@ http://localhost:5000/graphql?query={hero}
 ```json
 {"data":{"hero":"Luke Skywalker"}}
 ```
+
+### Configuration with endpoint routing
+
+To use endpoint routing, call `MapGraphQL` from inside the endpoint configuration
+builder rather than `UseGraphQL` on the application builder.  See below for the
+sample of the application builder code:
+
+```csharp
+var app = builder.Build();
+app.UseDeveloperExceptionPage();
+app.UseRouting();
+app.UseEndpoints(endpoints => {
+    endpoints.MapGraphQL("graphql");
+});
+await app.RunAsync();
+```
+
+### Configuration with a MVC controller
+
+Although not recommended, you may set up a controller action to execute GraphQL
+requests.  You will not need `UseGraphQL` or `MapGraphQL` in the application
+startup.  Below is the sample controller content.  It does not contain code
+to handle WebSockets connections.
+
+#### HomeController.cs
+
+```csharp
+[Route("Home")]
+public class HomeController : Controller
+{
+    private readonly IDocumentExecuter<ISchema> _executer;
+    private readonly IGraphQLTextSerializer _serializer;
+
+    public HomeController(IDocumentExecuter<ISchema> executer, IGraphQLTextSerializer serializer)
+    {
+        _executer = executer;
+        _serializer = serializer;
+    }
+
+    [HttpGet("graphql")]
+    public Task<IActionResult> GraphQLGetAsync(string query, string? operationName)
+        => ExecuteGraphQLRequestAsync(ParseRequest(query, operationName));
+
+    [HttpPost("graphql")]
+    public async Task<IActionResult> GraphQLPostAsync(string query, string? variables, string? operationName, string? extensions)
+    {
+        if (HttpContext.Request.HasFormContentType) {
+            return await ExecuteGraphQLRequestAsync(ParseRequest(query, operationName, variables, extensions));
+        } else if (HttpContext.Request.HasJsonContentType()) {
+            var request = await _serializer.ReadAsync<GraphQLRequest>(HttpContext.Request.Body, HttpContext.RequestAborted);
+            return await ExecuteGraphQLRequestAsync(request);
+        }
+        return BadRequest();
+    }
+
+    private GraphQLRequest ParseRequest(string query, string? operationName, string? variables = null, string? extensions = null)
+        => new GraphQLRequest {
+            Query = query,
+            OperationName = operationName,
+            Variables = _serializer.Deserialize<Inputs>(variables),
+            Extensions = _serializer.Deserialize<Inputs>(extensions),
+        };
+
+    private async Task<IActionResult> ExecuteGraphQLRequestAsync(GraphQLRequest? request)
+    {
+        if (string.IsNullOrWhiteSpace(request?.Query))
+            return BadRequest();
+        try {
+            return new ExecutionResultActionResult(await _executer.ExecuteAsync(new ExecutionOptions {
+                Query = request.Query,
+                OperationName = request.OperationName,
+                Variables = request.Variables,
+                Extensions = request.Extensions,
+                CancellationToken = HttpContext.RequestAborted,
+                RequestServices = HttpContext.RequestServices,
+            }));
+        }
+        catch {
+            return BadRequest();
+        }
+    }
+}
+```
+
+### User context configuration
+
+To set the user context to be used during the execution of GraphQL requests,
+call `AddUserContextBuilder` during the GraphQL service setup to set a delegate
+which will be called when the user context is built.
+
+#### Program.cs
+
+```csharp
+builder.Services.AddGraphQL(b => b
+    .AddAutoSchema<Query>()
+    .AddSystemTextJson()
+    .AddServer()
+    .AddUserContextBuilder(httpContext => new MyUserContext(httpContext));
+```
+
+#### MyUserContext.cs
+
+```csharp
+public class MyUserContext : Dictionary<string, object?>
+{
+    public ClaimsPrincipal User { get; }
+
+    public MyUserContext(HttpContext context) : base()
+    {
+        User = context.User;
+    }
+}
+```
+
+## Advanced configuration
+
+For more advanced configurations, see the overloads and configuration options
+available for the various builder methods, listed below.  Methods and properties
+contain XML comments to provide assistance while coding with Visual Studio.
+
+| Builder interface | Method | Description |
+|-------------------|--------|-------------|
+| `IGraphQLBuilder` | `AddServer`             | Registers the default HTTP middleware and WebSockets handler with the dependency injection framework. |
+| `IGraphQLBuilder` | `AddHttpMiddleware`     | Registers the default HTTP middleware with the dependency injection framework. |
+| `IGraphQLBuilder` | `AddWebSocketHandler`   | Registers the default WebSocket handler with the dependency injection framework. |
+| `IGraphQLBuilder` | `AddUserContextBuilder` | Set up a delegate to create the UserContext for each GraphQL request. |
+| `IApplicationBuilder`   | `UseGraphQL`      | Add the GraphQL middleware to the HTTP request pipeline. |
+| `IEndpointRouteBuilder` | `MapGraphQL`      | Add the GraphQL middleware to the HTTP request pipeline. |
+
+A number of the methods contain optional parameters or configuration delegates to
+allow further customization.  Please review the overloads of each method to determine
+which options are available.  In addition, many methods have more descriptive XML
+comments than shown above.
+
+Below are descriptions of the options available when registering the HTTP middleware
+or WebSocket handler.
+
+### GraphQLHttpMiddlewareOptions
+
+| Property | Description | Default value |
+|----------|-------------|---------------|
+| `HandleGet` | Enables handling of GET requests. | True |
+| `HandlePost` | Enables handling of POST requests. | True |
+| `HandleWebSockets` | Enables handling of WebSockets requests. | True |
+| `ReadQueryStringOnPost` | Enables parsing the query string on POST requests. | False |
+| `ReadVariablesFromQueryString` | Enables reading variables from the query string. | False |
+| `ReadExtensionsFromQueryString` | Enables reading extensions from the query string. | False |
+
+### WebSocketHandlerOptions
+
+| Property | Description | Default value |
+|----------|-------------|---------------|
+| `ConnectionInitWaitTimeout` | The amount of time to wait for a GraphQL initialization packet before the connection is closed. | 10 seconds |
+| `KeepAliveTimeout`          | The amount of time to wait between sending keep-alive packets. | 30 seconds |
+| `DisconnectionTimeout`      | The amount of time to wait to attempt a graceful teardown of the WebSockets protocol. | 10 seconds |

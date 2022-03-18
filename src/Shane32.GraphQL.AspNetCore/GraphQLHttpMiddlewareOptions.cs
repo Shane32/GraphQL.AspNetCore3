@@ -6,17 +6,17 @@ namespace Shane32.GraphQL.AspNetCore
     public class GraphQLHttpMiddlewareOptions
     {
         /// <summary>
-        /// Enables GET requests.
+        /// Enables handling of GET requests.
         /// </summary>
         public bool HandleGet { get; set; } = true;
 
         /// <summary>
-        /// Enables POST requests, including form submissions, JSON-formatted requests and raw query requests.
+        /// Enables handling of POST requests, including form submissions, JSON-formatted requests and raw query requests.
         /// </summary>
         public bool HandlePost { get; set; } = true;
 
         /// <summary>
-        /// Enables WebSockets requests.
+        /// Enables handling of WebSockets requests.
         /// <br/><br/>
         /// Requires registering one or more <see cref="IWebSocketHandler"/>
         /// interfaces with the dependency injection framework, typically by

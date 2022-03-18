@@ -18,7 +18,8 @@ public class WebSocketHandlerOptions
     public TimeSpan? KeepAliveTimeout { get; set; }
 
     /// <summary>
-    /// The amount of time to wait to attempt a graceful teardown of the WebSockets protocol
+    /// The amount of time to wait to attempt a graceful teardown of the WebSockets protocol.
+    /// The default is 10 seconds.
     /// </summary>
     public TimeSpan? DisconnectionTimeout { get; set; }
 }

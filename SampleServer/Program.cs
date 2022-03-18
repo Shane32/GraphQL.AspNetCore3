@@ -5,6 +5,7 @@ using Shane32.GraphQL.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddControllersWithViews();
 builder.Services.AddGraphQL(b => b
     .AddAutoSchema<Query>()
     .AddSystemTextJson()
@@ -12,7 +13,14 @@ builder.Services.AddGraphQL(b => b
 
 var app = builder.Build();
 app.UseDeveloperExceptionPage();
-app.UseGraphQL();
+app.UseGraphQL("/graphql");
+app.UseRouting();
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapControllerRoute(
+        name: "default",
+        pattern: "{controller=Home}/{action=Index}/{id?}");
+});
 await app.RunAsync();
 
 internal class Query
