@@ -115,7 +115,7 @@ public class NewSubscriptionServer : OperationMessageServer
             await Client.SendMessageAsync(new OperationMessage {
                 Id = id,
                 Type = NewMessageType.GQL_ERROR,
-                Payload = result,
+                Payload = result.Errors?.ToArray() ?? Array.Empty<ExecutionError>(),
             });
         }
     }

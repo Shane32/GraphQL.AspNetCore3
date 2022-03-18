@@ -26,6 +26,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Workflows", "Workflows", "{
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Shane32.GraphQL.AspNetCore", "src\Shane32.GraphQL.AspNetCore\Shane32.GraphQL.AspNetCore.csproj", "{9EFA5D98-FB38-4201-A274-CB963905ED9C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SampleServer", "SampleServer\SampleServer.csproj", "{69E17B0E-8F5D-406C-945F-D2651EBB2FAF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -40,6 +42,10 @@ Global
 		{9EFA5D98-FB38-4201-A274-CB963905ED9C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9EFA5D98-FB38-4201-A274-CB963905ED9C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9EFA5D98-FB38-4201-A274-CB963905ED9C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{69E17B0E-8F5D-406C-945F-D2651EBB2FAF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{69E17B0E-8F5D-406C-945F-D2651EBB2FAF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{69E17B0E-8F5D-406C-945F-D2651EBB2FAF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{69E17B0E-8F5D-406C-945F-D2651EBB2FAF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

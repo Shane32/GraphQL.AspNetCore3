@@ -8,17 +8,46 @@ namespace Shane32.GraphQL.AspNetCore;
 public static class GraphQLBuilderExtensions
 {
     /// <summary>
-    /// Registers HTTP middleware with the dependency injection framework.
+    /// Registers the default HTTP middleware and WebSockets handler with the dependency injection framework.
     /// </summary>
-    public static IGraphQLBuilder AddHttpMiddleware(this IGraphQLBuilder builder)
-        => AddHttpMiddleware<ISchema>(builder);
+    public static IGraphQLBuilder AddServer(this IGraphQLBuilder builder, Action<GraphQLHttpMiddlewareOptions>? configureMiddleware = null, Action<WebSocketHandlerOptions>? configureWebSockets = null)
+    {
+        AddHttpMiddleware(builder, configureMiddleware);
+        AddWebSocketHandler(builder, configureWebSockets);
+        return builder;
+    }
 
     /// <summary>
-    /// Registers HTTP middleware for the specified schema with the dependency injection framework.
+    /// Registers the default HTTP middleware and WebSockets handler with the dependency injection framework.
     /// </summary>
-    public static IGraphQLBuilder AddHttpMiddleware<TSchema>(this IGraphQLBuilder builder)
-        where TSchema : ISchema
-        => AddHttpMiddleware<TSchema, GraphQLHttpMiddleware<TSchema>>(builder);
+    public static IGraphQLBuilder AddServer(this IGraphQLBuilder builder, Action<GraphQLHttpMiddlewareOptions, IServiceProvider>? configureMiddleware, Action<WebSocketHandlerOptions, IServiceProvider>? configureWebSockets = null)
+    {
+        AddHttpMiddleware(builder, configureMiddleware);
+        AddWebSocketHandler(builder, configureWebSockets);
+        return builder;
+    }
+
+    /// <summary>
+    /// Registers the default HTTP middleware with the dependency injection framework.
+    /// </summary>
+    public static IGraphQLBuilder AddHttpMiddleware(this IGraphQLBuilder builder, Action<GraphQLHttpMiddlewareOptions>? configure = null)
+    {
+        builder.Services.Register(typeof(GraphQLHttpMiddleware<>), typeof(GraphQLHttpMiddleware<>), ServiceLifetime.Singleton);
+        builder.Services.Configure(configure);
+        builder.Services.TryRegister<IHttpContextAccessor, HttpContextAccessor>(ServiceLifetime.Singleton);
+        return builder;
+    }
+
+    /// <summary>
+    /// Registers the default HTTP middleware with the dependency injection framework.
+    /// </summary>
+    public static IGraphQLBuilder AddHttpMiddleware(this IGraphQLBuilder builder, Action<GraphQLHttpMiddlewareOptions, IServiceProvider>? configure)
+    {
+        builder.Services.Register(typeof(GraphQLHttpMiddleware<>), typeof(GraphQLHttpMiddleware<>), ServiceLifetime.Singleton);
+        builder.Services.Configure(configure);
+        builder.Services.TryRegister<IHttpContextAccessor, HttpContextAccessor>(ServiceLifetime.Singleton);
+        return builder;
+    }
 
     /// <summary>
     /// Registers HTTP middleware for the specified schema with the dependency injection framework.
@@ -46,7 +75,7 @@ public static class GraphQLBuilderExtensions
     /// Registers the default WebSocket handler with the dependency injection framework and
     /// configures it with the specified configuration delegate.
     /// </summary>
-    public static IGraphQLBuilder AddWebSocketHandler(this IGraphQLBuilder builder, Action<WebSocketHandlerOptions, IServiceProvider> configure)
+    public static IGraphQLBuilder AddWebSocketHandler(this IGraphQLBuilder builder, Action<WebSocketHandlerOptions, IServiceProvider>? configure)
     {
         builder.Services.Register<IWebSocketHandler, WebSocketHandler>(ServiceLifetime.Singleton);
         builder.Services.Configure(configure);
@@ -71,8 +100,7 @@ public static class GraphQLBuilderExtensions
         where TUserContextBuilder : class, IUserContextBuilder
     {
         builder.Services.Register<IUserContextBuilder, TUserContextBuilder>(serviceLifetime);
-        builder.ConfigureExecutionOptions(async options =>
-        {
+        builder.ConfigureExecutionOptions(async options => {
             if (options.UserContext == null || options.UserContext.Count == 0 && options.UserContext.GetType() == typeof(Dictionary<string, object>)) {
                 var requestServices = options.RequestServices ?? throw new MissingRequestServicesException();
                 var httpContext = requestServices.GetRequiredService<IHttpContextAccessor>().HttpContext!;
@@ -91,8 +119,7 @@ public static class GraphQLBuilderExtensions
         where TUserContext : class, IDictionary<string, object?>
     {
         builder.Services.Register<IUserContextBuilder>(new UserContextBuilder<TUserContext>(creator));
-        builder.ConfigureExecutionOptions(options =>
-        {
+        builder.ConfigureExecutionOptions(options => {
             if (options.UserContext == null || options.UserContext.Count == 0 && options.UserContext.GetType() == typeof(Dictionary<string, object>)) {
                 var requestServices = options.RequestServices ?? throw new MissingRequestServicesException();
                 var httpContext = requestServices.GetRequiredService<IHttpContextAccessor>().HttpContext!;
@@ -110,8 +137,7 @@ public static class GraphQLBuilderExtensions
         where TUserContext : class, IDictionary<string, object?>
     {
         builder.Services.Register<IUserContextBuilder>(new UserContextBuilder<TUserContext>(creator));
-        builder.ConfigureExecutionOptions(async options =>
-        {
+        builder.ConfigureExecutionOptions(async options => {
             if (options.UserContext == null || options.UserContext.Count == 0 && options.UserContext.GetType() == typeof(Dictionary<string, object>)) {
                 var requestServices = options.RequestServices ?? throw new MissingRequestServicesException();
                 var httpContext = requestServices.GetRequiredService<IHttpContextAccessor>().HttpContext!;
