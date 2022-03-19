@@ -14,7 +14,7 @@ public interface IWebSocketHandler
     /// <summary>
     /// Executes a specified WebSocket request, returning once the connection is closed.
     /// </summary>
-    Task ExecuteAsync(HttpContext httpContext, WebSocket webSocket, string subProtocol, IDictionary<string, object?> userContext, CancellationToken cancellationToken);
+    Task ExecuteAsync(HttpContext httpContext, WebSocket webSocket, string subProtocol, IDictionary<string, object?> userContext);
 
     /// <summary>
     /// Gets a list of supported WebSocket sub-protocols.

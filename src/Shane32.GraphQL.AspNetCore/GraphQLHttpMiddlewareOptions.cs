@@ -39,6 +39,14 @@ namespace Shane32.GraphQL.AspNetCore
         public bool BatchedRequestsExecuteInParallel { get; set; } = true;
 
         /// <summary>
+        /// When enabled, GraphQL requests with errors in the repsonse
+        /// have the HTTP status code set to 400 Bad Request.
+        /// <br/><br/>
+        /// Does not apply to batched or WebSocket requests.
+        /// </summary>
+        public bool ExecutionErrorsReturnBadRequest { get; set; } = false;
+
+        /// <summary>
         /// Enables parsing the query string on POST requests.
         /// If enabled, the query string properties override those in the body of the request.
         /// </summary>

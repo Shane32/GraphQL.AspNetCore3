@@ -1,32 +1,17 @@
 namespace Shane32.GraphQL.AspNetCore;
 
-/// <summary>
-/// ASP.NET Core middleware for processing GraphQL requests. Can processes both single and batch requests.
-/// See <see href="https://www.apollographql.com/blog/query-batching-in-apollo-63acfd859862/">Transport-level batching</see>
-/// for more information. This middleware useful with and without ASP.NET Core routing.
-/// <br/><br/>
-/// GraphQL over HTTP <see href="https://github.com/APIs-guru/graphql-over-http">spec</see> says:
-/// GET requests can be used for executing ONLY queries. If the values of query and operationName indicates that
-/// a non-query operation is to be executed, the server should immediately respond with an error status code, and
-/// halt execution.
-/// <br/><br/>
-/// Attention! The current implementation does not impose such a restriction and allows mutations in GET requests.
-/// </summary>
-/// <typeparam name="TSchema">Type of GraphQL schema that is used to validate and process requests.</typeparam>
-public class GraphQLHttpMiddleware<TSchema> : IMiddleware
+/// <inheritdoc/>
+/// <typeparam name="TSchema">
+/// Type of GraphQL schema that is used to validate and process requests.
+/// Specifying <see cref="ISchema"/> will pull the registered default schema.
+/// </typeparam>
+public class GraphQLHttpMiddleware<TSchema> : GraphQLHttpMiddleware
     where TSchema : ISchema
 {
-    private readonly IGraphQLTextSerializer _serializer;
     private readonly IDocumentExecuter _documentExecuter;
     private readonly IEnumerable<IValidationRule> _validationRules;
     private readonly IEnumerable<IValidationRule> _cachedDocumentValidationRules;
-    private readonly IEnumerable<IWebSocketHandler<TSchema>> _webSocketHandlers;
     private readonly IServiceScopeFactory _serviceScopeFactory;
-
-    /// <summary>
-    /// Gets the options configured for this instance.
-    /// </summary>
-    protected GraphQLHttpMiddlewareOptions Options { get; }
 
     /// <summary>
     /// Initializes a new instance.
@@ -38,14 +23,68 @@ public class GraphQLHttpMiddleware<TSchema> : IMiddleware
         IServiceScopeFactory serviceScopeFactory,
         IEnumerable<IWebSocketHandler<TSchema>> webSocketHandlers,
         GraphQLHttpMiddlewareOptions options)
-    {
-        _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
+        : base(serializer, webSocketHandlers, options)
+   {
         _documentExecuter = documentExecuter ?? throw new ArgumentNullException(nameof(documentExecuter));
         var rule = new OperationTypeValidationRule(httpContextAccessor);
         _validationRules = DocumentValidator.CoreRules.Append(rule).ToArray();
         _cachedDocumentValidationRules = new[] { rule };
-        _webSocketHandlers = webSocketHandlers;
         _serviceScopeFactory = serviceScopeFactory;
+    }
+
+    /// <inheritdoc/>
+    protected override async Task<ExecutionResult> ExecuteScopedRequestAsync(HttpContext context, GraphQLRequest request, IDictionary<string, object?> userContext)
+    {
+        using var scope = _serviceScopeFactory.CreateScope();
+        return await ExecuteRequestAsync(context, request, scope.ServiceProvider, userContext);
+    }
+
+    /// <inheritdoc/>
+    protected override async Task<ExecutionResult> ExecuteRequestAsync(HttpContext context, GraphQLRequest request, IServiceProvider serviceProvider, IDictionary<string, object?> userContext)
+        => await _documentExecuter.ExecuteAsync(new ExecutionOptions {
+            Query = request.Query,
+            Variables = request.Variables,
+            Extensions = request.Extensions,
+            CancellationToken = context.RequestAborted,
+            OperationName = request.OperationName,
+            RequestServices = serviceProvider,
+            UserContext = userContext,
+            ValidationRules = _validationRules,
+            CachedDocumentValidationRules = _cachedDocumentValidationRules,
+        });
+}
+
+/// <summary>
+/// ASP.NET Core middleware for processing GraphQL requests. Handles both single and batch requests,
+/// and dispatches WebSocket requests to the registered <see cref="IWebSocketHandler"/>.
+/// </summary>
+public abstract class GraphQLHttpMiddleware : IMiddleware
+{
+    private readonly IGraphQLTextSerializer _serializer;
+    private readonly IEnumerable<IWebSocketHandler> _webSocketHandlers;
+
+    private const string QUERY_KEY = "query";
+    private const string VARIABLES_KEY = "variables";
+    private const string EXTENSIONS_KEY = "extensions";
+    private const string OPERATION_NAME_KEY = "operationName";
+    private const string MEDIATYPE_JSON = "application/json";
+    private const string MEDIATYPE_GRAPHQL = "application/graphql";
+
+    /// <summary>
+    /// Gets the options configured for this instance.
+    /// </summary>
+    protected GraphQLHttpMiddlewareOptions Options { get; }
+
+    /// <summary>
+    /// Initializes a new instance.
+    /// </summary>
+    public GraphQLHttpMiddleware(
+        IGraphQLTextSerializer serializer,
+        IEnumerable<IWebSocketHandler> webSocketHandlers,
+        GraphQLHttpMiddlewareOptions options)
+    {
+        _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
+        _webSocketHandlers = webSocketHandlers;
         Options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
@@ -54,7 +93,7 @@ public class GraphQLHttpMiddleware<TSchema> : IMiddleware
     {
         if (context.WebSockets.IsWebSocketRequest) {
             if (Options.HandleWebSockets)
-                await InvokeWebSocketAsync(context, next);
+                await HandleWebSocketAsync(context, next);
             else
                 await HandleInvalidHttpMethodErrorAsync(context, next);
             return;
@@ -78,17 +117,17 @@ public class GraphQLHttpMiddleware<TSchema> : IMiddleware
         IList<GraphQLRequest>? bodyGQLBatchRequest = null;
         if (isPost) {
             if (!MediaTypeHeaderValue.TryParse(httpRequest.ContentType, out var mediaTypeHeader)) {
-                await HandleContentTypeCouldNotBeParsedErrorAsync(context);
+                await HandleContentTypeCouldNotBeParsedErrorAsync(context, next);
                 return;
             }
 
             switch (mediaTypeHeader.MediaType) {
-                case "application/json":
+                case MEDIATYPE_JSON:
                     IList<GraphQLRequest>? deserializationResult;
                     try {
 #if NET5_0_OR_GREATER
                         if (!TryGetEncoding(mediaTypeHeader.CharSet, out var sourceEncoding)) {
-                            await HandleContentTypeCouldNotBeParsedErrorAsync(context);
+                            await HandleContentTypeCouldNotBeParsedErrorAsync(context, next);
                             return;
                         }
                         // Wrap content stream into a transcoding stream that buffers the data transcoded from the sourceEncoding to utf-8.
@@ -102,7 +141,7 @@ public class GraphQLHttpMiddleware<TSchema> : IMiddleware
                         deserializationResult = await _serializer.ReadAsync<IList<GraphQLRequest>>(httpRequest.Body, context.RequestAborted);
 #endif
                     } catch (Exception ex) {
-                        if (!await HandleDeserializationErrorAsync(context, ex))
+                        if (!await HandleDeserializationErrorAsync(context, next, ex))
                             throw;
                         return;
                     }
@@ -113,7 +152,7 @@ public class GraphQLHttpMiddleware<TSchema> : IMiddleware
                         bodyGQLBatchRequest = deserializationResult;
                     break;
 
-                case "application/graphql":
+                case MEDIATYPE_GRAPHQL:
                     bodyGQLRequest = await DeserializeFromGraphBodyAsync(httpRequest.Body);
                     break;
 
@@ -123,12 +162,12 @@ public class GraphQLHttpMiddleware<TSchema> : IMiddleware
                         try {
                             bodyGQLRequest = DeserializeFromFormBody(formCollection);
                         } catch (Exception ex) {
-                            if (!await HandleDeserializationErrorAsync(context, ex))
+                            if (!await HandleDeserializationErrorAsync(context, next, ex))
                                 throw;
                         }
                         break;
                     }
-                    await HandleInvalidContentTypeErrorAsync(context);
+                    await HandleInvalidContentTypeErrorAsync(context, next);
                     return;
             }
         }
@@ -147,7 +186,7 @@ public class GraphQLHttpMiddleware<TSchema> : IMiddleware
             };
 
             if (string.IsNullOrWhiteSpace(gqlRequest.Query)) {
-                await HandleNoQueryErrorAsync(context);
+                await HandleNoQueryErrorAsync(context, next);
                 return;
             }
 
@@ -155,14 +194,14 @@ public class GraphQLHttpMiddleware<TSchema> : IMiddleware
             await HandleRequestAsync(context, next, gqlRequest);
         }
         else if (Options.EnableBatchedRequests) {
-
+            await HandleBatchRequestAsync(context, next, bodyGQLBatchRequest);
         } else {
-            await HandleBatchedRequestsNotSupportedAsync(context);
+            await HandleBatchedRequestsNotSupportedAsync(context, next);
         }
     }
 
     /// <summary>
-    /// Executes the GraphQL request
+    /// Handles a single GraphQL request.
     /// </summary>
     protected virtual async Task HandleRequestAsync(
         HttpContext context,
@@ -172,11 +211,14 @@ public class GraphQLHttpMiddleware<TSchema> : IMiddleware
         // Normal execution with single graphql request
         var userContext = await BuildUserContextAsync(context);
         var result = await ExecuteRequestAsync(context, gqlRequest, context.RequestServices, userContext);
-        await WriteResponseAsync(context.Response, result, context.RequestAborted);
+        var statusCode = Options.ExecutionErrorsReturnBadRequest && result.Errors?.Count > 0
+            ? HttpStatusCode.BadRequest
+            : HttpStatusCode.OK;
+        await WriteJsonResponseAsync(context, statusCode, result);
     }
 
     /// <summary>
-    /// Executes a batched GraphQL request.
+    /// Handles a batched GraphQL request.
     /// </summary>
     protected virtual async Task HandleBatchRequestAsync(
         HttpContext context,
@@ -205,36 +247,51 @@ public class GraphQLHttpMiddleware<TSchema> : IMiddleware
                 }
             }
         }
-        await WriteResponseAsync(context.Response, results, context.RequestAborted);
+        await WriteJsonResponseAsync(context, HttpStatusCode.OK, results);
     }
 
     /// <summary>
     /// Executes a GraphQL request with a scoped service provider.
+    /// <br/><br/>
+    /// Typically this method should create a service scope and call
+    /// <see cref="ExecuteRequestAsync(HttpContext, GraphQLRequest, IServiceProvider, IDictionary{string, object?})">ExecuteRequestAsync</see>,
+    /// disposing of the scope when the asynchronous operation completes.
     /// </summary>
-    protected virtual async Task<ExecutionResult> ExecuteScopedRequestAsync(HttpContext context, GraphQLRequest request, IDictionary<string, object?> userContext)
-    {
-        using var scope = _serviceScopeFactory.CreateScope();
-        return await ExecuteRequestAsync(context, request, scope.ServiceProvider, userContext);
-    }
+    protected abstract Task<ExecutionResult> ExecuteScopedRequestAsync(HttpContext context, GraphQLRequest request, IDictionary<string, object?> userContext);
 
     /// <summary>
     /// Executes a GraphQL request.
+    /// <br/><br/>
+    /// It is suggested to use the <see cref="OperationTypeValidationRule"/> to ensure that only
+    /// query operations are executed for GET requests, and query or mutation operations for
+    /// POST requests.
+    /// This should be set in both <see cref="ExecutionOptions.ValidationRules"/> and
+    /// <see cref="ExecutionOptions.CachedDocumentValidationRules"/>, as shown below:
+    /// <code>
+    /// var rule = new OperationTypeValidationRule(httpContextAccessor);
+    /// options.ValidationRules = DocumentValidator.CoreRules.Append(rule);
+    /// options.CachedDocumentValidationRules = new[] { rule };
+    /// </code>
     /// </summary>
-    protected virtual async Task<ExecutionResult> ExecuteRequestAsync(HttpContext context, GraphQLRequest request, IServiceProvider serviceProvider, IDictionary<string, object?> userContext)
-        => await _documentExecuter.ExecuteAsync(new ExecutionOptions {
-            Query = request.Query,
-            Variables = request.Variables,
-            Extensions = request.Extensions,
-            CancellationToken = context.RequestAborted,
-            OperationName = request.OperationName,
-            RequestServices = serviceProvider,
-            UserContext = userContext,
-            ValidationRules = _validationRules,
-            CachedDocumentValidationRules = _cachedDocumentValidationRules,
-        });
+    protected abstract Task<ExecutionResult> ExecuteRequestAsync(HttpContext context, GraphQLRequest request, IServiceProvider serviceProvider, IDictionary<string, object?> userContext);
 
     /// <summary>
-    /// Builds the user context.
+    /// Builds the user context based on a <see cref="HttpContext"/>.
+    /// <br/><br/>
+    /// Note that for batch or WebSocket requests, the user context is created once
+    /// and re-used for each GraphQL request or data event that applies to the same
+    /// <see cref="HttpContext"/>.
+    /// <br/><br/>
+    /// To tailor the user context individually for each request, call
+    /// <see cref="global::GraphQL.GraphQLBuilderExtensions.ConfigureExecutionOptions(IGraphQLBuilder, Action{ExecutionOptions})"/>
+    /// to set or modify the user context, pulling the HTTP context from
+    /// <see cref="IHttpContextAccessor"/> via <see cref="ExecutionOptions.RequestServices"/>
+    /// if needed.
+    /// <br/><br/>
+    /// By default this method pulls the registered <see cref="IUserContextBuilder"/>,
+    /// if any, within the service scope and executes it to build the user context.
+    /// In this manner, both scoped and singleton <see cref="IUserContextBuilder"/>
+    /// instances are supported, although singleton instances are recommended.
     /// </summary>
     protected virtual async Task<IDictionary<string, object?>> BuildUserContextAsync(HttpContext context)
     {
@@ -248,25 +305,23 @@ public class GraphQLHttpMiddleware<TSchema> : IMiddleware
     /// <summary>
     /// Writes the specified object (usually a GraphQL response) as JSON to the HTTP response stream.
     /// </summary>
-    protected virtual Task WriteResponseAsync<TResult>(HttpResponse httpResponse, TResult result, CancellationToken cancellationToken)
+    protected virtual Task WriteJsonResponseAsync<TResult>(HttpContext context, HttpStatusCode httpStatusCode, TResult result)
     {
-        httpResponse.ContentType = "application/json";
-        httpResponse.StatusCode = 200; // OK
+        context.Response.ContentType = MEDIATYPE_JSON;
+        context.Response.StatusCode = (int)httpStatusCode;
 
-        return _serializer.WriteAsync(httpResponse.Body, result, cancellationToken);
+        return _serializer.WriteAsync(context.Response.Body, result, context.RequestAborted);
     }
 
     /// <summary>
-    /// Handles a WebSocket request.
+    /// Handles a WebSocket connection request.
     /// </summary>
-    protected virtual async Task InvokeWebSocketAsync(HttpContext context, RequestDelegate next)
+    protected virtual async Task HandleWebSocketAsync(HttpContext context, RequestDelegate next)
     {
         if (_webSocketHandlers == null || !_webSocketHandlers.Any()) {
             await next(context);
             return;
         }
-
-        var cancellationToken = context.RequestAborted;
 
         string selectedProtocol;
         IWebSocketHandler selectedHandler;
@@ -281,7 +336,7 @@ public class GraphQLHttpMiddleware<TSchema> : IMiddleware
             }
         }
 
-        await HandleWebSocketSubProtocolNotSupportedAsync(context);
+        await HandleWebSocketSubProtocolNotSupportedAsync(context, next);
         return;
 
     MatchedHandler:
@@ -291,54 +346,56 @@ public class GraphQLHttpMiddleware<TSchema> : IMiddleware
             await socket.CloseAsync(
                 WebSocketCloseStatus.ProtocolError,
                 $"Invalid sub-protocol; expected '{selectedProtocol}'",
-                cancellationToken);
+                context.RequestAborted);
             return;
         }
 
-        // Prepare context and execute
+        // Prepare user context
         var userContext = await BuildUserContextAsync(context);
         // Connect, then wait until the websocket has disconnected (and all subscriptions ended)
-        await selectedHandler.ExecuteAsync(context, socket, selectedProtocol, userContext, cancellationToken);
+        await selectedHandler.ExecuteAsync(context, socket, selectedProtocol, userContext);
     }
 
     /// <summary>
-    /// Writes a '404 JSON body text could not be parsed.' message to the output
+    /// Writes a '400 JSON body text could not be parsed.' message to the output.
+    /// Return <see langword="false"/> to rethrow the exception or <see langword="true"/>
+    /// if it has been handled.
     /// </summary>
-    protected virtual async ValueTask<bool> HandleDeserializationErrorAsync(HttpContext context, Exception ex)
+    protected virtual async ValueTask<bool> HandleDeserializationErrorAsync(HttpContext context, RequestDelegate next, Exception exception)
     {
-        await WriteErrorResponseAsync(context, $"JSON body text could not be parsed. {ex.Message}", HttpStatusCode.BadRequest);
+        await WriteErrorResponseAsync(context, HttpStatusCode.BadRequest, $"JSON body text could not be parsed. {exception.Message}");
         return true;
     }
 
     /// <summary>
-    /// Writes a '404 Batched requests are not supported.' message to the output
+    /// Writes a '400 Batched requests are not supported.' message to the output.
     /// </summary>
-    protected virtual Task HandleBatchedRequestsNotSupportedAsync(HttpContext context)
-        => WriteErrorResponseAsync(context, "Batched requests are not supported.", HttpStatusCode.BadRequest);
+    protected virtual Task HandleBatchedRequestsNotSupportedAsync(HttpContext context, RequestDelegate next)
+        => WriteErrorResponseAsync(context, HttpStatusCode.BadRequest, "Batched requests are not supported.");
 
     /// <summary>
-    /// Writes a '404 Invalid WebSocket sub-protocol.' message to the output
+    /// Writes a '400 Invalid WebSocket sub-protocol.' message to the output.
     /// </summary>
-    protected virtual Task HandleWebSocketSubProtocolNotSupportedAsync(HttpContext context)
-        => WriteErrorResponseAsync(context, $"Invalid WebSocket sub-protocol(s): {string.Join(",", context.WebSockets.WebSocketRequestedProtocols.Select(x => $"'{x}'"))}", HttpStatusCode.BadRequest);
+    protected virtual Task HandleWebSocketSubProtocolNotSupportedAsync(HttpContext context, RequestDelegate next)
+        => WriteErrorResponseAsync(context, HttpStatusCode.BadRequest, $"Invalid WebSocket sub-protocol(s): {string.Join(",", context.WebSockets.WebSocketRequestedProtocols.Select(x => $"'{x}'"))}");
 
     /// <summary>
-    /// Writes a '404 GraphQL query is missing.' message to the output
+    /// Writes a '400 GraphQL query is missing.' message to the output.
     /// </summary>
-    protected virtual Task HandleNoQueryErrorAsync(HttpContext context)
-        => WriteErrorResponseAsync(context, "GraphQL query is missing.", HttpStatusCode.BadRequest);
+    protected virtual Task HandleNoQueryErrorAsync(HttpContext context, RequestDelegate next)
+        => WriteErrorResponseAsync(context, HttpStatusCode.BadRequest, "GraphQL query is missing.");
 
     /// <summary>
-    /// Writes a '415 Invalid Content-Type header: could not be parsed.' message to the output
+    /// Writes a '415 Invalid Content-Type header: could not be parsed.' message to the output.
     /// </summary>
-    protected virtual Task HandleContentTypeCouldNotBeParsedErrorAsync(HttpContext context)
-        => WriteErrorResponseAsync(context, $"Invalid 'Content-Type' header: value '{context.Request.ContentType}' could not be parsed.", HttpStatusCode.UnsupportedMediaType);
+    protected virtual Task HandleContentTypeCouldNotBeParsedErrorAsync(HttpContext context, RequestDelegate next)
+        => WriteErrorResponseAsync(context, HttpStatusCode.UnsupportedMediaType, $"Invalid 'Content-Type' header: value '{context.Request.ContentType}' could not be parsed.");
 
     /// <summary>
-    /// Writes a '415 Invalid Content-Type header: non-supported type.' message to the output
+    /// Writes a '415 Invalid Content-Type header: non-supported type.' message to the output.
     /// </summary>
-    protected virtual Task HandleInvalidContentTypeErrorAsync(HttpContext context)
-        => WriteErrorResponseAsync(context, $"Invalid 'Content-Type' header: non-supported media type '{context.Request.ContentType}'. Must be 'application/json', 'application/graphql' or a form body.", HttpStatusCode.UnsupportedMediaType);
+    protected virtual Task HandleInvalidContentTypeErrorAsync(HttpContext context, RequestDelegate next)
+        => WriteErrorResponseAsync(context, HttpStatusCode.UnsupportedMediaType, $"Invalid 'Content-Type' header: non-supported media type '{context.Request.ContentType}'. Must be '{MEDIATYPE_JSON}', '{MEDIATYPE_GRAPHQL}' or a form body.");
 
     /// <summary>
     /// Indicates that an unsupported HTTP method was requested.
@@ -354,7 +411,7 @@ public class GraphQLHttpMiddleware<TSchema> : IMiddleware
     /// <summary>
     /// Writes the specified error message as a JSON-formatted GraphQL response, with the specified HTTP status code.
     /// </summary>
-    protected virtual Task WriteErrorResponseAsync(HttpContext context, string errorMessage, HttpStatusCode httpStatusCode)
+    protected virtual Task WriteErrorResponseAsync(HttpContext context, HttpStatusCode httpStatusCode, string errorMessage)
     {
         var result = new ExecutionResult {
             Errors = new ExecutionErrors
@@ -363,16 +420,8 @@ public class GraphQLHttpMiddleware<TSchema> : IMiddleware
             }
         };
 
-        context.Response.ContentType = "application/json";
-        context.Response.StatusCode = (int)httpStatusCode;
-
-        return _serializer.WriteAsync(context.Response.Body, result, context.RequestAborted);
+        return WriteJsonResponseAsync(context, httpStatusCode, result);
     }
-
-    private const string QUERY_KEY = "query";
-    private const string VARIABLES_KEY = "variables";
-    private const string EXTENSIONS_KEY = "extensions";
-    private const string OPERATION_NAME_KEY = "operationName";
 
     private GraphQLRequest DeserializeFromQueryString(IQueryCollection queryCollection) => new GraphQLRequest {
         Query = queryCollection.TryGetValue(QUERY_KEY, out var queryValues) ? queryValues[0] : null!,

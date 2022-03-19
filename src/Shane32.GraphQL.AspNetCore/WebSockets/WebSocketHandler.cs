@@ -21,11 +21,19 @@ public class WebSocketHandler : IWebSocketHandler
     private readonly IGraphQLSerializer _serializer;
     private readonly IDocumentExecuter _executer;
     private readonly IServiceScopeFactory _serviceScopeFactory;
-    private readonly WebSocketHandlerOptions _webSocketHandlerOptions;
 
     private static readonly TimeSpan _defaultConnectionTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan _defaultKeepAliveTimeout = TimeSpan.FromSeconds(25);
     private static readonly TimeSpan _defaultDisconnectionTimeout = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// Gets the configuration options for this instance.
+    /// </summary>
+    protected WebSocketHandlerOptions Options { get; }
+
+    private static readonly IEnumerable<string> _supportedSubProtocols = new List<string>(new[] { "graphql-transport-ws", "graphql-ws" }).AsReadOnly();
+    /// <inheritdoc/>
+    public virtual IEnumerable<string> SupportedSubProtocols => _supportedSubProtocols;
 
     /// <summary>
     /// Initializes a new instance.
@@ -43,15 +51,11 @@ public class WebSocketHandler : IWebSocketHandler
         _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
         _executer = executer ?? throw new ArgumentNullException(nameof(executer));
         _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
-        _webSocketHandlerOptions = webSocketHandlerOptions ?? throw new ArgumentNullException(nameof(webSocketHandlerOptions));
+        Options = webSocketHandlerOptions ?? throw new ArgumentNullException(nameof(webSocketHandlerOptions));
     }
 
-    private static readonly IEnumerable<string> _supportedSubProtocols = new List<string>(new[] { "graphql-transport-ws", "graphql-ws" }).AsReadOnly();
     /// <inheritdoc/>
-    public IEnumerable<string> SupportedSubProtocols => _supportedSubProtocols;
-
-    /// <inheritdoc/>
-    public Task ExecuteAsync(HttpContext httpContext, WebSocket webSocket, string subProtocol, IDictionary<string, object?> userContext, CancellationToken cancellationToken)
+    public virtual async Task ExecuteAsync(HttpContext httpContext, WebSocket webSocket, string subProtocol, IDictionary<string, object?> userContext)
     {
         if (httpContext == null)
             throw new ArgumentNullException(nameof(httpContext));
@@ -59,36 +63,36 @@ public class WebSocketHandler : IWebSocketHandler
             throw new ArgumentNullException(nameof(webSocket));
         if (userContext == null)
             throw new ArgumentNullException(nameof(userContext));
-        var webSocketConnection = new WebSocketConnection(webSocket, _serializer, _webSocketHandlerOptions.DisconnectionTimeout ?? _defaultDisconnectionTimeout, cancellationToken);
-        IOperationMessageReceiveStream? operationMessageReceiveStream = null;
-        try {
-            switch (subProtocol) {
-                case "graphql-transport-ws":
-                    operationMessageReceiveStream = new NewSubscriptionServer(
-                        webSocketConnection,
-                        _webSocketHandlerOptions.ConnectionInitWaitTimeout ?? _defaultConnectionTimeout,
-                        _webSocketHandlerOptions.KeepAliveTimeout ?? _defaultKeepAliveTimeout,
-                        _executer,
-                        _serializer,
-                        _serviceScopeFactory,
-                        userContext);
-                    break;
-                case "graphql-ws":
-                    operationMessageReceiveStream = new OldSubscriptionServer(
-                        webSocketConnection,
-                        _webSocketHandlerOptions.ConnectionInitWaitTimeout ?? _defaultConnectionTimeout,
-                        _webSocketHandlerOptions.KeepAliveTimeout ?? _defaultKeepAliveTimeout,
-                        _executer,
-                        _serializer,
-                        _serviceScopeFactory,
-                        userContext);
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(subProtocol));
-            }
-            return webSocketConnection.ExecuteAsync(operationMessageReceiveStream);
-        } finally {
-            operationMessageReceiveStream?.Dispose();
+        var webSocketConnection = new WebSocketConnection(webSocket, _serializer, Options.DisconnectionTimeout ?? _defaultDisconnectionTimeout, httpContext.RequestAborted);
+        using var operationMessageReceiveStream = CreateSendStream(webSocketConnection, subProtocol, userContext);
+        await webSocketConnection.ExecuteAsync(operationMessageReceiveStream);
+    }
+
+    /// <summary>
+    /// Builds an <see cref="IOperationMessageReceiveStream"/> for the specified sub-protocol.
+    /// </summary>
+    protected virtual IOperationMessageReceiveStream CreateSendStream(IOperationMessageSendStream webSocketConnection, string subProtocol, IDictionary<string, object?> userContext)
+    {
+        switch (subProtocol) {
+            case "graphql-transport-ws":
+                return new NewSubscriptionServer(
+                    webSocketConnection,
+                    Options.ConnectionInitWaitTimeout ?? _defaultConnectionTimeout,
+                    Options.KeepAliveTimeout ?? _defaultKeepAliveTimeout,
+                    _executer,
+                    _serializer,
+                    _serviceScopeFactory,
+                    userContext);
+            case "graphql-ws":
+                return new OldSubscriptionServer(
+                    webSocketConnection,
+                    Options.ConnectionInitWaitTimeout ?? _defaultConnectionTimeout,
+                    Options.KeepAliveTimeout ?? _defaultKeepAliveTimeout,
+                    _executer,
+                    _serializer,
+                    _serviceScopeFactory,
+                    userContext);
         }
+        throw new ArgumentOutOfRangeException(nameof(subProtocol));
     }
 }

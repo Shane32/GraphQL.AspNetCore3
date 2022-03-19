@@ -1,7 +1,7 @@
 namespace Shane32.GraphQL.AspNetCore.WebSockets;
 
 /// <inheritdoc/>
-public class OldSubscriptionServer : OperationMessageServer
+public class OldSubscriptionServer : BaseSubscriptionServer
 {
     /// <summary>
     /// Returns the <see cref="IDocumentExecuter"/> used to execute requests.

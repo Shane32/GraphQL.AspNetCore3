@@ -1,9 +1,9 @@
 namespace Shane32.GraphQL.AspNetCore.WebSockets;
 
 /// <summary>
-/// Manages a WebSocket message stream
+/// Manages a WebSocket message stream.
 /// </summary>
-public abstract class OperationMessageServer : IOperationMessageReceiveStream
+public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
 {
     private volatile int _initialized = 0;
     private CancellationTokenSource? _cancellationTokenSource;
@@ -33,7 +33,7 @@ public abstract class OperationMessageServer : IOperationMessageReceiveStream
     /// <param name="sendStream">The WebSockets stream used to send data packets or close the connection.</param>
     /// <param name="connectionInitWaitTimeout">The amount of time to wait for a connection initialization message before terminating the connection. <see cref="Timeout.InfiniteTimeSpan"/> can be used to disable the timeout.</param>
     /// <param name="keepAliveTimeout">The periodic interval to send keep-alive messages receiving a connection initialization message. <see cref="Timeout.InfiniteTimeSpan"/> can be used to disable the keep-alive signal.</param>
-    public OperationMessageServer(
+    public BaseSubscriptionServer(
         IOperationMessageSendStream sendStream,
         TimeSpan connectionInitWaitTimeout,
         TimeSpan keepAliveTimeout)
@@ -295,11 +295,11 @@ public abstract class OperationMessageServer : IOperationMessageReceiveStream
     /// </summary>
     private class Observer : IObserver<ExecutionResult>
     {
-        private readonly OperationMessageServer _handler;
+        private readonly BaseSubscriptionServer _handler;
         private readonly string _id;
         private int _done;
 
-        public Observer(OperationMessageServer handler, string id)
+        public Observer(BaseSubscriptionServer handler, string id)
         {
             _handler = handler;
             _id = id;
