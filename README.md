@@ -239,13 +239,13 @@ or WebSocket handler.
 |----------|-------------|---------------|
 | `BatchedRequestsExecuteInParallel` | Enables parallel execution of batched GraphQL requests. | True |
 | `EnableBatchedRequests` | Enables handling of batched GraphQL requests for POST requests when formatted as JSON. | True |
-| `ExecutionErrorsReturnBadRequest` | When enabled, GraphQL requests with errors in the repsonse have the HTTP status code set to 400 Bad Request. | False |
 | `HandleGet` | Enables handling of GET requests. | True |
 | `HandlePost` | Enables handling of POST requests. | True |
 | `HandleWebSockets` | Enables handling of WebSockets requests. | True |
 | `ReadExtensionsFromQueryString` | Enables reading extensions from the query string. | False |
 | `ReadQueryStringOnPost` | Enables parsing the query string on POST requests. | False |
 | `ReadVariablesFromQueryString` | Enables reading variables from the query string. | False |
+| `ValidationErrorsReturnBadRequest` | When enabled, GraphQL requests with validation errors have the HTTP status code set to 400 Bad Request. | True |
 
 #### WebSocketHandlerOptions
 

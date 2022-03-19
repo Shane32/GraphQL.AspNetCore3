@@ -211,7 +211,7 @@ public abstract class GraphQLHttpMiddleware : IMiddleware
         // Normal execution with single graphql request
         var userContext = await BuildUserContextAsync(context);
         var result = await ExecuteRequestAsync(context, gqlRequest, context.RequestServices, userContext);
-        var statusCode = Options.ExecutionErrorsReturnBadRequest && result.Errors?.Count > 0
+        var statusCode = Options.ValidationErrorsReturnBadRequest && !result.Executed
             ? HttpStatusCode.BadRequest
             : HttpStatusCode.OK;
         await WriteJsonResponseAsync(context, statusCode, result);
