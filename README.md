@@ -334,11 +334,11 @@ you will need to perform the following:
 1. Derive from `NewSubscriptionServer`and/or `OldSubscriptionServer`, modifying functionality as needed.
 2. Write a handler class that implements `IWebSocketHandler`, or derive from `WebSocketHandler`
    and perform the following:
-     a. If necessary, override the `SupportedSubProtocols` property to return the list of
-        sub-protocols your handler supports.
-     b. Override the `CreateSendStream` method to return your new subscription server class when a
-        request arrives.  If your handler supports multiple sub-protocols, it should return the
-        proper subscription server for the requested sub-protocol.
+   1. If necessary, override the `SupportedSubProtocols` property to return the list of
+      sub-protocols your handler supports.
+   2. Override the `CreateSendStream` method to return your new subscription server class when a
+      request arrives.  If your handler supports multiple sub-protocols, it should return the
+      proper subscription server for the requested sub-protocol.
 3. Register the new WebSocket hander in the DI framework via `.AddWebSocketHandler<T>()`.
 4. If desired, disable the existing WebSocket handler by replacing the call to `.AddServer()`
    with `.AddHttpMiddleware()`, or by removing the call to `.AddWebSocketHandler()`.
