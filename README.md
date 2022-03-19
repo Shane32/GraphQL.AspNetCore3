@@ -184,7 +184,7 @@ To set the user context to be used during the execution of GraphQL requests,
 call `AddUserContextBuilder` during the GraphQL service setup to set a delegate
 which will be called when the user context is built.
 
-#### Program.cs
+#### Program.cs / Startup.cs
 
 ```csharp
 builder.Services.AddGraphQL(b => b
@@ -238,6 +238,8 @@ or WebSocket handler.
 | `HandleGet` | Enables handling of GET requests. | True |
 | `HandlePost` | Enables handling of POST requests. | True |
 | `HandleWebSockets` | Enables handling of WebSockets requests. | True |
+| `EnableBatchedRequests` | Enables handling of batched GraphQL requests for POST requests when formatted as JSON. | True |
+| `BatchedRequestsExecuteInParallel` | Enables parallel execution of batched GraphQL requests. | True |
 | `ReadQueryStringOnPost` | Enables parsing the query string on POST requests. | False |
 | `ReadVariablesFromQueryString` | Enables reading variables from the query string. | False |
 | `ReadExtensionsFromQueryString` | Enables reading extensions from the query string. | False |
@@ -249,3 +251,38 @@ or WebSocket handler.
 | `ConnectionInitWaitTimeout` | The amount of time to wait for a GraphQL initialization packet before the connection is closed. | 10 seconds |
 | `KeepAliveTimeout`          | The amount of time to wait between sending keep-alive packets. | 30 seconds |
 | `DisconnectionTimeout`      | The amount of time to wait to attempt a graceful teardown of the WebSockets protocol. | 10 seconds |
+
+## Additional notes
+
+### Service scope
+
+By default, a dependency injection service scope is created for each GraphQL execution
+in cases where it is possible that multiple GraphQL requests may be executing within the
+same service scope:
+
+1. A batched GraphQL request is executed.
+2. A GraphQL request over a WebSocket connection is executed.
+
+However, field resolvers for child fields of subscription nodes will not by default execute
+with a service scope.  Rather, the `context.RequestServices` property will contain a reference
+to a disposed service scope that cannot be used.
+
+To solve this issue, please configure the scoped subscription execution strategy from the
+GraphQL.MicrosoftDI package as follows:
+
+> Unfortunately this class does not yet exist
+
+For single GET / POST requests, the service scope from the underlying HTTP context is used.
+
+### User context builder
+
+The user context builder interface is executed only once, within the dependency injection
+service scope of the original HTTP request.  For batched requests, the same user context
+instance is passed to each GraphQL execution.  For WebSocket requests, the same user
+context instance is passed to each GraphQL subscription and data event resolver execution.
+
+As such, do not create objects within the user context that rely on having the same
+dependency injection service scope as the field resolvers.  Since WebSocket connections
+are long-lived, using scoped services within a user context builder will result in those
+scoped services having a matching long lifetime.  You may wish to alleviate this by
+creating a service scope temporarily within your user context builder.

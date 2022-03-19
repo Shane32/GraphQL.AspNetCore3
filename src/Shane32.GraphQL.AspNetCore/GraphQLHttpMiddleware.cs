@@ -21,6 +21,7 @@ public class GraphQLHttpMiddleware<TSchema> : IMiddleware
     private readonly IEnumerable<IValidationRule> _validationRules;
     private readonly IEnumerable<IValidationRule> _cachedDocumentValidationRules;
     private readonly IEnumerable<IWebSocketHandler<TSchema>> _webSocketHandlers;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
 
     /// <summary>
     /// Gets the options configured for this instance.
@@ -34,6 +35,7 @@ public class GraphQLHttpMiddleware<TSchema> : IMiddleware
         IGraphQLTextSerializer serializer,
         IDocumentExecuter<TSchema> documentExecuter,
         IHttpContextAccessor httpContextAccessor,
+        IServiceScopeFactory serviceScopeFactory,
         IEnumerable<IWebSocketHandler<TSchema>> webSocketHandlers,
         GraphQLHttpMiddlewareOptions options)
     {
@@ -43,6 +45,7 @@ public class GraphQLHttpMiddleware<TSchema> : IMiddleware
         _validationRules = DocumentValidator.CoreRules.Append(rule).ToArray();
         _cachedDocumentValidationRules = new[] { rule };
         _webSocketHandlers = webSocketHandlers;
+        _serviceScopeFactory = serviceScopeFactory;
         Options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
@@ -130,25 +133,32 @@ public class GraphQLHttpMiddleware<TSchema> : IMiddleware
             }
         }
 
-        // If we don't have a batch request, parse the query from URL too to determine the actual request to run.
-        // Query string params take priority.
-        GraphQLRequest? gqlRequest = null;
-        var urlGQLRequest = isGet || Options.ReadQueryStringOnPost ? DeserializeFromQueryString(httpRequest.Query) : null;
+        if (bodyGQLBatchRequest == null) {
+            // If we don't have a batch request, parse the query from URL too to determine the actual request to run.
+            // Query string params take priority.
+            GraphQLRequest? gqlRequest = null;
+            var urlGQLRequest = isGet || Options.ReadQueryStringOnPost ? DeserializeFromQueryString(httpRequest.Query) : null;
 
-        gqlRequest = new GraphQLRequest {
-            Query = urlGQLRequest?.Query ?? bodyGQLRequest?.Query!,
-            Variables = urlGQLRequest?.Variables ?? bodyGQLRequest?.Variables,
-            Extensions = urlGQLRequest?.Extensions ?? bodyGQLRequest?.Extensions,
-            OperationName = urlGQLRequest?.OperationName ?? bodyGQLRequest?.OperationName
-        };
+            gqlRequest = new GraphQLRequest {
+                Query = urlGQLRequest?.Query ?? bodyGQLRequest?.Query!,
+                Variables = urlGQLRequest?.Variables ?? bodyGQLRequest?.Variables,
+                Extensions = urlGQLRequest?.Extensions ?? bodyGQLRequest?.Extensions,
+                OperationName = urlGQLRequest?.OperationName ?? bodyGQLRequest?.OperationName
+            };
 
-        if (string.IsNullOrWhiteSpace(gqlRequest.Query)) {
-            await HandleNoQueryErrorAsync(context);
-            return;
+            if (string.IsNullOrWhiteSpace(gqlRequest.Query)) {
+                await HandleNoQueryErrorAsync(context);
+                return;
+            }
+
+            // Prepare context and execute
+            await HandleRequestAsync(context, next, gqlRequest);
         }
+        else if (Options.EnableBatchedRequests) {
 
-        // Prepare context and execute
-        await HandleRequestAsync(context, next, gqlRequest);
+        } else {
+            await HandleBatchedRequestsNotSupportedAsync(context);
+        }
     }
 
     /// <summary>
@@ -160,22 +170,65 @@ public class GraphQLHttpMiddleware<TSchema> : IMiddleware
         GraphQLRequest gqlRequest)
     {
         // Normal execution with single graphql request
-        var result = await ExecuteRequestAsync(context, gqlRequest);
+        var userContext = await BuildUserContextAsync(context);
+        var result = await ExecuteRequestAsync(context, gqlRequest, context.RequestServices, userContext);
         await WriteResponseAsync(context.Response, result, context.RequestAborted);
+    }
+
+    /// <summary>
+    /// Executes a batched GraphQL request.
+    /// </summary>
+    protected virtual async Task HandleBatchRequestAsync(
+        HttpContext context,
+        RequestDelegate next,
+        IList<GraphQLRequest> gqlRequests)
+    {
+        var userContext = await BuildUserContextAsync(context);
+        var results = new ExecutionResult[gqlRequests.Count];
+        if (gqlRequests.Count == 1) {
+            results[0] = await ExecuteRequestAsync(context, gqlRequests[0], context.RequestServices, userContext);
+        }
+        else {
+            // Batched execution with multiple graphql requests
+            if (!Options.BatchedRequestsExecuteInParallel) {
+                for (int i = 0; i < gqlRequests.Count; i++) {
+                    results[i] = await ExecuteRequestAsync(context, gqlRequests[i], context.RequestServices, userContext);
+                }
+            } else {
+                var resultTasks = new Task<ExecutionResult>[gqlRequests.Count];
+                for (int i = 0; i < gqlRequests.Count; i++) {
+                    resultTasks[i] = ExecuteScopedRequestAsync(context, gqlRequests[i], userContext);
+                }
+                await Task.WhenAll(resultTasks);
+                for (int i = 0; i < gqlRequests.Count; i++) {
+                    results[i] = await resultTasks[i];
+                }
+            }
+        }
+        await WriteResponseAsync(context.Response, results, context.RequestAborted);
+    }
+
+    /// <summary>
+    /// Executes a GraphQL request with a scoped service provider.
+    /// </summary>
+    protected virtual async Task<ExecutionResult> ExecuteScopedRequestAsync(HttpContext context, GraphQLRequest request, IDictionary<string, object?> userContext)
+    {
+        using var scope = _serviceScopeFactory.CreateScope();
+        return await ExecuteRequestAsync(context, request, scope.ServiceProvider, userContext);
     }
 
     /// <summary>
     /// Executes a GraphQL request.
     /// </summary>
-    protected virtual async Task<ExecutionResult> ExecuteRequestAsync(HttpContext context, GraphQLRequest request)
+    protected virtual async Task<ExecutionResult> ExecuteRequestAsync(HttpContext context, GraphQLRequest request, IServiceProvider serviceProvider, IDictionary<string, object?> userContext)
         => await _documentExecuter.ExecuteAsync(new ExecutionOptions {
             Query = request.Query,
             Variables = request.Variables,
             Extensions = request.Extensions,
             CancellationToken = context.RequestAborted,
             OperationName = request.OperationName,
-            RequestServices = context.RequestServices,
-            UserContext = await BuildUserContextAsync(context),
+            RequestServices = serviceProvider,
+            UserContext = userContext,
             ValidationRules = _validationRules,
             CachedDocumentValidationRules = _cachedDocumentValidationRules,
         });
@@ -256,6 +309,12 @@ public class GraphQLHttpMiddleware<TSchema> : IMiddleware
         await WriteErrorResponseAsync(context, $"JSON body text could not be parsed. {ex.Message}", HttpStatusCode.BadRequest);
         return true;
     }
+
+    /// <summary>
+    /// Writes a '404 Batched requests are not supported.' message to the output
+    /// </summary>
+    protected virtual Task HandleBatchedRequestsNotSupportedAsync(HttpContext context)
+        => WriteErrorResponseAsync(context, "Batched requests are not supported.", HttpStatusCode.BadRequest);
 
     /// <summary>
     /// Writes a '404 Invalid WebSocket sub-protocol.' message to the output

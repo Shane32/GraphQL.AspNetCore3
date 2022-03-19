@@ -29,6 +29,16 @@ namespace Shane32.GraphQL.AspNetCore
         public bool HandleWebSockets { get; set; } = true;
 
         /// <summary>
+        /// Enables handling of batched GraphQL requests for POST requests when formatted as JSON.
+        /// </summary>
+        public bool EnableBatchedRequests { get; set; } = true;
+
+        /// <summary>
+        /// Enables parallel execution of batched GraphQL requests.
+        /// </summary>
+        public bool BatchedRequestsExecuteInParallel { get; set; } = true;
+
+        /// <summary>
         /// Enables parsing the query string on POST requests.
         /// If enabled, the query string properties override those in the body of the request.
         /// </summary>
