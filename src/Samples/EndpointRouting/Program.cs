@@ -21,5 +21,11 @@ app.UseWebSockets();
 app.UseGraphQL("/graphql");
 // configure GraphiQL at "/"
 app.UseGraphQLPlayground(new GraphQL.Server.Ui.Playground.PlaygroundOptions { GraphQLEndPoint = new PathString("/graphql") }, "/");
-
+//app.UseRouting();
+//app.UseEndpoints(endpoints =>
+//{
+//    endpoints.MapControllerRoute(
+//        name: "default",
+//        pattern: "{controller=Home}/{action=Index}/{id?}");
+//});
 await app.RunAsync();

@@ -22,10 +22,6 @@ public class WebSocketHandler : IWebSocketHandler
     private readonly IDocumentExecuter _executer;
     private readonly IServiceScopeFactory _serviceScopeFactory;
 
-    private static readonly TimeSpan _defaultConnectionTimeout = TimeSpan.FromSeconds(10);
-    private static readonly TimeSpan _defaultKeepAliveTimeout = TimeSpan.FromSeconds(25);
-    private static readonly TimeSpan _defaultDisconnectionTimeout = TimeSpan.FromSeconds(10);
-
     /// <summary>
     /// Gets the configuration options for this instance.
     /// </summary>
@@ -64,7 +60,7 @@ public class WebSocketHandler : IWebSocketHandler
         if (userContext == null)
             throw new ArgumentNullException(nameof(userContext));
         System.Diagnostics.Debug.WriteLine($"WebSocket connection over protocol {subProtocol}");
-        var webSocketConnection = new WebSocketConnection(webSocket, _serializer, Options.DisconnectionTimeout ?? _defaultDisconnectionTimeout, httpContext.RequestAborted);
+        var webSocketConnection = new WebSocketConnection(webSocket, _serializer, Options, httpContext.RequestAborted);
         using var operationMessageReceiveStream = CreateSendStream(webSocketConnection, subProtocol, userContext);
         System.Diagnostics.Debug.WriteLine($"Starting WebSocket connection message handler");
         await webSocketConnection.ExecuteAsync(operationMessageReceiveStream);
@@ -80,8 +76,7 @@ public class WebSocketHandler : IWebSocketHandler
             case "graphql-transport-ws":
                 return new NewSubscriptionServer(
                     webSocketConnection,
-                    Options.ConnectionInitWaitTimeout ?? _defaultConnectionTimeout,
-                    Options.KeepAliveTimeout ?? _defaultKeepAliveTimeout,
+                    Options,
                     _executer,
                     _serializer,
                     _serviceScopeFactory,
@@ -89,8 +84,7 @@ public class WebSocketHandler : IWebSocketHandler
             case "graphql-ws":
                 return new OldSubscriptionServer(
                     webSocketConnection,
-                    Options.ConnectionInitWaitTimeout ?? _defaultConnectionTimeout,
-                    Options.KeepAliveTimeout ?? _defaultKeepAliveTimeout,
+                    Options,
                     _executer,
                     _serializer,
                     _serviceScopeFactory,

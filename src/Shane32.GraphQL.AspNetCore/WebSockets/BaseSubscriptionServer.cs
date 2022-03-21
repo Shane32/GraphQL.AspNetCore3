@@ -214,7 +214,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
                 // do not return a result, but set up a subscription
                 var stream = subscriptionExecutionResult.Streams!.Single().Value;
                 // note that this may immediately trigger some notifications
-                var disposer = stream.Subscribe(new Observer(this, message.Id));
+                var disposer = stream.Subscribe(new Observer(this, message.Id, _options.DisconnectAfterErrorEvent, _options.DisconnectAfterAnyError));
                 try {
                     if (Subscriptions.CompareExchange(message.Id, dummyDisposer, disposer)) {
                         disposer = null;
