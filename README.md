@@ -388,3 +388,19 @@ dependency injection service scope as the field resolvers.  Since WebSocket conn
 are long-lived, using scoped services within a user context builder will result in those
 scoped services having a matching long lifetime.  You may wish to alleviate this by
 creating a service scope temporarily within your user context builder.
+
+## Samples
+
+The following samples are provided to show how to integrate this project with various
+typical ASP.Net Core scenarios.
+
+| Sample project          | Description |
+|-------------------------|-------------|
+| `BasicSample`           | Demonstrates the minimum required setup for a HTTP GraphQL server. |
+| `Chat`                  | A basic schema common to all samples; demonstrates queries, mutations and subscriptions. |
+| `ControllerSample`      | Demonstrates using a controller action to serve GraphQL requests; does not support subscriptions. |
+| `EndpointRoutingSample` | Demonstrates configuring GraphQL endpoints through endpoint routing. |
+| `MultipleSchema`        | Demonstrates multiple GraphQL endpoints served through a single project. |
+| `PagesSample`           | Demonstrates configuring GraphQL within a ASP.Net Core Pages project. |
+
+todo: multiple schema sample
