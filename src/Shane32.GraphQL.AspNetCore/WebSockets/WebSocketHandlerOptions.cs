@@ -13,7 +13,12 @@ public class WebSocketHandlerOptions
 
     /// <summary>
     /// The amount of time to wait between sending keep-alive packets.
-    /// The default is 30 seconds.
+    /// The default is disabled.
+    /// <br/><br/>
+    /// Keep in mind that the 'subscription-transport-ws' implementation typically
+    /// disconnects clients if a keep-alive packet for more than 20 seconds, when
+    /// keep-alive packets are enabled, so it is recommended to keep the keep-alive
+    /// packets disabled or use a value less than 20 seconds.
     /// </summary>
     public TimeSpan? KeepAliveTimeout { get; set; }
 

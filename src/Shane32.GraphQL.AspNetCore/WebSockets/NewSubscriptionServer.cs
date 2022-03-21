@@ -52,11 +52,13 @@ public class NewSubscriptionServer : BaseSubscriptionServer
     {
         if (message.Type == NewMessageType.GQL_PING) {
             await OnPing(message);
+        } else if (message.Type == NewMessageType.GQL_PONG) {
+            await OnPong(message);
         } else if (message.Type == NewMessageType.GQL_CONNECTION_INIT) {
             if (!TryInitialize()) {
                 await ErrorTooManyInitializationRequestsAsync();
             } else {
-                await OnConnectionInitAsync(message);
+                await OnConnectionInitAsync(message, true);
             }
             return;
         }
@@ -77,17 +79,27 @@ public class NewSubscriptionServer : BaseSubscriptionServer
         }
     }
 
+    /// <summary>
+    /// GQL_PONG is a requrired response to a ping, and also a unidirectional keep-alive packet,
+    /// whereas GQL_PING is a bidirectional keep-alive packet.
+    /// </summary>
     private static readonly OperationMessage _pongMessage = new() { Type = NewMessageType.GQL_PONG };
+
     /// <summary>
     /// Executes when a ping message is received.
     /// </summary>
     protected virtual Task OnPing(OperationMessage message)
         => Client.SendMessageAsync(_pongMessage);
 
-    private static readonly OperationMessage _keepAliveMessage = new() { Type = NewMessageType.GQL_PING };
+    /// <summary>
+    /// Executes when a pong message is received.
+    /// </summary>
+    protected virtual Task OnPong(OperationMessage message)
+        => Task.CompletedTask;
+
     /// <inheritdoc/>
     protected override Task OnSendKeepAliveAsync()
-        => Client.SendMessageAsync(_keepAliveMessage);
+        => Client.SendMessageAsync(_pongMessage);
 
     private static readonly OperationMessage _connectionAckMessage = new() { Type = NewMessageType.GQL_CONNECTION_ACK };
     /// <inheritdoc/>

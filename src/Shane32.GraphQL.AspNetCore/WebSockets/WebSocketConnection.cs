@@ -28,6 +28,9 @@ public class WebSocketConnection : IOperationMessageSendStream
 
     private static readonly TimeSpan _defaultDisconnectionTimeout = TimeSpan.FromSeconds(10);
 
+    /// <inheritdoc/>
+    public DateTime LastMessageSentAt { get; private set; } = DateTime.UtcNow;
+
     /// <summary>
     /// Initializes an instance with the specified parameters.
     /// </summary>
@@ -147,6 +150,7 @@ public class WebSocketConnection : IOperationMessageSendStream
     {
         if (_outputClosed.Task.IsCompleted)
             return;
+        LastMessageSentAt = DateTime.UtcNow;
         if (message.OperationMessage != null) {
             await _serializer.WriteAsync(_stream, message.OperationMessage, _cancellationToken);
             await _stream.FlushAsync(_cancellationToken);

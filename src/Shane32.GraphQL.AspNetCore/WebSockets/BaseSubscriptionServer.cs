@@ -26,7 +26,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
     /// </summary>
     protected SubscriptionList Subscriptions { get; }
 
-    private static readonly TimeSpan _defaultKeepAliveTimeout = TimeSpan.FromSeconds(25);
+    private static readonly TimeSpan _defaultKeepAliveTimeout = Timeout.InfiniteTimeSpan;
     private static readonly TimeSpan _defaultConnectionTimeout = TimeSpan.FromSeconds(10);
 
     /// <summary>
@@ -58,7 +58,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
     {
         var connectInitWaitTimeout = _options.ConnectionInitWaitTimeout ?? _defaultConnectionTimeout;
         if (connectInitWaitTimeout != Timeout.InfiniteTimeSpan) {
-            Task.Run(async () => {
+            _ = Task.Run(async () => {
                 await Task.Delay(connectInitWaitTimeout, CancellationToken);
                 if (_initialized == 0)
                     await OnConnectionInitWaitTimeoutAsync();
@@ -158,19 +158,55 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
     /// Executes when the client is attempting to initalize the connection.
     /// By default this acknowledges the connection via <see cref="OnConnectionAcknowledgeAsync(OperationMessage)"/>
     /// and then starts sending keep-alive messages via <see cref="OnSendKeepAliveAsync"/> if configured to do so.
+    /// Keep-alive messages are only sent if no messages have been sent over the WebSockets connection for the
+    /// length of time configured in <see cref="WebSocketHandlerOptions.KeepAliveTimeout"/>.
     /// </summary>
-    protected virtual async Task OnConnectionInitAsync(OperationMessage message)
+    protected virtual async Task OnConnectionInitAsync(OperationMessage message, bool smartKeepAlive)
     {
         await OnConnectionAcknowledgeAsync(message);
 
         var keepAliveTimeout = _options.KeepAliveTimeout ?? _defaultKeepAliveTimeout;
         if (keepAliveTimeout > TimeSpan.Zero) {
-            _ = Task.Run(async () => {
-                while (true) {
-                    await Task.Delay(keepAliveTimeout, CancellationToken);
+            if (smartKeepAlive)
+                _ = StartSmartKeepAliveLoopAsync();
+            else
+                _ = StartKeepAliveLoopAsync();
+        }
+
+        async Task StartKeepAliveLoopAsync()
+        {
+            var keepAliveTimeout = _options.KeepAliveTimeout ?? _defaultKeepAliveTimeout;
+            while (true) {
+                await Task.Delay(keepAliveTimeout, CancellationToken);
+                await OnSendKeepAliveAsync();
+            }
+        }
+
+        /*
+         * This 'smart' keep-alive logic doesn't work with subscription-transport-ws because the client will
+         * terminate a connection 20 seconds after the last keep-alive was received (or it will never
+         * terminate if no keep-alive was ever received).
+         * 
+         * See: https://github.com/graphql/graphql-playground/issues/1247
+         */
+        async Task StartSmartKeepAliveLoopAsync()
+        {
+            var keepAliveTimeout = _options.KeepAliveTimeout ?? _defaultKeepAliveTimeout;
+            var lastKeepAliveSent = Client.LastMessageSentAt;
+            while (true) {
+                var lastSent = Client.LastMessageSentAt;
+                var lastComm = lastKeepAliveSent > lastSent ? lastKeepAliveSent : lastSent;
+                var now = DateTime.UtcNow;
+                var timePassed = now.Subtract(lastComm);
+                if (timePassed > keepAliveTimeout) {
                     await OnSendKeepAliveAsync();
+                    lastKeepAliveSent = now;
+                    await Task.Delay(keepAliveTimeout, CancellationToken);
+                } else if (timePassed < keepAliveTimeout) {
+                    var timeToWait = keepAliveTimeout - timePassed;
+                    await Task.Delay(timeToWait, CancellationToken);
                 }
-            });
+            }
         }
     }
 
@@ -339,8 +375,11 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
                     }
                 }
             } catch { }
-            if (_closeAfterOnError)
-                await _handler.SendCompletedAsync(_id);
+            try {
+                if (_closeAfterOnError)
+                    await _handler.SendCompletedAsync(_id);
+            }
+            catch { }
         }
 
         public async void OnNext(ExecutionResult value)

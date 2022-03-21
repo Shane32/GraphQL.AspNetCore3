@@ -19,4 +19,9 @@ public interface IOperationMessageSendStream
     /// Closes the WebSocket connection with the specified error information.
     /// </summary>
     Task CloseConnectionAsync(int eventId, string? description);
+
+    /// <summary>
+    /// Returns the last UTC time that a message was sent.
+    /// </summary>
+    DateTime LastMessageSentAt { get; }
 }

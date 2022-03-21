@@ -57,7 +57,7 @@ public class OldSubscriptionServer : BaseSubscriptionServer
             if (!TryInitialize()) {
                 await ErrorTooManyInitializationRequestsAsync();
             } else {
-                await OnConnectionInitAsync(message);
+                await OnConnectionInitAsync(message, false);
             }
             return;
         }
