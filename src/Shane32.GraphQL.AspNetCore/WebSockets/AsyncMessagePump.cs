@@ -65,18 +65,14 @@ internal class AsyncMessagePump<T>
         }
 
         if (attach) {
-            if (messageTask.IsCompleted) {
-                _ = CompleteAsync();
-            } else {
-                _ = messageTask.ContinueWith(_ => CompleteAsync());
-            }
+            CompleteAsync();
         }
     }
 
     /// <summary>
     /// Processes message in the queue until it is empty.
     /// </summary>
-    private async Task CompleteAsync()
+    private async void CompleteAsync()
     {
         // grab the message at the start of the queue, but don't remove it from the queue
         Task<T> messageTask;
@@ -100,9 +96,8 @@ internal class AsyncMessagePump<T>
                 _ = _queue.Dequeue();
                 // if the queue is empty, immedately quit the loop, as any new
                 // events queued will start CompleteAsync
-                if (_queue.Count == 0)
+                if (!_queue.TryPeek(out messageTask!))
                     return;
-                messageTask = _queue.Peek();
             }
         }
     }
@@ -111,5 +106,5 @@ internal class AsyncMessagePump<T>
     /// Handles exceptions that occur within the asynchronous message delegate or the callback.
     /// </summary>
     protected virtual Task HandleErrorAsync(Exception exception)
-            => Task.CompletedTask;
+        => Task.CompletedTask;
 }

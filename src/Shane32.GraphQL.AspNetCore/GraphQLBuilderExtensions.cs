@@ -66,7 +66,7 @@ public static class GraphQLBuilderExtensions
     /// </summary>
     public static IGraphQLBuilder AddWebSocketHandler(this IGraphQLBuilder builder, Action<WebSocketHandlerOptions>? configure = null)
     {
-        builder.Services.Register<IWebSocketHandler, WebSocketHandler>(ServiceLifetime.Singleton);
+        builder.Services.Register(typeof(IWebSocketHandler<>), typeof(WebSocketHandler<>), ServiceLifetime.Singleton);
         builder.Services.Configure(configure);
         return builder;
     }

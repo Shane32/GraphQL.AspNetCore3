@@ -27,21 +27,19 @@ public class OldSubscriptionServer : BaseSubscriptionServer
     /// Initailizes a new instance with the specified parameters.
     /// </summary>
     /// <param name="sendStream">The WebSockets stream used to send data packets or close the connection.</param>
-    /// <param name="connectionInitWaitTimeout">The amount of time to wait for a <see cref="OldMessageType.GQL_CONNECTION_INIT"/> message before terminating the connection. <see cref="Timeout.InfiniteTimeSpan"/> can be used to disable the timeout.</param>
-    /// <param name="keepAliveTimeout">The periodic interval to send <see cref="OldMessageType.GQL_CONNECTION_KEEP_ALIVE"/> messages after sending a <see cref="OldMessageType.GQL_CONNECTION_ACK"/>. <see cref="Timeout.InfiniteTimeSpan"/> can be used to disable the keep-alive signal.</param>
+    /// <param name="options">Configuration options for this instance.</param>
     /// <param name="executer">The <see cref="IDocumentExecuter"/> to use to execute GraphQL requests.</param>
     /// <param name="serializer">The <see cref="IGraphQLSerializer"/> to use to deserialize payloads stored within <see cref="OperationMessage.Payload"/>.</param>
     /// <param name="serviceScopeFactory">A <see cref="IServiceScopeFactory"/> to create service scopes for execution of GraphQL requests.</param>
     /// <param name="userContext">The user context to pass to the <see cref="IDocumentExecuter"/>.</param>
     public OldSubscriptionServer(
         IOperationMessageSendStream sendStream,
-        TimeSpan connectionInitWaitTimeout,
-        TimeSpan keepAliveTimeout,
+        WebSocketHandlerOptions options,
         IDocumentExecuter executer,
         IGraphQLSerializer serializer,
         IServiceScopeFactory serviceScopeFactory,
         IDictionary<string, object?> userContext)
-        : base(sendStream, connectionInitWaitTimeout, keepAliveTimeout)
+        : base(sendStream, options)
     {
         DocumentExecuter = executer ?? throw new ArgumentNullException(nameof(executer));
         ServiceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));

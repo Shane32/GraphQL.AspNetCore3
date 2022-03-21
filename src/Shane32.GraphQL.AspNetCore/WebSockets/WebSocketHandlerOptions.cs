@@ -22,4 +22,15 @@ public class WebSocketHandlerOptions
     /// The default is 10 seconds.
     /// </summary>
     public TimeSpan? DisconnectionTimeout { get; set; }
+
+    /// <summary>
+    /// Disconnects a subscription from the client if the subscription source dispatches an
+    /// <see cref="IObserver{T}.OnError(Exception)"/> event.
+    /// </summary>
+    public bool DisconnectAfterErrorEvent { get; set; } = true;
+
+    /// <summary>
+    /// Disconnects a subscription from the client there are any GraphQL errors during a subscription.
+    /// </summary>
+    public bool DisconnectAfterAnyError { get; set; } = false;
 }

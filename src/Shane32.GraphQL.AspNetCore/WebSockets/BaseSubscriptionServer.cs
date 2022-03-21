@@ -7,8 +7,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
 {
     private volatile int _initialized = 0;
     private CancellationTokenSource? _cancellationTokenSource;
-    private readonly TimeSpan _keepAliveTimeout;
-    private readonly TimeSpan _connectionInitWaitTimeout;
+    private readonly WebSocketHandlerOptions _options;
 
     /// <summary>
     /// Returns a <see cref="IOperationMessageSendStream"/> instance that can be used
@@ -27,35 +26,40 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
     /// </summary>
     protected SubscriptionList Subscriptions { get; }
 
+    private static readonly TimeSpan _defaultKeepAliveTimeout = TimeSpan.FromSeconds(25);
+    private static readonly TimeSpan _defaultConnectionTimeout = TimeSpan.FromSeconds(10);
+
     /// <summary>
     /// Initailizes a new instance with the specified parameters.
     /// </summary>
     /// <param name="sendStream">The WebSockets stream used to send data packets or close the connection.</param>
-    /// <param name="connectionInitWaitTimeout">The amount of time to wait for a connection initialization message before terminating the connection. <see cref="Timeout.InfiniteTimeSpan"/> can be used to disable the timeout.</param>
-    /// <param name="keepAliveTimeout">The periodic interval to send keep-alive messages receiving a connection initialization message. <see cref="Timeout.InfiniteTimeSpan"/> can be used to disable the keep-alive signal.</param>
+    /// <param name="options">Configuration options for this instance</param>
     public BaseSubscriptionServer(
         IOperationMessageSendStream sendStream,
-        TimeSpan connectionInitWaitTimeout,
-        TimeSpan keepAliveTimeout)
+        WebSocketHandlerOptions options)
     {
-        if (connectionInitWaitTimeout != Timeout.InfiniteTimeSpan && connectionInitWaitTimeout <= TimeSpan.Zero)
-            throw new ArgumentOutOfRangeException(nameof(connectionInitWaitTimeout));
-        if (keepAliveTimeout != Timeout.InfiniteTimeSpan && keepAliveTimeout <= TimeSpan.Zero)
-            throw new ArgumentOutOfRangeException(nameof(keepAliveTimeout));
+        if (options.ConnectionInitWaitTimeout.HasValue) {
+            if (options.ConnectionInitWaitTimeout.Value != Timeout.InfiniteTimeSpan && options.ConnectionInitWaitTimeout.Value <= TimeSpan.Zero || options.ConnectionInitWaitTimeout.Value > TimeSpan.FromSeconds(int.MaxValue))
+                throw new ArgumentOutOfRangeException(nameof(options) + "." + nameof(WebSocketHandlerOptions.ConnectionInitWaitTimeout));
+        }
+        if (options.KeepAliveTimeout.HasValue) {
+            if (options.KeepAliveTimeout.Value != Timeout.InfiniteTimeSpan && options.KeepAliveTimeout.Value <= TimeSpan.Zero || options.KeepAliveTimeout.Value > TimeSpan.FromSeconds(int.MaxValue))
+                throw new ArgumentOutOfRangeException(nameof(options) + "." + nameof(WebSocketHandlerOptions.KeepAliveTimeout));
+        }
+        _options = options;
         Client = sendStream ?? throw new ArgumentNullException(nameof(sendStream));
         _cancellationTokenSource = new();
         CancellationToken = _cancellationTokenSource.Token;
         Subscriptions = new(CancellationToken);
-        _keepAliveTimeout = keepAliveTimeout;
-        _connectionInitWaitTimeout = connectionInitWaitTimeout;
     }
 
     /// <inheritdoc/>
     public void StartConnectionInitTimer()
     {
-        if (_connectionInitWaitTimeout != Timeout.InfiniteTimeSpan) {
+        var connectInitWaitTimeout = _options.ConnectionInitWaitTimeout ?? _defaultConnectionTimeout;
+        if (connectInitWaitTimeout != Timeout.InfiniteTimeSpan) {
             Task.Run(async () => {
-                await Task.Delay(_connectionInitWaitTimeout, CancellationToken);
+                await Task.Delay(connectInitWaitTimeout, CancellationToken);
                 if (_initialized == 0)
                     await OnConnectionInitWaitTimeoutAsync();
             });
@@ -158,10 +162,12 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
     protected virtual async Task OnConnectionInitAsync(OperationMessage message)
     {
         await OnConnectionAcknowledgeAsync(message);
-        if (_keepAliveTimeout > TimeSpan.Zero) {
+
+        var keepAliveTimeout = _options.KeepAliveTimeout ?? _defaultKeepAliveTimeout;
+        if (keepAliveTimeout > TimeSpan.Zero) {
             _ = Task.Run(async () => {
                 while (true) {
-                    await Task.Delay(_keepAliveTimeout, CancellationToken);
+                    await Task.Delay(keepAliveTimeout, CancellationToken);
                     await OnSendKeepAliveAsync();
                 }
             });
@@ -297,12 +303,16 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
     {
         private readonly BaseSubscriptionServer _handler;
         private readonly string _id;
+        private readonly bool _closeAfterOnError;
+        private readonly bool _closeAfterAnyError;
         private int _done;
 
-        public Observer(BaseSubscriptionServer handler, string id)
+        public Observer(BaseSubscriptionServer handler, string id, bool closeAfterOnError, bool closeAfterAnyError)
         {
             _handler = handler;
             _id = id;
+            _closeAfterOnError = closeAfterOnError;
+            _closeAfterAnyError = closeAfterAnyError;
         }
 
         public void OnCompleted()
@@ -329,17 +339,21 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
                     }
                 }
             } catch { }
-            await _handler.SendCompletedAsync(_id);
+            if (_closeAfterOnError)
+                await _handler.SendCompletedAsync(_id);
         }
 
-        public void OnNext(ExecutionResult value)
+        public async void OnNext(ExecutionResult value)
         {
-            if (Interlocked.CompareExchange(ref _done, 0, 0) == 0)
+            if (Interlocked.CompareExchange(ref _done, 0, 0) == 1)
                 return;
             if (value == null)
                 return;
             try {
-                _ = _handler.SendDataAsync(_id, value);
+                await _handler.SendDataAsync(_id, value);
+                if (_closeAfterAnyError && value.Errors != null && value.Errors.Count > 0) {
+                    await _handler.SendCompletedAsync(_id);
+                }
             } catch { }
         }
     }

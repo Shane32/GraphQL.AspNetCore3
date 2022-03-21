@@ -19,6 +19,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <ImplicitUsings>true</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,6 +29,8 @@
     <Using Include="System"/>
     <Using Include="System.Threading"/>
     <Using Include="System.Threading.Tasks"/>
+    <Using Include="GraphQL"/>
+    <Using Include="GraphQL.Types"/>
   </ItemGroup>
 
 </Project>

@@ -26,7 +26,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Workflows", "Workflows", "{
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Shane32.GraphQL.AspNetCore", "src\Shane32.GraphQL.AspNetCore\Shane32.GraphQL.AspNetCore.csproj", "{9EFA5D98-FB38-4201-A274-CB963905ED9C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SampleServer", "SampleServer\SampleServer.csproj", "{69E17B0E-8F5D-406C-945F-D2651EBB2FAF}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Samples", "Samples", "{BBF05360-8AE2-4615-847F-DF1A5ECF0B73}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Typical", "src\Samples\Typical\Typical.csproj", "{C3311D3E-F520-4C87-B823-F531E142EFDE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Chat", "src\Samples\ChatSchema\Chat.csproj", "{FDF204CE-B7C6-48A1-9B38-BA9301B669DA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -42,13 +46,21 @@ Global
 		{9EFA5D98-FB38-4201-A274-CB963905ED9C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9EFA5D98-FB38-4201-A274-CB963905ED9C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9EFA5D98-FB38-4201-A274-CB963905ED9C}.Release|Any CPU.Build.0 = Release|Any CPU
-		{69E17B0E-8F5D-406C-945F-D2651EBB2FAF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{69E17B0E-8F5D-406C-945F-D2651EBB2FAF}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{69E17B0E-8F5D-406C-945F-D2651EBB2FAF}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{69E17B0E-8F5D-406C-945F-D2651EBB2FAF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C3311D3E-F520-4C87-B823-F531E142EFDE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C3311D3E-F520-4C87-B823-F531E142EFDE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C3311D3E-F520-4C87-B823-F531E142EFDE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C3311D3E-F520-4C87-B823-F531E142EFDE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FDF204CE-B7C6-48A1-9B38-BA9301B669DA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FDF204CE-B7C6-48A1-9B38-BA9301B669DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FDF204CE-B7C6-48A1-9B38-BA9301B669DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FDF204CE-B7C6-48A1-9B38-BA9301B669DA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{C3311D3E-F520-4C87-B823-F531E142EFDE} = {BBF05360-8AE2-4615-847F-DF1A5ECF0B73}
+		{FDF204CE-B7C6-48A1-9B38-BA9301B669DA} = {BBF05360-8AE2-4615-847F-DF1A5ECF0B73}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {2F4CB57B-6B6A-4D65-A801-402A4312D4A8}

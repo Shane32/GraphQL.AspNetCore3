@@ -26,14 +26,18 @@ public class WebSocketConnection : IOperationMessageSendStream
     private readonly int _closeTimeoutMs;
     private int _executed;
 
+    private static readonly TimeSpan _defaultDisconnectionTimeout = TimeSpan.FromSeconds(10);
+
     /// <summary>
     /// Initializes an instance with the specified parameters.
     /// </summary>
-    public WebSocketConnection(WebSocket webSocket, IGraphQLSerializer serializer, TimeSpan closeTimeout, CancellationToken cancellationToken)
+    public WebSocketConnection(WebSocket webSocket, IGraphQLSerializer serializer, WebSocketHandlerOptions options, CancellationToken cancellationToken)
     {
-        if (closeTimeout.TotalMilliseconds < -1 || closeTimeout.TotalMilliseconds > int.MaxValue)
-            throw new ArgumentOutOfRangeException(nameof(closeTimeout));
-        _closeTimeoutMs = (int)closeTimeout.TotalMilliseconds;
+        if (options.DisconnectionTimeout.HasValue) {
+            if (options.DisconnectionTimeout.Value.TotalMilliseconds < -1 || options.DisconnectionTimeout.Value.TotalMilliseconds > int.MaxValue)
+                throw new ArgumentOutOfRangeException(nameof(options) + "." + nameof(WebSocketHandlerOptions.DisconnectionTimeout));
+        }
+        _closeTimeoutMs = (int)(options.DisconnectionTimeout ?? _defaultDisconnectionTimeout).TotalMilliseconds;
         _webSocket = webSocket ?? throw new ArgumentNullException(nameof(webSocket));
         _stream = new(webSocket);
         _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
@@ -59,8 +63,6 @@ public class WebSocketConnection : IOperationMessageSendStream
             byte[] buffer = new byte[16384];
             // prep a Memory instance pointing to the block
             var bufferMemory = new Memory<byte>(buffer);
-            // prep a MemoryStream instance pointing to the block
-            var bufferStream = new MemoryStream(buffer, false);
             // read messages until an exception occurs, the cancellation token is signaled, or a 'close' message is received
             while (true) {
                 var result = await _webSocket.ReceiveAsync(bufferMemory, _cancellationToken);
@@ -87,9 +89,10 @@ public class WebSocketConnection : IOperationMessageSendStream
                         if (result.Count == 0)
                             continue;
                         // read the message
-                        bufferStream.Position = 0;
+                        var bufferStream = new MemoryStream(buffer, 0, result.Count, false);
                         var message = await _serializer.ReadAsync<OperationMessage>(bufferStream, _cancellationToken);
                         // dispatch the message
+                        System.Diagnostics.Debug.WriteLine($"message rec'd: {message?.Type}");
                         if (message != null)
                             await operationMessageReceiveStream.OnMessageReceivedAsync(message);
                     } else {
@@ -135,6 +138,7 @@ public class WebSocketConnection : IOperationMessageSendStream
     /// <inheritdoc/>
     public Task SendMessageAsync(OperationMessage message)
     {
+        System.Diagnostics.Debug.WriteLine($"message sent: {message.Type}");
         _pump.Post(new Message { OperationMessage = message });
         return Task.CompletedTask;
     }

@@ -63,9 +63,12 @@ public class WebSocketHandler : IWebSocketHandler
             throw new ArgumentNullException(nameof(webSocket));
         if (userContext == null)
             throw new ArgumentNullException(nameof(userContext));
+        System.Diagnostics.Debug.WriteLine($"WebSocket connection over protocol {subProtocol}");
         var webSocketConnection = new WebSocketConnection(webSocket, _serializer, Options.DisconnectionTimeout ?? _defaultDisconnectionTimeout, httpContext.RequestAborted);
         using var operationMessageReceiveStream = CreateSendStream(webSocketConnection, subProtocol, userContext);
+        System.Diagnostics.Debug.WriteLine($"Starting WebSocket connection message handler");
         await webSocketConnection.ExecuteAsync(operationMessageReceiveStream);
+        System.Diagnostics.Debug.WriteLine($"Finished WebSocket connection");
     }
 
     /// <summary>

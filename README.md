@@ -33,9 +33,9 @@ application if you have not already done so.  For best performance, please use t
 `GraphQL.SystemTextJson` package.
 
 Then update your `Program.cs` or `Startup.cs` to register the schema, the serialization engine,
-the HTTP middleware and WebSocket services.  Also configure GraphQL in the HTTP pipeline by calling
-`UseGraphQL` at the appropriate point.  Below is a complete sample of a .NET 6 console app that
-hosts a GraphQL endpoint at `http://localhost:5000/graphql`:
+the HTTP middleware and WebSocket services.  Configure WebSockets and GraphQL in the HTTP pipeline
+by calling `UseWebSockets` and `UseGraphQL` at the appropriate point.  Below is a complete sample
+of a .NET 6 console app that hosts a GraphQL endpoint at `http://localhost:5000/graphql`:
 
 #### Project file
 
@@ -73,6 +73,7 @@ builder.Services.AddGraphQL(b => b
 
 var app = builder.Build();
 app.UseDeveloperExceptionPage();
+app.UseWebSockets();
 app.UseGraphQL("/graphql");  // url to host GraphQL endpoint
 await app.RunAsync();
 ```
@@ -238,25 +239,27 @@ or WebSocket handler.
 
 #### GraphQLHttpMiddlewareOptions
 
-| Property | Description | Default value |
-|----------|-------------|---------------|
+| Property                           | Description     | Default value |
+|------------------------------------|-----------------|---------------|
 | `BatchedRequestsExecuteInParallel` | Enables parallel execution of batched GraphQL requests. | True |
-| `EnableBatchedRequests` | Enables handling of batched GraphQL requests for POST requests when formatted as JSON. | True |
-| `HandleGet` | Enables handling of GET requests. | True |
-| `HandlePost` | Enables handling of POST requests. | True |
-| `HandleWebSockets` | Enables handling of WebSockets requests. | True |
-| `ReadExtensionsFromQueryString` | Enables reading extensions from the query string. | False |
-| `ReadQueryStringOnPost` | Enables parsing the query string on POST requests. | False |
-| `ReadVariablesFromQueryString` | Enables reading variables from the query string. | False |
+| `EnableBatchedRequests`            | Enables handling of batched GraphQL requests for POST requests when formatted as JSON. | True |
+| `HandleGet`                        | Enables handling of GET requests. | True |
+| `HandlePost`                       | Enables handling of POST requests. | True |
+| `HandleWebSockets`                 | Enables handling of WebSockets requests. | True |
+| `ReadExtensionsFromQueryString`    | Enables reading extensions from the query string. | False |
+| `ReadQueryStringOnPost`            | Enables parsing the query string on POST requests. | False |
+| `ReadVariablesFromQueryString`     | Enables reading variables from the query string. | False |
 | `ValidationErrorsReturnBadRequest` | When enabled, GraphQL requests with validation errors have the HTTP status code set to 400 Bad Request. | True |
 
 #### WebSocketHandlerOptions
 
-| Property | Description | Default value |
-|----------|-------------|---------------|
+| Property                    | Description          | Default value |
+|-----------------------------|----------------------|---------------|
 | `ConnectionInitWaitTimeout` | The amount of time to wait for a GraphQL initialization packet before the connection is closed. | 10 seconds |
 | `KeepAliveTimeout`          | The amount of time to wait between sending keep-alive packets. | 30 seconds |
 | `DisconnectionTimeout`      | The amount of time to wait to attempt a graceful teardown of the WebSockets protocol. | 10 seconds |
+| `DisconnectAfterErrorEvent` | Disconnects a subscription from the client if the subscription source dispatches an `OnError` event. | True |
+| `DisconnectAfterAnyError`   | Disconnects a subscription from the client there are any GraphQL errors during a subscription. | False |
 
 ### Multi-schema configuration
 
