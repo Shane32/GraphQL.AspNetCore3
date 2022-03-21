@@ -18,7 +18,9 @@ builder.Services.AddGraphQL(b => b
 var app = builder.Build();
 app.UseDeveloperExceptionPage();
 app.UseRouting();
-app.UseEndpoints(endpoints => {
-    endpoints.MapDefaultControllerRoute();
-});
+
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
+
 await app.RunAsync();
