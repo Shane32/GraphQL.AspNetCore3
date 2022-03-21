@@ -402,5 +402,3 @@ typical ASP.Net Core scenarios.
 | `EndpointRoutingSample` | Demonstrates configuring GraphQL endpoints through endpoint routing. |
 | `MultipleSchema`        | Demonstrates multiple GraphQL endpoints served through a single project. |
 | `PagesSample`           | Demonstrates configuring GraphQL within a ASP.Net Core Pages project. |
-
-todo: multiple schema sample

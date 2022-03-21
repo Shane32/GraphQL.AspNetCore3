@@ -5,11 +5,13 @@ using Shane32.GraphQL.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton<Chat.Services.ChatService>();
+builder.Services.AddRazorPages();
+builder.Services.AddSingleton<MultipleSchema.Cats.CatsData>();
+builder.Services.AddSingleton<MultipleSchema.Dogs.DogsData>();
 builder.Services.AddGraphQL(b => b
-    .AddAutoSchema<Chat.Schema.Query>(s => s
-        .WithMutation<Chat.Schema.Mutation>()
-        .WithSubscription<Chat.Schema.Subscription>())
+    .AddSchema<MultipleSchema.Cats.CatsSchema>()
+    .AddSchema<MultipleSchema.Dogs.DogsSchema>()
+    .AddAutoClrMappings()
     .AddSubscriptionExecutionStrategy()
     .AddSystemTextJson()
     .AddServer());
@@ -17,15 +19,23 @@ builder.Services.AddGraphQL(b => b
 var app = builder.Build();
 app.UseDeveloperExceptionPage();
 app.UseWebSockets();
-// configure the graphql endpoint at "/graphql"
-app.UseGraphQL("/graphql");
-// configure GraphiQL at "/"
-app.UseGraphQLPlayground(new GraphQL.Server.Ui.Playground.PlaygroundOptions { GraphQLEndPoint = new PathString("/graphql") }, "/");
-//app.UseRouting();
-//app.UseEndpoints(endpoints =>
-//{
-//    endpoints.MapControllerRoute(
-//        name: "default",
-//        pattern: "{controller=Home}/{action=Index}/{id?}");
-//});
+// configure the graphql endpoint at "/cats/graphql"
+app.UseGraphQL<MultipleSchema.Cats.CatsSchema>("/cats/graphql");
+// configure the graphql endpoint at "/dogs/graphql"
+app.UseGraphQL<MultipleSchema.Dogs.DogsSchema>("/dogs/graphql");
+// configure Playground at "/cats"
+app.UseGraphQLPlayground(
+    new GraphQL.Server.Ui.Playground.PlaygroundOptions {
+        GraphQLEndPoint = new PathString("/cats/graphql"),
+        SubscriptionsEndPoint = new PathString("/cats/graphql"),
+    },
+    "/cats");
+// configure Playground at "/dogs"
+app.UseGraphQLPlayground(
+    new GraphQL.Server.Ui.Playground.PlaygroundOptions {
+        GraphQLEndPoint = new PathString("/dogs/graphql"),
+        SubscriptionsEndPoint = new PathString("/dogs/graphql"),
+    },
+    "/dogs");
+app.MapRazorPages();
 await app.RunAsync();
