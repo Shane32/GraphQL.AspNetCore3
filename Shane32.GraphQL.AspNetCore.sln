@@ -28,7 +28,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Shane32.GraphQL.AspNetCore"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Samples", "Samples", "{BBF05360-8AE2-4615-847F-DF1A5ECF0B73}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Chat", "src\Samples\ChatSchema\Chat.csproj", "{FDF204CE-B7C6-48A1-9B38-BA9301B669DA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Chat", "src\Samples\ChatSchema\Chat.csproj", "{FDF204CE-B7C6-48A1-9B38-BA9301B669DA}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MultipleSchema", "src\Samples\MultipleSchema\MultipleSchema.csproj", "{DE8D9354-B800-4666-AC9B-199B3651AF8B}"
 EndProject

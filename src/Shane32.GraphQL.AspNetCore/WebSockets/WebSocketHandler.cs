@@ -73,22 +73,28 @@ public class WebSocketHandler : IWebSocketHandler
     protected virtual IOperationMessageReceiveStream CreateSendStream(IOperationMessageSendStream webSocketConnection, string subProtocol, IDictionary<string, object?> userContext)
     {
         switch (subProtocol) {
-            case "graphql-transport-ws":
-                return new NewSubscriptionServer(
+            case "graphql-transport-ws": {
+                var server = new NewSubscriptionServer(
                     webSocketConnection,
                     Options,
                     _executer,
                     _serializer,
                     _serviceScopeFactory,
                     userContext);
-            case "graphql-ws":
-                return new OldSubscriptionServer(
+                server.StartConnectionInitTimer();
+                return server;
+            }
+            case "graphql-ws": {
+                var server = new OldSubscriptionServer(
                     webSocketConnection,
                     Options,
                     _executer,
                     _serializer,
                     _serviceScopeFactory,
                     userContext);
+                server.StartConnectionInitTimer();
+                return server;
+            }
         }
         throw new ArgumentOutOfRangeException(nameof(subProtocol));
     }

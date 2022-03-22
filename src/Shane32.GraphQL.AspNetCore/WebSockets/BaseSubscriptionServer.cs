@@ -38,15 +38,15 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
         IOperationMessageSendStream sendStream,
         WebSocketHandlerOptions options)
     {
+        _options = options ?? throw new ArgumentNullException(nameof(options));
         if (options.ConnectionInitWaitTimeout.HasValue) {
-            if (options.ConnectionInitWaitTimeout.Value != Timeout.InfiniteTimeSpan && options.ConnectionInitWaitTimeout.Value <= TimeSpan.Zero || options.ConnectionInitWaitTimeout.Value > TimeSpan.FromSeconds(int.MaxValue))
+            if (options.ConnectionInitWaitTimeout.Value != Timeout.InfiniteTimeSpan && options.ConnectionInitWaitTimeout.Value <= TimeSpan.Zero || options.ConnectionInitWaitTimeout.Value > TimeSpan.FromMilliseconds(int.MaxValue))
                 throw new ArgumentOutOfRangeException(nameof(options) + "." + nameof(WebSocketHandlerOptions.ConnectionInitWaitTimeout));
         }
         if (options.KeepAliveTimeout.HasValue) {
-            if (options.KeepAliveTimeout.Value != Timeout.InfiniteTimeSpan && options.KeepAliveTimeout.Value <= TimeSpan.Zero || options.KeepAliveTimeout.Value > TimeSpan.FromSeconds(int.MaxValue))
+            if (options.KeepAliveTimeout.Value != Timeout.InfiniteTimeSpan && options.KeepAliveTimeout.Value <= TimeSpan.Zero || options.KeepAliveTimeout.Value > TimeSpan.FromMilliseconds(int.MaxValue))
                 throw new ArgumentOutOfRangeException(nameof(options) + "." + nameof(WebSocketHandlerOptions.KeepAliveTimeout));
         }
-        _options = options;
         Client = sendStream ?? throw new ArgumentNullException(nameof(sendStream));
         _cancellationTokenSource = new();
         CancellationToken = _cancellationTokenSource.Token;
@@ -83,7 +83,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
         if (cts != null) {
             cts.Cancel();
             cts.Dispose();
-            Subscriptions.Dispose(); //redundant
+            Subscriptions.Dispose();
         }
     }
 
@@ -123,36 +123,36 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
     /// Sends a fatal error message indicating that the client attempted to initialize
     /// the connection more than one time.
     /// </summary>
-    protected virtual Task ErrorTooManyInitializationRequestsAsync()
+    protected virtual Task ErrorTooManyInitializationRequestsAsync(OperationMessage message)
         => Client.CloseConnectionAsync(4429, "Too many initialization requests");
 
     /// <summary>
     /// Sends a fatal error message indicating that the client attempted to subscribe
     /// to an event stream before initialization was complete.
     /// </summary>
-    protected virtual Task ErrorNotInitializedAsync()
+    protected virtual Task ErrorNotInitializedAsync(OperationMessage message)
         => Client.CloseConnectionAsync(4401, "Unauthorized");
 
     /// <summary>
     /// Sends a fatal error message indicating that the client attempted to use an
     /// unrecognized message type.
     /// </summary>
-    protected virtual Task ErrorUnrecognizedMessageAsync()
+    protected virtual Task ErrorUnrecognizedMessageAsync(OperationMessage message)
         => Client.CloseConnectionAsync(4400, "Unrecognized message");
 
     /// <summary>
     /// Sends a fatal error message indicating that the client attempted to subscribe
     /// to an event stream with an empty id.
     /// </summary>
-    protected virtual Task ErrorIdCannotBeBlankAsync()
+    protected virtual Task ErrorIdCannotBeBlankAsync(OperationMessage message)
         => Client.CloseConnectionAsync(4400, "Id cannot be blank");
 
     /// <summary>
     /// Sends a fatal error message indicating that the client attempted to subscribe
     /// to an event stream with an id that was already in use.
     /// </summary>
-    protected virtual Task ErrorIdAlreadyExistsAsync(string id)
-        => Client.CloseConnectionAsync(4409, $"Subscriber for {id} already exists");
+    protected virtual Task ErrorIdAlreadyExistsAsync(OperationMessage message)
+        => Client.CloseConnectionAsync(4409, $"Subscriber for {message.Id} already exists");
 
     /// <summary>
     /// Executes when the client is attempting to initalize the connection.
@@ -198,11 +198,11 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
                 var lastComm = lastKeepAliveSent > lastSent ? lastKeepAliveSent : lastSent;
                 var now = DateTime.UtcNow;
                 var timePassed = now.Subtract(lastComm);
-                if (timePassed > keepAliveTimeout) {
+                if (timePassed >= keepAliveTimeout) {
                     await OnSendKeepAliveAsync();
                     lastKeepAliveSent = now;
                     await Task.Delay(keepAliveTimeout, CancellationToken);
-                } else if (timePassed < keepAliveTimeout) {
+                } else {
                     var timeToWait = keepAliveTimeout - timePassed;
                     await Task.Delay(timeToWait, CancellationToken);
                 }
@@ -227,7 +227,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
     protected virtual async Task SubscribeAsync(OperationMessage message, bool overwrite)
     {
         if (string.IsNullOrEmpty(message.Id)) {
-            await ErrorIdCannotBeBlankAsync();
+            await ErrorIdCannotBeBlankAsync(message);
             return;
         }
 
@@ -238,7 +238,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
                 Subscriptions[message.Id] = dummyDisposer;
             } else {
                 if (!Subscriptions.TryAdd(message.Id, dummyDisposer)) {
-                    await ErrorIdAlreadyExistsAsync(message.Id);
+                    await ErrorIdAlreadyExistsAsync(message);
                     return;
                 }
             }
@@ -258,42 +258,54 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
                 } finally {
                     disposer?.Dispose();
                 }
-            } else if (result.Executed && result.Data != null) {
-                await SendSingleResultAsync(message.Id, result);
+            } else if (result.Executed) {
+                await SendSingleResultAsync(message, result);
             } else {
-                await SendErrorResultAsync(message.Id, result);
+                await SendErrorResultAsync(message, result);
             }
         } catch (OperationCanceledException) when (CancellationToken.IsCancellationRequested) {
             throw;
         } catch (Exception ex) {
             if (!Subscriptions.Contains(message.Id, dummyDisposer))
                 return;
-            var error = await HandleErrorDuringSubscribeAsync(ex);
-            await SendErrorResultAsync(message.Id, error);
+            var error = await HandleErrorDuringSubscribeAsync(message, ex);
+            await SendErrorResultAsync(message, error);
         }
     }
 
     /// <summary>
     /// Creates an <see cref="ExecutionError"/> for an unknown <see cref="Exception"/>.
     /// </summary>
-    protected virtual Task<ExecutionError> HandleErrorDuringSubscribeAsync(Exception ex)
+    protected virtual Task<ExecutionError> HandleErrorDuringSubscribeAsync(OperationMessage message, Exception ex)
         => Task.FromResult<ExecutionError>(new UnhandledError("Unable to set up subscription for the requested field.", ex));
 
     /// <summary>
     /// Sends a single result to the client for a subscription or request, along with a notice
     /// that it was the last result in the event stream.
     /// </summary>
-    protected virtual async Task SendSingleResultAsync(string id, ExecutionResult result)
+    protected virtual async Task SendSingleResultAsync(OperationMessage message, ExecutionResult result)
     {
-        await SendDataAsync(id, result);
-        await SendCompletedAsync(id);
+        await SendDataAsync(message.Id!, result);
+        await SendCompletedAsync(message.Id!);
     }
+
+    /// <summary>
+    /// Sends an execution error to the client during set-up of a subscription.
+    /// </summary>
+    protected virtual Task SendErrorResultAsync(OperationMessage message, ExecutionError error)
+        => SendErrorResultAsync(message.Id!, error);
 
     /// <summary>
     /// Sends an execution error to the client during set-up of a subscription.
     /// </summary>
     protected virtual Task SendErrorResultAsync(string id, ExecutionError error)
         => SendErrorResultAsync(id, new ExecutionResult { Errors = new ExecutionErrors { error } });
+
+    /// <summary>
+    /// Sends an error result to the client during set-up of a subscription.
+    /// </summary>
+    protected virtual Task SendErrorResultAsync(OperationMessage message, ExecutionResult result)
+        => SendErrorResultAsync(message.Id!, result);
 
     /// <summary>
     /// Sends an error result to the client during set-up of a subscription.
@@ -362,8 +374,13 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
 
         public async void OnError(Exception error)
         {
-            if (Interlocked.Exchange(ref _done, 1) == 1)
-                return;
+            if (_closeAfterOnError) {
+                if (Interlocked.Exchange(ref _done, 1) == 1)
+                    return;
+            } else {
+                if (Interlocked.CompareExchange(ref _done, 0, 0) == 1)
+                    return;
+            }
             try {
                 if (error != null) {
                     var executionError = error is ExecutionError ee ? ee : await _handler.HandleErrorFromSourceAsync(error);

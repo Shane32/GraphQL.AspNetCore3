@@ -55,14 +55,14 @@ public class OldSubscriptionServer : BaseSubscriptionServer
             return;
         } else if (message.Type == OldMessageType.GQL_CONNECTION_INIT) {
             if (!TryInitialize()) {
-                await ErrorTooManyInitializationRequestsAsync();
+                await ErrorTooManyInitializationRequestsAsync(message);
             } else {
                 await OnConnectionInitAsync(message, false);
             }
             return;
         }
         if (!Initialized) {
-            await ErrorNotInitializedAsync();
+            await ErrorNotInitializedAsync(message);
             return;
         }
         switch (message.Type) {
@@ -73,7 +73,7 @@ public class OldSubscriptionServer : BaseSubscriptionServer
                 await OnStop(message);
                 break;
             default:
-                await ErrorUnrecognizedMessageAsync();
+                await ErrorUnrecognizedMessageAsync(message);
                 break;
         }
     }

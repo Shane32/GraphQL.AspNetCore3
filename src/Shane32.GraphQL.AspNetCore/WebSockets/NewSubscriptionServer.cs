@@ -56,14 +56,14 @@ public class NewSubscriptionServer : BaseSubscriptionServer
             await OnPong(message);
         } else if (message.Type == NewMessageType.GQL_CONNECTION_INIT) {
             if (!TryInitialize()) {
-                await ErrorTooManyInitializationRequestsAsync();
+                await ErrorTooManyInitializationRequestsAsync(message);
             } else {
                 await OnConnectionInitAsync(message, true);
             }
             return;
         }
         if (!Initialized) {
-            await ErrorNotInitializedAsync();
+            await ErrorNotInitializedAsync(message);
             return;
         }
         switch (message.Type) {
@@ -74,7 +74,7 @@ public class NewSubscriptionServer : BaseSubscriptionServer
                 await OnComplete(message);
                 break;
             default:
-                await ErrorUnrecognizedMessageAsync();
+                await ErrorUnrecognizedMessageAsync(message);
                 break;
         }
     }

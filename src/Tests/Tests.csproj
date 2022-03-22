@@ -18,6 +18,8 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.7.1" />
+    <PackageReference Include="Moq" Version="4.17.2" />
+    <PackageReference Include="Shouldly" Version="4.0.3" />
     <PackageReference Include="xunit" Version="2.4.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.4.3">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -36,6 +38,10 @@
   <ItemGroup>
     <Using Include="Xunit" />
     <Using Include="System.Text" />
+    <Using Include="Shouldly" />
+    <Using Include="Shane32.GraphQL.AspNetCore.WebSockets" />
+    <Using Include="Moq" />
+    <Using Include="Moq.Protected" />
   </ItemGroup>
 
 </Project>
