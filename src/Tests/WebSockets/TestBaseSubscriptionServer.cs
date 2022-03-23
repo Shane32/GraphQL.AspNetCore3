@@ -66,7 +66,7 @@ namespace Tests.WebSockets
         public Task Do_SendErrorResultAsync(string id, ExecutionResult result)
             => SendErrorResultAsync(id, result);
 
-        public Task Do_UnsubscribeAsync(string id)
+        public Task Do_UnsubscribeAsync(string? id)
             => UnsubscribeAsync(id);
 
         public Task<ExecutionError> Do_HandleErrorFromSourceAsync(Exception exception)

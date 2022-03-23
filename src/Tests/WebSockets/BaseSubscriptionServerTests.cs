@@ -497,6 +497,19 @@ namespace Tests.WebSockets
             _mockServer.VerifyNoOtherCalls();
         }
 
+        [Theory]
+        [InlineData("abc")]
+        [InlineData("")]
+        [InlineData(null)]
+        public async Task Unsubscribe_IgnoresInvalid(string? id)
+        {
+            var message = new OperationMessage { Id = id };
+            _mockServer.Protected().Setup<Task>("UnsubscribeAsync", message.Id == null ? ItExpr.IsNull<string?>() : message.Id).Verifiable();
+            await _server.Do_UnsubscribeAsync(message.Id);
+            _mockServer.Verify();
+            _mockServer.VerifyNoOtherCalls();
+        }
+
         [Fact]
         public async Task Dispose_Unsubscribes_All()
         {

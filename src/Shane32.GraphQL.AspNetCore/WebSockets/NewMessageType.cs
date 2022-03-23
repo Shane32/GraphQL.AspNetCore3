@@ -6,7 +6,7 @@ namespace Shane32.GraphQL.AspNetCore.WebSockets;
 /// and
 /// <see href="https://github.com/enisdenjo/graphql-ws/blob/master/src/common.ts"/>
 /// </summary>
-public class NewMessageType
+public static class NewMessageType
 {
     /// <summary>
     /// <para>

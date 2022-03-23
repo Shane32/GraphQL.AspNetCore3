@@ -51,9 +51,11 @@ public class NewSubscriptionServer : BaseSubscriptionServer
     public override async Task OnMessageReceivedAsync(OperationMessage message)
     {
         if (message.Type == NewMessageType.GQL_PING) {
-            await OnPing(message);
+            await OnPingAsync(message);
+            return;
         } else if (message.Type == NewMessageType.GQL_PONG) {
-            await OnPong(message);
+            await OnPongAsync(message);
+            return;
         } else if (message.Type == NewMessageType.GQL_CONNECTION_INIT) {
             if (!TryInitialize()) {
                 await ErrorTooManyInitializationRequestsAsync(message);
@@ -68,10 +70,10 @@ public class NewSubscriptionServer : BaseSubscriptionServer
         }
         switch (message.Type) {
             case NewMessageType.GQL_SUBSCRIBE:
-                await OnSubscribe(message);
+                await OnSubscribeAsync(message);
                 break;
             case NewMessageType.GQL_COMPLETE:
-                await OnComplete(message);
+                await OnCompleteAsync(message);
                 break;
             default:
                 await ErrorUnrecognizedMessageAsync(message);
@@ -88,13 +90,13 @@ public class NewSubscriptionServer : BaseSubscriptionServer
     /// <summary>
     /// Executes when a ping message is received.
     /// </summary>
-    protected virtual Task OnPing(OperationMessage message)
+    protected virtual Task OnPingAsync(OperationMessage message)
         => Client.SendMessageAsync(_pongMessage);
 
     /// <summary>
     /// Executes when a pong message is received.
     /// </summary>
-    protected virtual Task OnPong(OperationMessage message)
+    protected virtual Task OnPongAsync(OperationMessage message)
         => Task.CompletedTask;
 
     /// <inheritdoc/>
@@ -109,14 +111,14 @@ public class NewSubscriptionServer : BaseSubscriptionServer
     /// <summary>
     /// Executes when a request is received to start a subscription.
     /// </summary>
-    protected virtual Task OnSubscribe(OperationMessage message)
-        => base.SubscribeAsync(message, false);
+    protected virtual Task OnSubscribeAsync(OperationMessage message)
+        => SubscribeAsync(message, false);
 
     /// <summary>
     /// Executes when a request is received to stop a subscription.
     /// </summary>
-    protected virtual Task OnComplete(OperationMessage message)
-        => message.Id != null ? UnsubscribeAsync(message.Id) : Task.CompletedTask;
+    protected virtual Task OnCompleteAsync(OperationMessage message)
+        => UnsubscribeAsync(message.Id);
 
     /// <inheritdoc/>
     protected override async Task SendErrorResultAsync(string id, ExecutionResult result)

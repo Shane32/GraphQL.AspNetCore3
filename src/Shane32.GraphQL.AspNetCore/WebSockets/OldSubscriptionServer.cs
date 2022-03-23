@@ -67,10 +67,10 @@ public class OldSubscriptionServer : BaseSubscriptionServer
         }
         switch (message.Type) {
             case OldMessageType.GQL_START:
-                await OnStart(message);
+                await OnStartAsync(message);
                 break;
             case OldMessageType.GQL_STOP:
-                await OnStop(message);
+                await OnStopAsync(message);
                 break;
             default:
                 await ErrorUnrecognizedMessageAsync(message);
@@ -91,14 +91,14 @@ public class OldSubscriptionServer : BaseSubscriptionServer
     /// <summary>
     /// Executes when a request is received to start a subscription.
     /// </summary>
-    protected virtual Task OnStart(OperationMessage message)
-        => base.SubscribeAsync(message, true);
+    protected virtual Task OnStartAsync(OperationMessage message)
+        => SubscribeAsync(message, true);
 
     /// <summary>
     /// Executes when a request is received to stop a subscription.
     /// </summary>
-    protected virtual Task OnStop(OperationMessage message)
-        => message.Id != null ? UnsubscribeAsync(message.Id) : Task.CompletedTask;
+    protected virtual Task OnStopAsync(OperationMessage message)
+        => UnsubscribeAsync(message.Id);
 
     /// <inheritdoc/>
     protected override async Task SendErrorResultAsync(string id, ExecutionResult result)

@@ -4,7 +4,7 @@ namespace Shane32.GraphQL.AspNetCore.WebSockets;
 ///     Protocol message types defined in
 ///     https://github.com/apollographql/subscriptions-transport-ws/blob/master/PROTOCOL.md
 /// </summary>
-public class OldMessageType
+public static class OldMessageType
 {
     /// <summary>
     ///     Client sends this message after plain websocket connection to start the communication with the server

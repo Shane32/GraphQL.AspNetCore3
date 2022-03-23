@@ -332,9 +332,10 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
     /// <summary>
     /// Unsubscribes from a subscription event stream.
     /// </summary>
-    protected virtual Task UnsubscribeAsync(string id)
+    protected virtual Task UnsubscribeAsync(string? id)
     {
-        Subscriptions.TryRemove(id);
+        if (id != null)
+            Subscriptions.TryRemove(id);
         return Task.CompletedTask;
     }
 

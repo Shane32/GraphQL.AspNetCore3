@@ -42,6 +42,7 @@ public sealed class SubscriptionList : IDisposable
     /// <summary>
     /// Adds a subscription to the internal list if none is already in the list with the same id.
     /// </summary>
+    /// <exception cref="ArgumentNullException"/>
     /// <exception cref="OperationCanceledException"/>
     public bool TryAdd(string id, IDisposable subscription)
     {
@@ -60,6 +61,7 @@ public sealed class SubscriptionList : IDisposable
     /// Adds a subscription to the internal list, overwriting an existing registration if any.
     /// When overwriting an existing registration, the old registration is disposed.
     /// </summary>
+    /// <exception cref="ArgumentNullException"/>
     /// <exception cref="OperationCanceledException"/>
     public IDisposable this[string id] {
         set {
@@ -84,6 +86,7 @@ public sealed class SubscriptionList : IDisposable
     /// <summary>
     /// Validates that the specified subscription is still active.
     /// </summary>
+    /// <exception cref="ArgumentNullException"/>
     /// <exception cref="OperationCanceledException"/>
     public bool Contains(string id, IDisposable subscription)
     {
@@ -101,6 +104,7 @@ public sealed class SubscriptionList : IDisposable
     /// <summary>
     /// Validates that the specified subscription is still active.
     /// </summary>
+    /// <exception cref="ArgumentNullException"/>
     /// <exception cref="OperationCanceledException"/>
     public bool Contains(string id)
     {
@@ -116,7 +120,9 @@ public sealed class SubscriptionList : IDisposable
     /// <summary>
     /// Exchanges the specified subscription with another implementation for the specified id.
     /// Disposes of the old subscription if exchanged.
+    /// Returns <see langword="false"/> if no subscription can be found.
     /// </summary>
+    /// <exception cref="ArgumentNullException"/>
     /// <exception cref="OperationCanceledException"/>
     public bool CompareExchange(string id, IDisposable oldSubscription, IDisposable newSubscription)
     {
@@ -147,6 +153,7 @@ public sealed class SubscriptionList : IDisposable
     /// Removes the specified subscription and disposes of it.
     /// Returns <see langword="false"/> if no subscription can be found.
     /// </summary>
+    /// <exception cref="ArgumentNullException"/>
     public bool TryRemove(string id)
     {
         if (id == null)

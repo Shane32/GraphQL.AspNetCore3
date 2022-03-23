@@ -1,16 +1,19 @@
+using Microsoft.Extensions.Hosting;
+
 namespace Shane32.GraphQL.AspNetCore.WebSockets;
 
 /// <inheritdoc cref="WebSocketHandler"/>
 public class WebSocketHandler<TSchema> : WebSocketHandler, IWebSocketHandler<TSchema>
     where TSchema : ISchema
 {
-    /// <inheritdoc cref="WebSocketHandler.WebSocketHandler(IGraphQLSerializer, IDocumentExecuter, IServiceScopeFactory, WebSocketHandlerOptions)"/>
+    /// <inheritdoc cref="WebSocketHandler.WebSocketHandler(IGraphQLSerializer, IDocumentExecuter, IServiceScopeFactory, WebSocketHandlerOptions, IHostApplicationLifetime)"/>
     public WebSocketHandler(
         IGraphQLSerializer serializer,
         IDocumentExecuter<TSchema> executer,
         IServiceScopeFactory serviceScopeFactory,
-        WebSocketHandlerOptions options)
-        : base(serializer, executer, serviceScopeFactory, options)
+        WebSocketHandlerOptions options,
+        IHostApplicationLifetime hostApplicationLifetime)
+        : base(serializer, executer, serviceScopeFactory, options, hostApplicationLifetime)
     {
     }
 }
@@ -21,6 +24,7 @@ public class WebSocketHandler : IWebSocketHandler
     private readonly IGraphQLSerializer _serializer;
     private readonly IDocumentExecuter _executer;
     private readonly IServiceScopeFactory _serviceScopeFactory;
+    private readonly IHostApplicationLifetime _hostApplicationLifetime;
 
     /// <summary>
     /// Gets the configuration options for this instance.
@@ -38,16 +42,19 @@ public class WebSocketHandler : IWebSocketHandler
     /// <param name="executer">The <see cref="IDocumentExecuter"/> instance used to execute GraphQL requests.</param>
     /// <param name="serviceScopeFactory">The service scope factory used to create a dependency injection service scope for each request.</param>
     /// <param name="webSocketHandlerOptions">Configuration options for the WebSocket connections.</param>
+    /// <param name="hostApplicationLifetime">The <see cref="IHostApplicationLifetime"/> instance that signals when the application is shutting down.</param>
     public WebSocketHandler(
         IGraphQLSerializer serializer,
         IDocumentExecuter executer,
         IServiceScopeFactory serviceScopeFactory,
-        WebSocketHandlerOptions webSocketHandlerOptions)
+        WebSocketHandlerOptions webSocketHandlerOptions,
+        IHostApplicationLifetime hostApplicationLifetime)
     {
         _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
         _executer = executer ?? throw new ArgumentNullException(nameof(executer));
         _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
         Options = webSocketHandlerOptions ?? throw new ArgumentNullException(nameof(webSocketHandlerOptions));
+        _hostApplicationLifetime = hostApplicationLifetime ?? throw new ArgumentNullException(nameof(hostApplicationLifetime));
     }
 
     /// <inheritdoc/>
@@ -59,12 +66,18 @@ public class WebSocketHandler : IWebSocketHandler
             throw new ArgumentNullException(nameof(webSocket));
         if (userContext == null)
             throw new ArgumentNullException(nameof(userContext));
+        var appStoppingToken = _hostApplicationLifetime.ApplicationStopping;
         System.Diagnostics.Debug.WriteLine($"WebSocket connection over protocol {subProtocol}");
-        var webSocketConnection = new WebSocketConnection(webSocket, _serializer, Options, httpContext.RequestAborted);
-        using var operationMessageReceiveStream = CreateSendStream(webSocketConnection, subProtocol, userContext);
-        System.Diagnostics.Debug.WriteLine($"Starting WebSocket connection message handler");
-        await webSocketConnection.ExecuteAsync(operationMessageReceiveStream);
-        System.Diagnostics.Debug.WriteLine($"Finished WebSocket connection");
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(httpContext.RequestAborted, appStoppingToken);
+        try {
+            var webSocketConnection = new WebSocketConnection(webSocket, _serializer, Options, cts.Token);
+            using var operationMessageReceiveStream = CreateSendStream(webSocketConnection, subProtocol, userContext);
+            System.Diagnostics.Debug.WriteLine($"Starting WebSocket connection message handler");
+            await webSocketConnection.ExecuteAsync(operationMessageReceiveStream);
+            System.Diagnostics.Debug.WriteLine($"Finished WebSocket connection");
+        } catch (OperationCanceledException) when (appStoppingToken.IsCancellationRequested) {
+            // terminate all pending WebSockets connections when the application is in the process of stopping
+        }
     }
 
     /// <summary>
