@@ -26,17 +26,26 @@ namespace Tests.WebSockets
         public void Dispose() => _server.Dispose();
 
         [Fact]
+        public void Props()
+        {
+            _server.Get_DocumentExecuter.ShouldBe(_mockDocumentExecuter.Object);
+            _server.Get_Serializer.ShouldBe(_mockSerializer.Object);
+            _server.Get_ServiceScopeFactory.ShouldBe(_mockServiceScopeFactory.Object);
+            _server.Get_UserContext.ShouldBe(_mockUserContext.Object);
+        }
+
+        [Fact]
         public void InvalidConstructorArgumentsThrows()
         {
-            Should.Throw<ArgumentNullException>(() => new TestOldSubscriptionServer(_stream, _options,
+            Should.Throw<ArgumentNullException>(() => new TestNewSubscriptionServer(_stream, _options,
                 null!, _mockSerializer.Object, _mockServiceScopeFactory.Object, _mockUserContext.Object));
-            Should.Throw<ArgumentNullException>(() => new TestOldSubscriptionServer(_stream, _options,
+            Should.Throw<ArgumentNullException>(() => new TestNewSubscriptionServer(_stream, _options,
                 _mockDocumentExecuter.Object, null!, _mockServiceScopeFactory.Object, _mockUserContext.Object));
-            Should.Throw<ArgumentNullException>(() => new TestOldSubscriptionServer(_stream, _options,
+            Should.Throw<ArgumentNullException>(() => new TestNewSubscriptionServer(_stream, _options,
                 _mockDocumentExecuter.Object, _mockSerializer.Object, null!, _mockUserContext.Object));
-            Should.Throw<ArgumentNullException>(() => new TestOldSubscriptionServer(_stream, _options,
+            Should.Throw<ArgumentNullException>(() => new TestNewSubscriptionServer(_stream, _options,
                 _mockDocumentExecuter.Object, _mockSerializer.Object, _mockServiceScopeFactory.Object, null!));
-            _ = new TestOldSubscriptionServer(_stream, _options, _mockDocumentExecuter.Object,
+            _ = new TestNewSubscriptionServer(_stream, _options, _mockDocumentExecuter.Object,
                 _mockSerializer.Object, _mockServiceScopeFactory.Object, _mockUserContext.Object);
         }
 
@@ -245,12 +254,13 @@ namespace Tests.WebSockets
         }
 
         [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public async Task SendErrorResultAsync(bool wasSubscribed)
+        [InlineData(true, true)]
+        [InlineData(true, false)]
+        [InlineData(false, false)]
+        public async Task SendErrorResultAsync(bool wasSubscribed, bool hasErrorList)
         {
             var result = new ExecutionResult() {
-                Errors = new ExecutionErrors { },
+                Errors = hasErrorList ? new ExecutionErrors { } : null,
             };
             if (wasSubscribed) {
                 _server.Get_Subscriptions.TryAdd("abc", Mock.Of<IDisposable>());
@@ -258,7 +268,7 @@ namespace Tests.WebSockets
                     .Returns<OperationMessage>(o => {
                         o.Id.ShouldBe("abc");
                         o.Type.ShouldBe("error");
-                        o.Payload.ShouldBe(result.Errors);
+                        o.Payload.ShouldBe(hasErrorList ? result.Errors : Array.Empty<ExecutionError>());
                         return Task.CompletedTask;
                     })
                     .Verifiable();
@@ -316,6 +326,52 @@ namespace Tests.WebSockets
             await _server.Do_SendCompletedAsync("abc");
             _mockServer.Verify();
             _mockServer.VerifyNoOtherCalls();
+        }
+
+        [Fact]
+        public async Task ExecuteRequestAsync()
+        {
+            var payload = new object();
+            var message = new OperationMessage {
+                Payload = payload
+            };
+            var request = new GraphQLRequest {
+                Query = "abc",
+                Variables = new Inputs(new Dictionary<string, object?>()),
+                Extensions = new Inputs(new Dictionary<string, object?>()),
+                OperationName = "def",
+            };
+            _mockSerializer.Setup(x => x.ReadNode<GraphQLRequest>(payload))
+                .Returns(request)
+                .Verifiable();
+            var mockServiceProvider = new Mock<IServiceProvider>(MockBehavior.Strict);
+            var mockScope = new Mock<IServiceScope>(MockBehavior.Strict);
+            mockScope.Setup(x => x.ServiceProvider).Returns(mockServiceProvider.Object);
+            _mockServiceScopeFactory.Setup(x => x.CreateScope())
+                .Returns(mockScope.Object)
+                .Verifiable();
+            mockScope.Setup(x => x.Dispose()).Verifiable();
+            var result = Mock.Of<ExecutionResult>(MockBehavior.Strict);
+            _mockDocumentExecuter.Setup(x => x.ExecuteAsync(It.IsAny<ExecutionOptions>()))
+                .Returns<ExecutionOptions>(options => {
+                    options.ShouldNotBeNull();
+                    options.Query.ShouldBe(request.Query);
+                    options.Variables.ShouldBe(request.Variables);
+                    options.Extensions.ShouldBe(request.Extensions);
+                    options.OperationName.ShouldBe(request.OperationName);
+                    options.UserContext.ShouldBe(_mockUserContext.Object);
+                    options.RequestServices.ShouldBe(mockServiceProvider.Object);
+                    return Task.FromResult(result);
+                })
+                .Verifiable();
+            var actual = await _server.Do_ExecuteRequestAsync(message);
+            actual.ShouldBe(result);
+            _mockDocumentExecuter.Verify();
+            _mockSerializer.Verify();
+            _mockServiceScopeFactory.Verify();
+            _mockUserContext.Verify();
+            mockServiceProvider.Verify();
+            mockScope.Verify();
         }
     }
 }

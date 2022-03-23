@@ -45,5 +45,13 @@ namespace Tests.WebSockets
 
         public SubscriptionList Get_Subscriptions
             => Subscriptions;
+
+        public IGraphQLSerializer Get_Serializer => Serializer;
+
+        public IDictionary<string, object?> Get_UserContext => UserContext;
+
+        public IDocumentExecuter Get_DocumentExecuter => DocumentExecuter;
+
+        public IServiceScopeFactory Get_ServiceScopeFactory => ServiceScopeFactory;
     }
 }

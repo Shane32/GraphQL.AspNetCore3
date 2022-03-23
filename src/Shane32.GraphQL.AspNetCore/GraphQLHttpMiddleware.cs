@@ -413,7 +413,6 @@ public abstract class GraphQLHttpMiddleware : IMiddleware
     /// </summary>
     protected virtual Task WriteErrorResponseAsync(HttpContext context, HttpStatusCode httpStatusCode, string errorMessage)
     {
-        System.Diagnostics.Debug.WriteLine($"{httpStatusCode} Error response: {errorMessage}");
         var result = new ExecutionResult {
             Errors = new ExecutionErrors
             {

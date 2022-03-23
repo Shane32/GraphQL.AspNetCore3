@@ -67,18 +67,21 @@ public class WebSocketHandler : IWebSocketHandler
         if (userContext == null)
             throw new ArgumentNullException(nameof(userContext));
         var appStoppingToken = _hostApplicationLifetime.ApplicationStopping;
-        System.Diagnostics.Debug.WriteLine($"WebSocket connection over protocol {subProtocol}");
-        var cts = CancellationTokenSource.CreateLinkedTokenSource(httpContext.RequestAborted, appStoppingToken);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(httpContext.RequestAborted, appStoppingToken);
         try {
-            var webSocketConnection = new WebSocketConnection(webSocket, _serializer, Options, cts.Token);
+            var webSocketConnection = CreateWebSocketConnection(webSocket, cts.Token);
             using var operationMessageReceiveStream = CreateSendStream(webSocketConnection, subProtocol, userContext);
-            System.Diagnostics.Debug.WriteLine($"Starting WebSocket connection message handler");
             await webSocketConnection.ExecuteAsync(operationMessageReceiveStream);
-            System.Diagnostics.Debug.WriteLine($"Finished WebSocket connection");
         } catch (OperationCanceledException) when (appStoppingToken.IsCancellationRequested) {
             // terminate all pending WebSockets connections when the application is in the process of stopping
         }
     }
+
+    /// <summary>
+    /// Creates an <see cref="IWebSocketConnection"/>, a WebSocket message pump.
+    /// </summary>
+    protected virtual IWebSocketConnection CreateWebSocketConnection(WebSocket webSocket, CancellationToken cancellationToken)
+        => new WebSocketConnection(webSocket, _serializer, Options, cancellationToken);
 
     /// <summary>
     /// Builds an <see cref="IOperationMessageReceiveStream"/> for the specified sub-protocol.

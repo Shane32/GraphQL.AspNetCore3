@@ -15,7 +15,7 @@ namespace Shane32.GraphQL.AspNetCore.WebSockets;
 /// called on multiple threads simultaneously. They are queued for delivery and sent in the order posted.
 /// Messages posted after requesting the connection be closed will be discarded.
 /// </summary>
-public class WebSocketConnection : IOperationMessageSendStream
+public class WebSocketConnection : IWebSocketConnection
 {
     private readonly WebSocket _webSocket;
     private readonly AsyncMessagePump<Message> _pump;
@@ -44,7 +44,7 @@ public class WebSocketConnection : IOperationMessageSendStream
         _webSocket = webSocket ?? throw new ArgumentNullException(nameof(webSocket));
         _stream = new(webSocket);
         _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
-        _pump = new(SendMessageAsync);
+        _pump = new(HandleMessageAsync);
         _cancellationToken = cancellationToken;
     }
 
@@ -95,9 +95,8 @@ public class WebSocketConnection : IOperationMessageSendStream
                         var bufferStream = new MemoryStream(buffer, 0, result.Count, false);
                         var message = await _serializer.ReadAsync<OperationMessage>(bufferStream, _cancellationToken);
                         // dispatch the message
-                        System.Diagnostics.Debug.WriteLine($"message rec'd: {message?.Type}");
                         if (message != null)
-                            await operationMessageReceiveStream.OnMessageReceivedAsync(message);
+                            await OnDispatchMessageAsync(operationMessageReceiveStream, message);
                     } else {
                         // if there is any data in this block, add it to the buffer
                         if (result.Count > 0)
@@ -109,7 +108,7 @@ public class WebSocketConnection : IOperationMessageSendStream
                         receiveStream.SetLength(0);
                         // dispatch the message
                         if (message != null)
-                            await operationMessageReceiveStream.OnMessageReceivedAsync(message);
+                            await OnDispatchMessageAsync(operationMessageReceiveStream, message);
                     }
                 } else {
                     // if there is any data in this block, add it to the buffer
@@ -141,29 +140,66 @@ public class WebSocketConnection : IOperationMessageSendStream
     /// <inheritdoc/>
     public Task SendMessageAsync(OperationMessage message)
     {
-        System.Diagnostics.Debug.WriteLine($"message sent: {message.Type}");
         _pump.Post(new Message { OperationMessage = message });
         return Task.CompletedTask;
     }
 
-    private async Task SendMessageAsync(Message message)
+    /// <summary>
+    /// Handles the next <see cref="Message"/> in the queue, which contains either an <see cref="OperationMessage"/>
+    /// or <see cref="WebSocketCloseStatus"/> with description, passing to either
+    /// <see cref="OnSendMessageAsync(OperationMessage)"/> or <see cref="OnCloseOutputAsync(WebSocketCloseStatus, string?)"/>.
+    /// <br/><br/>
+    /// The methods <see cref="SendMessageAsync(OperationMessage)"/>, <see cref="CloseConnectionAsync()"/>
+    /// and <see cref="CloseConnectionAsync(int, string?)"/> add <see cref="Message"/> instances to the queue.
+    /// </summary>
+    private async Task HandleMessageAsync(Message message)
     {
         if (_outputClosed.Task.IsCompleted)
             return;
         LastMessageSentAt = DateTime.UtcNow;
         if (message.OperationMessage != null) {
-            await _serializer.WriteAsync(_stream, message.OperationMessage, _cancellationToken);
-            await _stream.FlushAsync(_cancellationToken);
+            await OnSendMessageAsync(message.OperationMessage);
         } else {
             _outputClosed.TrySetResult(true);
-            await _webSocket.CloseOutputAsync(message.CloseStatus, message.CloseDescription, _cancellationToken);
+            await OnCloseOutputAsync(message.CloseStatus, message.CloseDescription);
         }
     }
 
-    private struct Message
+    /// <summary>
+    /// Dispatches a received message to an <see cref="IOperationMessageReceiveStream"/> instance.
+    /// Override if logging is desired.
+    /// <br/><br/>
+    /// This method is synchronized and will wait until completion before dispatching another message.
+    /// </summary>
+    protected virtual Task OnDispatchMessageAsync(IOperationMessageReceiveStream operationMessageReceiveStream, OperationMessage message)
+        => operationMessageReceiveStream.OnMessageReceivedAsync(message);
+
+    /// <summary>
+    /// Sends the specified message to the underlying <see cref="WebSocket"/>.
+    /// Override if logging is desired.
+    /// <br/><br/>
+    /// This method is synchronized and will wait until completion before sending another message or closing the output stream.
+    /// </summary>
+    protected virtual async Task OnSendMessageAsync(OperationMessage message)
     {
-        public OperationMessage? OperationMessage;
-        public WebSocketCloseStatus CloseStatus;
-        public string? CloseDescription;
+        await _serializer.WriteAsync(_stream, message, _cancellationToken);
+        await _stream.FlushAsync(_cancellationToken);
     }
+
+    /// <summary>
+    /// Closes the underlying <see cref="WebSocket"/>.
+    /// Override if logging is desired.
+    /// <br/><br/>
+    /// This method is synchronized and will wait until completion before sending another message or closing the output stream.
+    /// </summary>
+    protected virtual Task OnCloseOutputAsync(WebSocketCloseStatus closeStatus, string? closeDescription)
+        => _webSocket.CloseOutputAsync(closeStatus, closeDescription, _cancellationToken);
+
+    /// <summary>
+    /// A queue entry; see <see cref="HandleMessageAsync(Message)"/>.
+    /// </summary>
+    /// <param name="OperationMessage">The message to send, if set; if it is null then this is a closure message.</param>
+    /// <param name="CloseStatus">The close status.</param>
+    /// <param name="CloseDescription">The close description.</param>
+    private record struct Message(OperationMessage? OperationMessage, WebSocketCloseStatus CloseStatus, string? CloseDescription);
 }
