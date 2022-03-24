@@ -55,7 +55,7 @@ public class AsyncMessagePumpTests
             if (t == "1")
                 reset.SetResult(true);
         });
-        var func = async () => {
+        Func<ValueTask<string>> func = async () => {
             await Task.Delay(100);
             return "100";
         };

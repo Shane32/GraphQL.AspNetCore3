@@ -107,6 +107,68 @@ namespace Tests.WebSockets
         }
 
         [Fact]
+        public async Task ExecuteAsync_EatsAppShutdown()
+        {
+            var cts = new CancellationTokenSource();
+            var token = cts.Token;
+            var subProtocol = "abc";
+            _mockAppLifetime.Setup(x => x.ApplicationStopping).Returns(token).Verifiable();
+            _mockHttpContext.Setup(x => x.RequestAborted).Returns(default(CancellationToken)).Verifiable();
+            var mockWebSocketConnection = new Mock<IWebSocketConnection>(MockBehavior.Strict);
+            var webSocketConnection = mockWebSocketConnection.Object;
+            CancellationToken token2 = default;
+            _mockHandler.Protected().Setup<IWebSocketConnection>("CreateWebSocketConnection", _webSocket, ItExpr.IsAny<CancellationToken>())
+                .Returns<WebSocket, CancellationToken>((_, token3) => {
+                    token2 = token3;
+                    return webSocketConnection;
+                }).Verifiable();
+            var mockSubServer = new Mock<IOperationMessageReceiveStream>(MockBehavior.Strict);
+            var subServer = mockSubServer.Object;
+            _mockHandler.Protected().Setup<IOperationMessageReceiveStream>("CreateReceiveStream", webSocketConnection, subProtocol, _userContext)
+                .Returns(subServer).Verifiable();
+            mockSubServer.Setup(x => x.Dispose()).Verifiable();
+            mockWebSocketConnection.Setup(x => x.ExecuteAsync(subServer)).Returns<IOperationMessageReceiveStream>(_ => {
+                cts.Cancel();
+                token2.ThrowIfCancellationRequested();
+                return Task.CompletedTask;
+            }).Verifiable();
+            await _handler.ExecuteAsync(_httpContext, _webSocket, subProtocol, _userContext);
+            mockWebSocketConnection.Verify();
+            mockSubServer.Verify();
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_ThrowsHttpContextCanceled()
+        {
+            var cts = new CancellationTokenSource();
+            var token = cts.Token;
+            var subProtocol = "abc";
+            _mockAppLifetime.Setup(x => x.ApplicationStopping).Returns(default(CancellationToken)).Verifiable();
+            _mockHttpContext.Setup(x => x.RequestAborted).Returns(token).Verifiable();
+            var mockWebSocketConnection = new Mock<IWebSocketConnection>(MockBehavior.Strict);
+            var webSocketConnection = mockWebSocketConnection.Object;
+            CancellationToken token2 = default;
+            _mockHandler.Protected().Setup<IWebSocketConnection>("CreateWebSocketConnection", _webSocket, ItExpr.IsAny<CancellationToken>())
+                .Returns<WebSocket, CancellationToken>((_, token3) => {
+                    token2 = token3;
+                    return webSocketConnection;
+                }).Verifiable();
+            var mockSubServer = new Mock<IOperationMessageReceiveStream>(MockBehavior.Strict);
+            var subServer = mockSubServer.Object;
+            _mockHandler.Protected().Setup<IOperationMessageReceiveStream>("CreateReceiveStream", webSocketConnection, subProtocol, _userContext)
+                .Returns(subServer).Verifiable();
+            mockSubServer.Setup(x => x.Dispose()).Verifiable();
+            mockWebSocketConnection.Setup(x => x.ExecuteAsync(subServer)).Returns<IOperationMessageReceiveStream>(_ => {
+                cts.Cancel();
+                token2.ThrowIfCancellationRequested();
+                return Task.CompletedTask;
+            }).Verifiable();
+            await Should.ThrowAsync<OperationCanceledException>(() => _handler.ExecuteAsync(_httpContext, _webSocket, subProtocol, _userContext));
+            mockWebSocketConnection.Verify();
+            mockSubServer.Verify();
+        }
+
+        [Fact]
         public void CreateWebSocketConnection()
         {
             var connection = _handler.Do_CreateWebSocketConnection(_webSocket, default);
@@ -142,6 +204,12 @@ namespace Tests.WebSockets
         public void DerivedConstructor()
         {
             _ = new WebSocketHandler<ISchema>(_serializer, Mock.Of<IDocumentExecuter<ISchema>>(MockBehavior.Strict), _scopeFactory, _options, _appLifetime);
+        }
+
+        [Fact]
+        public void SupportedSubProtocols()
+        {
+            _handler.SupportedSubProtocols.ShouldBe(new[] { "graphql-transport-ws", "graphql-ws" });
         }
     }
 }

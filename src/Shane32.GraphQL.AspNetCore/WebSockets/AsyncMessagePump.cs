@@ -24,7 +24,7 @@ namespace Shane32.GraphQL.AspNetCore.WebSockets;
 internal class AsyncMessagePump<T>
 {
     private readonly Func<T, Task> _callback;
-    private readonly Queue<Task<T>> _queue = new();
+    private readonly Queue<ValueTask<T>> _queue = new();
 
     /// <summary>
     /// Initializes a new instances with the specified asynchronous callback delegate.
@@ -51,12 +51,12 @@ internal class AsyncMessagePump<T>
     /// Posts the specified message to the message queue.
     /// </summary>
     public void Post(T message)
-        => Post(Task.FromResult(message));
+        => Post(new ValueTask<T>(message));
 
     /// <summary>
     /// Posts the result of an asynchronous operation to the message queue.
     /// </summary>
-    public void Post(Task<T> messageTask)
+    public void Post(ValueTask<T> messageTask)
     {
         bool attach = false;
         lock (_queue) {
@@ -75,7 +75,7 @@ internal class AsyncMessagePump<T>
     private async void CompleteAsync()
     {
         // grab the message at the start of the queue, but don't remove it from the queue
-        Task<T> messageTask;
+        ValueTask<T> messageTask;
         lock (_queue) {
             // should always successfully peek from the queue here
             messageTask = _queue.Peek();

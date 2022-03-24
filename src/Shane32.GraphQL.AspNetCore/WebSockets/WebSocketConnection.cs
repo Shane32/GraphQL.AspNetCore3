@@ -26,7 +26,11 @@ public class WebSocketConnection : IWebSocketConnection
     private readonly int _closeTimeoutMs;
     private int _executed;
 
-    private static readonly TimeSpan _defaultDisconnectionTimeout = TimeSpan.FromSeconds(10);
+    /// <summary>
+    /// Returns the default disconnection timeout value.
+    /// See <see cref="WebSocketHandlerOptions.DisconnectionTimeout"/>.
+    /// </summary>
+    protected virtual TimeSpan DefaultDisconnectionTimeout { get; } = TimeSpan.FromSeconds(10);
 
     /// <inheritdoc/>
     public DateTime LastMessageSentAt { get; private set; } = DateTime.UtcNow;
@@ -36,11 +40,13 @@ public class WebSocketConnection : IWebSocketConnection
     /// </summary>
     public WebSocketConnection(WebSocket webSocket, IGraphQLSerializer serializer, WebSocketHandlerOptions options, CancellationToken cancellationToken)
     {
+        if (options == null)
+            throw new ArgumentNullException(nameof(options));
         if (options.DisconnectionTimeout.HasValue) {
-            if (options.DisconnectionTimeout.Value.TotalMilliseconds < -1 || options.DisconnectionTimeout.Value.TotalMilliseconds > int.MaxValue)
+            if ((options.DisconnectionTimeout.Value != Timeout.InfiniteTimeSpan && options.DisconnectionTimeout.Value.TotalMilliseconds < 0) || options.DisconnectionTimeout.Value.TotalMilliseconds > int.MaxValue)
                 throw new ArgumentOutOfRangeException(nameof(options) + "." + nameof(WebSocketHandlerOptions.DisconnectionTimeout));
         }
-        _closeTimeoutMs = (int)(options.DisconnectionTimeout ?? _defaultDisconnectionTimeout).TotalMilliseconds;
+        _closeTimeoutMs = (int)(options.DisconnectionTimeout ?? DefaultDisconnectionTimeout).TotalMilliseconds;
         _webSocket = webSocket ?? throw new ArgumentNullException(nameof(webSocket));
         _stream = new(webSocket);
         _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
