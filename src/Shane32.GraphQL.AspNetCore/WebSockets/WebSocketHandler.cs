@@ -6,7 +6,7 @@ namespace Shane32.GraphQL.AspNetCore.WebSockets;
 public class WebSocketHandler<TSchema> : WebSocketHandler, IWebSocketHandler<TSchema>
     where TSchema : ISchema
 {
-    /// <inheritdoc cref="WebSocketHandler.WebSocketHandler(IGraphQLSerializer, IDocumentExecuter, IServiceScopeFactory, WebSocketHandlerOptions, IHostApplicationLifetime)"/>
+    /// <inheritdoc cref="WebSocketHandler(IGraphQLSerializer, IDocumentExecuter, IServiceScopeFactory, WebSocketHandlerOptions, IHostApplicationLifetime)"/>
     public WebSocketHandler(
         IGraphQLSerializer serializer,
         IDocumentExecuter<TSchema> executer,
@@ -64,13 +64,17 @@ public class WebSocketHandler : IWebSocketHandler
             throw new ArgumentNullException(nameof(httpContext));
         if (webSocket == null)
             throw new ArgumentNullException(nameof(webSocket));
+        if (subProtocol == null)
+            throw new ArgumentNullException(nameof(subProtocol));
         if (userContext == null)
             throw new ArgumentNullException(nameof(userContext));
         var appStoppingToken = _hostApplicationLifetime.ApplicationStopping;
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(httpContext.RequestAborted, appStoppingToken);
+        if (cts.Token.IsCancellationRequested)
+            return;
         try {
             var webSocketConnection = CreateWebSocketConnection(webSocket, cts.Token);
-            using var operationMessageReceiveStream = CreateSendStream(webSocketConnection, subProtocol, userContext);
+            using var operationMessageReceiveStream = CreateReceiveStream(webSocketConnection, subProtocol, userContext);
             await webSocketConnection.ExecuteAsync(operationMessageReceiveStream);
         } catch (OperationCanceledException) when (appStoppingToken.IsCancellationRequested) {
             // terminate all pending WebSockets connections when the application is in the process of stopping
@@ -86,7 +90,7 @@ public class WebSocketHandler : IWebSocketHandler
     /// <summary>
     /// Builds an <see cref="IOperationMessageReceiveStream"/> for the specified sub-protocol.
     /// </summary>
-    protected virtual IOperationMessageReceiveStream CreateSendStream(IOperationMessageSendStream webSocketConnection, string subProtocol, IDictionary<string, object?> userContext)
+    protected virtual IOperationMessageReceiveStream CreateReceiveStream(IOperationMessageSendStream webSocketConnection, string subProtocol, IDictionary<string, object?> userContext)
     {
         switch (subProtocol) {
             case "graphql-transport-ws": {
