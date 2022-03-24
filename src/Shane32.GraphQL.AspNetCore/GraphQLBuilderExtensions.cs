@@ -136,7 +136,9 @@ public static class GraphQLBuilderExtensions
     public static IGraphQLBuilder AddUserContextBuilder<TUserContext>(this IGraphQLBuilder builder, Func<HttpContext, Task<TUserContext>> creator)
         where TUserContext : class, IDictionary<string, object?>
     {
-        builder.Services.Register<IUserContextBuilder>(new UserContextBuilder<TUserContext>(creator));
+        if (creator == null)
+            throw new ArgumentNullException(nameof(creator));
+        builder.Services.Register<IUserContextBuilder>(new UserContextBuilder<TUserContext>(context => new(creator(context))));
         builder.ConfigureExecutionOptions(async options => {
             if (options.UserContext == null || options.UserContext.Count == 0 && options.UserContext.GetType() == typeof(Dictionary<string, object>)) {
                 var requestServices = options.RequestServices ?? throw new MissingRequestServicesException();

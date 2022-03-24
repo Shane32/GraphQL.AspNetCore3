@@ -6,12 +6,12 @@ namespace Shane32.GraphQL.AspNetCore;
 public class UserContextBuilder<TUserContext> : IUserContextBuilder
     where TUserContext : IDictionary<string, object?>
 {
-    private readonly Func<HttpContext, Task<TUserContext>> _func;
+    private readonly Func<HttpContext, ValueTask<TUserContext>> _func;
 
     /// <summary>
     /// Initializes a new instance with the specified delegate.
     /// </summary>
-    public UserContextBuilder(Func<HttpContext, Task<TUserContext>> func)
+    public UserContextBuilder(Func<HttpContext, ValueTask<TUserContext>> func)
     {
         _func = func ?? throw new ArgumentNullException(nameof(func));
     }
@@ -24,10 +24,10 @@ public class UserContextBuilder<TUserContext> : IUserContextBuilder
         if (func == null)
             throw new ArgumentNullException(nameof(func));
 
-        _func = x => Task.FromResult(func(x));
+        _func = x => new(func(x));
     }
 
     /// <inheritdoc/>
-    public async Task<IDictionary<string, object?>> BuildUserContextAsync(HttpContext httpContext)
+    public async ValueTask<IDictionary<string, object?>> BuildUserContextAsync(HttpContext httpContext)
         => await _func(httpContext);
 }

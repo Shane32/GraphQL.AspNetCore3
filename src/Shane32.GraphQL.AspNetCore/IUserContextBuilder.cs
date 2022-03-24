@@ -9,5 +9,5 @@ namespace Shane32.GraphQL.AspNetCore;
 public interface IUserContextBuilder
 {
     /// <inheritdoc cref="IUserContextBuilder"/>
-    Task<IDictionary<string, object?>> BuildUserContextAsync(HttpContext context);
+    ValueTask<IDictionary<string, object?>> BuildUserContextAsync(HttpContext context);
 }
