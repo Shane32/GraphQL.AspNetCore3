@@ -175,7 +175,6 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
 
         async Task StartKeepAliveLoopAsync()
         {
-            var keepAliveTimeout = _options.KeepAliveTimeout ?? _defaultKeepAliveTimeout;
             while (true) {
                 await Task.Delay(keepAliveTimeout, CancellationToken);
                 await OnSendKeepAliveAsync();
@@ -191,7 +190,6 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
          */
         async Task StartSmartKeepAliveLoopAsync()
         {
-            var keepAliveTimeout = _options.KeepAliveTimeout ?? _defaultKeepAliveTimeout;
             var lastKeepAliveSent = Client.LastMessageSentAt;
             while (true) {
                 var lastSent = Client.LastMessageSentAt;

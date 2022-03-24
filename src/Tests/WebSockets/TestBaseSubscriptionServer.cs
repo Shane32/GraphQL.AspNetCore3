@@ -17,6 +17,8 @@ namespace Tests.WebSockets
 
         public void Do_StartConnectionInitTimer() => StartConnectionInitTimer();
 
+        public Task Do_OnConnectionInitWaitTimeoutAsync() => OnConnectionInitWaitTimeoutAsync();
+
         public SubscriptionList Get_Subscriptions => Subscriptions;
 
         public bool Get_Initialized => Initialized;

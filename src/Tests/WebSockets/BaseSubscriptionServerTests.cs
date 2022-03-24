@@ -158,6 +158,16 @@ namespace Tests.WebSockets
         }
 
         [Fact]
+        public async Task OnConnectionInitWaitTimeoutAsync()
+        {
+            _mockServer.Protected().Setup<Task>("OnConnectionInitWaitTimeoutAsync").CallBase().Verifiable();
+            _mockServer.Protected().Setup<Task>("ErrorConnectionInitializationTimeoutAsync").Returns(Task.CompletedTask).Verifiable();
+            await _server.Do_OnConnectionInitWaitTimeoutAsync();
+            _mockServer.Verify();
+            _mockServer.VerifyNoOtherCalls();
+        }
+
+        [Fact]
         public void StartConnectionInitTimer_Infinite()
         {
             _options.ConnectionInitWaitTimeout = Timeout.InfiniteTimeSpan;
@@ -262,9 +272,35 @@ namespace Tests.WebSockets
                 tcs1.SetResult(true);
                 return Task.CompletedTask;
             }).Verifiable();
+            _mockServer.Protected().Setup<Task>("SendErrorResultAsync", testId, testError).CallBase().Verifiable();
             await _server.Do_SendErrorResultAsync(testId, testError);
             await tcs1.Task;
             _mockServer.Verify();
+            _mockServer.VerifyNoOtherCalls();
+        }
+
+        [Fact]
+        public async Task SendErrorResultAsync_2()
+        {
+            var message = new OperationMessage { Id = "abc" };
+            var error = new ExecutionError("test");
+            _mockServer.Protected().Setup<Task>("SendErrorResultAsync", message.Id, error).Returns(Task.CompletedTask).Verifiable();
+            _mockServer.Protected().Setup<Task>("SendErrorResultAsync", message, error).CallBase().Verifiable();
+            await _server.Do_SendErrorResultAsync(message, error);
+            _mockServer.Verify();
+            _mockServer.VerifyNoOtherCalls();
+        }
+
+        [Fact]
+        public async Task SendErrorResultAsync_3()
+        {
+            var message = new OperationMessage { Id = "abc" };
+            var result = new ExecutionResult();
+            _mockServer.Protected().Setup<Task>("SendErrorResultAsync", message.Id, result).Returns(Task.CompletedTask).Verifiable();
+            _mockServer.Protected().Setup<Task>("SendErrorResultAsync", message, result).CallBase().Verifiable();
+            await _server.Do_SendErrorResultAsync(message, result);
+            _mockServer.Verify();
+            _mockServer.VerifyNoOtherCalls();
         }
 
         [Theory]
