@@ -131,9 +131,10 @@ namespace Tests.WebSockets
         [InlineData(true)]
         public async Task OnConnectionInitAsync_Infinite(bool smart)
         {
+            _mockServer.Protected().SetupGet<TimeSpan>("DefaultKeepAliveTimeout").Returns(Timeout.InfiniteTimeSpan).Verifiable();
+            _server.Get_DefaultKeepAliveTimeout.ShouldBe(Timeout.InfiniteTimeSpan);
             var msg = new OperationMessage();
             _mockServer.Protected().Setup<Task>("OnConnectionAcknowledgeAsync", msg).Returns(Task.CompletedTask).Verifiable();
-            _options.KeepAliveTimeout = Timeout.InfiniteTimeSpan;
             await _server.Do_OnConnectionInitAsync(msg, smart);
             _mockServer.Verify();
         }
@@ -171,6 +172,13 @@ namespace Tests.WebSockets
         public void StartConnectionInitTimer_Infinite()
         {
             _options.ConnectionInitWaitTimeout = Timeout.InfiniteTimeSpan;
+            _server.Do_StartConnectionInitTimer();
+        }
+
+        [Fact]
+        public void StartConnectionInitTimer_Default()
+        {
+            _server.Get_DefaultConnectionTimeout.ShouldBe(TimeSpan.FromSeconds(10));
             _server.Do_StartConnectionInitTimer();
         }
 

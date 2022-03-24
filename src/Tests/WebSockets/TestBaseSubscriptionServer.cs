@@ -73,5 +73,8 @@ namespace Tests.WebSockets
 
         public Task<ExecutionError> Do_HandleErrorFromSourceAsync(Exception exception)
             => HandleErrorFromSourceAsync(exception);
+
+        public TimeSpan Get_DefaultConnectionTimeout => DefaultConnectionTimeout;
+        public TimeSpan Get_DefaultKeepAliveTimeout => DefaultKeepAliveTimeout;
     }
 }

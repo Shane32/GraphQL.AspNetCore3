@@ -26,8 +26,15 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
     /// </summary>
     protected SubscriptionList Subscriptions { get; }
 
-    private static readonly TimeSpan _defaultKeepAliveTimeout = Timeout.InfiniteTimeSpan;
-    private static readonly TimeSpan _defaultConnectionTimeout = TimeSpan.FromSeconds(10);
+    /// <summary>
+    /// Returns the default keep-alive timeout.
+    /// </summary>
+    protected virtual TimeSpan DefaultKeepAliveTimeout { get; } = Timeout.InfiniteTimeSpan;
+
+    /// <summary>
+    /// Returns the default connection timeout.
+    /// </summary>
+    protected virtual TimeSpan DefaultConnectionTimeout { get; } = TimeSpan.FromSeconds(10);
 
     /// <summary>
     /// Initailizes a new instance with the specified parameters.
@@ -56,7 +63,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
     /// <inheritdoc/>
     public void StartConnectionInitTimer()
     {
-        var connectInitWaitTimeout = _options.ConnectionInitWaitTimeout ?? _defaultConnectionTimeout;
+        var connectInitWaitTimeout = _options.ConnectionInitWaitTimeout ?? DefaultConnectionTimeout;
         if (connectInitWaitTimeout != Timeout.InfiniteTimeSpan) {
             _ = Task.Run(async () => {
                 await Task.Delay(connectInitWaitTimeout, CancellationToken);
@@ -165,7 +172,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
     {
         await OnConnectionAcknowledgeAsync(message);
 
-        var keepAliveTimeout = _options.KeepAliveTimeout ?? _defaultKeepAliveTimeout;
+        var keepAliveTimeout = _options.KeepAliveTimeout ?? DefaultKeepAliveTimeout;
         if (keepAliveTimeout > TimeSpan.Zero) {
             if (smartKeepAlive)
                 _ = StartSmartKeepAliveLoopAsync();
