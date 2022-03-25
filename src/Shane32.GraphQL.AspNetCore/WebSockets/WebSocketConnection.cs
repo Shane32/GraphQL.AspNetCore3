@@ -125,7 +125,6 @@ public class WebSocketConnection : IWebSocketConnection
                 }
             }
         } catch (WebSocketException) {
-            return;
         } finally {
             // prevent any more messages from being sent
             _outputClosed.TrySetResult(false);

@@ -32,7 +32,7 @@ namespace Tests.WebSockets
             _cts.Dispose();
         }
 
-        private void SetupWebSocketReceive(byte[] data, ValueWebSocketReceiveResult result)
+        private void SetupWebSocketReceive(byte[] data, ValueWebSocketReceiveResult result, bool verifyCloseOutput = true)
         {
             _webSocketResponses.Enqueue((data, result));
             _mockWebSocket.Setup(x => x.ReceiveAsync(It.IsAny<Memory<byte>>(), _token))
@@ -43,9 +43,11 @@ namespace Tests.WebSockets
                     return new ValueTask<ValueWebSocketReceiveResult>(result.Item2);
                 })
                 .Verifiable();
-            _mockConnection.Protected().Setup<Task>("OnCloseOutputAsync", WebSocketCloseStatus.NormalClosure, ItExpr.IsNull<string>())
-                .Returns(Task.CompletedTask)
-                .Verifiable();
+            if (verifyCloseOutput) {
+                _mockConnection.Protected().Setup<Task>("OnCloseOutputAsync", WebSocketCloseStatus.NormalClosure, ItExpr.IsNull<string>())
+                    .Returns(Task.CompletedTask)
+                    .Verifiable();
+            }
         }
 
         [Fact]
@@ -265,6 +267,69 @@ namespace Tests.WebSockets
         }
 
         [Fact]
+        public async Task ExecuteAsync_WebSocket_Canceled()
+        {
+            _mockConnection.CallBase = true;
+            var mockReceiveStream = new Mock<IOperationMessageReceiveStream>(MockBehavior.Strict);
+            mockReceiveStream.Setup(x => x.Dispose());
+            _mockWebSocket.Setup(x => x.ReceiveAsync(It.IsAny<Memory<byte>>(), _token))
+                .Returns<Memory<byte>, CancellationToken>((_, token) => {
+                    _cts.Cancel();
+                    token.ThrowIfCancellationRequested();
+                    return default;
+                })
+                .Verifiable();
+            await Should.ThrowAsync<OperationCanceledException>(() => _connection.ExecuteAsync(mockReceiveStream.Object));
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WebSocket_EatsWebSocketExceptions()
+        {
+            _mockConnection.CallBase = true;
+            var mockReceiveStream = new Mock<IOperationMessageReceiveStream>(MockBehavior.Strict);
+            mockReceiveStream.Setup(x => x.Dispose());
+            _mockWebSocket.Setup(x => x.ReceiveAsync(It.IsAny<Memory<byte>>(), _token))
+                .Returns<Memory<byte>, CancellationToken>((_, _) => throw new WebSocketException())
+                .Verifiable();
+            await _connection.ExecuteAsync(mockReceiveStream.Object);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_Serializer_Canceled()
+        {
+            _mockConnection.CallBase = true;
+            var mockReceiveStream = new Mock<IOperationMessageReceiveStream>(MockBehavior.Strict);
+            mockReceiveStream.Setup(x => x.Dispose());
+            SetupWebSocketReceive(new byte[] { 1, 2, 3, 4, 5 }, new ValueWebSocketReceiveResult(5, WebSocketMessageType.Text, true), false);
+            _mockSerializer.Setup(x => x.ReadAsync<OperationMessage>(It.IsAny<Stream>(), _token))
+                .Returns<Stream, CancellationToken>((_, token) => {
+                    _cts.Cancel();
+                    token.ThrowIfCancellationRequested();
+                    return default;
+                })
+                .Verifiable();
+            await Should.ThrowAsync<OperationCanceledException>(() => _connection.ExecuteAsync(mockReceiveStream.Object));
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_Serializer_Canceled_Multipart()
+        {
+            _mockConnection.CallBase = true;
+            var mockReceiveStream = new Mock<IOperationMessageReceiveStream>(MockBehavior.Strict);
+            mockReceiveStream.Setup(x => x.Dispose());
+            SetupWebSocketReceive(new byte[] { 1, 2, 3, 4, 5 }, new ValueWebSocketReceiveResult(5, WebSocketMessageType.Text, false), false);
+            SetupWebSocketReceive(new byte[] { }, new ValueWebSocketReceiveResult(0, WebSocketMessageType.Text, true), false);
+            _mockSerializer.Setup(x => x.ReadAsync<OperationMessage>(It.IsAny<Stream>(), _token))
+                .Returns<Stream, CancellationToken>((_, token) => {
+                    _cts.Cancel();
+                    token.ThrowIfCancellationRequested();
+                    return default;
+                })
+                .Verifiable();
+            await Should.ThrowAsync<OperationCanceledException>(() => _connection.ExecuteAsync(mockReceiveStream.Object));
+        }
+
+        [Fact]
         public async Task CloseConnectionAsync()
         {
             _mockConnection.Protected().Setup<Task>("OnCloseOutputAsync", WebSocketCloseStatus.NormalClosure, ItExpr.IsNull<string>())
@@ -290,6 +355,40 @@ namespace Tests.WebSockets
                 .Returns(Task.CompletedTask).Verifiable();
             await _connection.SendMessageAsync(message);
             _mockConnection.Verify();
+        }
+
+        [Fact]
+        public async Task LastMessageSentAt()
+        {
+            var oldTime = _connection.LastMessageSentAt;
+            await Task.Delay(100);
+            var message = new OperationMessage();
+            _mockConnection.Protected().Setup<Task>("OnSendMessageAsync", message)
+                .Returns(Task.CompletedTask).Verifiable();
+            await _connection.SendMessageAsync(message);
+            _mockConnection.Verify();
+            var newTime = DateTime.UtcNow;
+            _connection.LastMessageSentAt.ShouldBeGreaterThan(oldTime);
+            _connection.LastMessageSentAt.ShouldBeLessThanOrEqualTo(newTime);
+        }
+
+        [Fact]
+        public async Task DoNotSendMessagesAfterOutputIsClosed()
+        {
+            // send a message
+            var message = new OperationMessage();
+            _mockConnection.Protected().SetupGet<TimeSpan>("DefaultDisconnectionTimeout").CallBase().Verifiable();
+            _mockConnection.Protected().Setup<Task>("OnSendMessageAsync", message)
+                .Returns(Task.CompletedTask).Verifiable();
+            _mockConnection.Protected().Setup<Task>("OnCloseOutputAsync", WebSocketCloseStatus.NormalClosure, ItExpr.IsNull<string>())
+                .Returns(Task.CompletedTask).Verifiable();
+            await _connection.SendMessageAsync(message);
+            // close the output
+            await _connection.CloseConnectionAsync();
+            // send another message -- OnSendMessageAsync should not be called for the new message
+            await _connection.SendMessageAsync(new OperationMessage());
+            _mockConnection.Verify();
+            _mockConnection.VerifyNoOtherCalls();
         }
 
         [Fact]

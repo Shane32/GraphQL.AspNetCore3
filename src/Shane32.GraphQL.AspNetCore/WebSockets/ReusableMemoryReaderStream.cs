@@ -1,77 +1,100 @@
-namespace Shane32.GraphQL.AspNetCore.WebSockets
+namespace Shane32.GraphQL.AspNetCore.WebSockets;
+
+/// <summary>
+/// A readable memory stream based on a buffer, with a resettable
+/// maximum length.
+/// </summary>
+internal class ReusableMemoryReaderStream : Stream
 {
-    internal class ReusableMemoryReaderStream : Stream
+    private readonly byte[] _buffer;
+    private int _position;
+    private int _length;
+
+    /// <summary>
+    /// Initializes a new instance based on the specified buffer.
+    /// </summary>
+    public ReusableMemoryReaderStream(byte[] buffer)
     {
-        private readonly byte[] _buffer;
-        private int _position;
-        private int _length;
+        _buffer = buffer ?? throw new ArgumentNullException(nameof(buffer));
+    }
 
-        public ReusableMemoryReaderStream(byte[] buffer)
-        {
-            _buffer = buffer ?? throw new ArgumentNullException(nameof(buffer));
-        }
+    /// <inheritdoc/>
+    public override bool CanRead => true;
 
-        public override bool CanRead => true;
+    /// <inheritdoc/>
+    public override bool CanSeek => true;
 
-        public override bool CanSeek => true;
+    /// <inheritdoc/>
+    public override bool CanWrite => false;
 
-        public override bool CanWrite => false;
+    /// <inheritdoc/>
+    public override long Length => _length;
 
-        public override long Length => _length;
+    /// <inheritdoc/>
+    public override long Position {
+        get => _position;
+        set => _position = Math.Max(Math.Min(checked((int)value), _length), 0);
+    }
 
-        public override long Position {
-            get => _position;
-            set => _position = Math.Max(Math.Min(checked((int)value), _length), 0);
-        }
+    /// <inheritdoc/>
+    public override void Flush() => throw new NotSupportedException();
 
-        public override void Flush() => throw new NotSupportedException();
+    /// <inheritdoc/>
+    public override int Read(byte[] buffer, int offset, int count)
+        => Read(new Span<byte>(buffer, offset, count));
 
-        public override int Read(byte[] buffer, int offset, int count)
-            => Read(new Span<byte>(buffer, offset, count));
+    /// <inheritdoc/>
+    public override int Read(Span<byte> buffer)
+    {
+        var count = Math.Min(_length - _position, buffer.Length);
+        var source = new Span<byte>(_buffer, _position, count);
+        _position += count;
+        source.CopyTo(buffer);
+        return count;
+    }
 
-        public override int Read(Span<byte> buffer)
-        {
-            var count = Math.Min(_length - _position, buffer.Length);
-            var source = new Span<byte>(_buffer, _position, count);
-            _position += count;
-            source.CopyTo(buffer);
-            return count;
-        }
+    /// <inheritdoc/>
+    public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        => Task.FromResult(Read(buffer, offset, count));
 
-        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-            => Task.FromResult(Read(buffer, offset, count));
+    /// <inheritdoc/>
+    public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        => new(Read(buffer.Span));
 
-        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
-            => new(Read(buffer.Span));
+    /// <inheritdoc/>
+    public override long Seek(long offset, SeekOrigin origin)
+        => Position =
+            origin == SeekOrigin.Begin ? offset :
+            origin == SeekOrigin.Current ? offset + _position :
+            origin == SeekOrigin.End ? offset + _length :
+            throw new ArgumentOutOfRangeException(nameof(origin));
 
-        public override long Seek(long offset, SeekOrigin origin)
-            => Position =
-                origin == SeekOrigin.Begin ? offset :
-                origin == SeekOrigin.Current ? offset + _position :
-                origin == SeekOrigin.End ? offset + _length :
-                throw new ArgumentOutOfRangeException(nameof(origin));
+    /// <inheritdoc/>
+    public override void SetLength(long value)
+    {
+        _length = checked((int)Math.Max(Math.Min(value, _buffer.Length), 0));
+        if (_position > _length)
+            _position = _length;
+    }
 
-        public override void SetLength(long value)
-        {
-            _length = checked((int)Math.Max(Math.Min(value, _buffer.Length), 0));
-            if (_position > _length)
-                _position = _length;
-        }
+    /// <summary>
+    /// Sets the length to the specified value and resets the position to the start of the stream.
+    /// </summary>
+    public void ResetLength(int value)
+    {
+        _length = Math.Max(Math.Min(value, _buffer.Length), 0);
+        _position = 0;
+    }
 
-        public void ResetLength(int value)
-        {
-            _length = Math.Max(Math.Min(value, _buffer.Length), 0);
-            _position = 0;
-        }
+    /// <inheritdoc/>
+    public override void Write(byte[] buffer, int offset, int count)
+        => throw new NotSupportedException();
 
-        public override void Write(byte[] buffer, int offset, int count)
-            => throw new NotSupportedException();
-
-        public override int ReadByte()
-        {
-            if (_position == _length)
-                return -1;
-            return _buffer[_position++];
-        }
+    /// <inheritdoc/>
+    public override int ReadByte()
+    {
+        if (_position == _length)
+            return -1;
+        return _buffer[_position++];
     }
 }
