@@ -34,10 +34,13 @@ namespace Tests.WebSockets
             _stream.Length.ShouldBe(0);
             _stream.SetLength(5);
             _stream.Length.ShouldBe(5);
+            _stream.Position = 3;
             _stream.SetLength(7);
             _stream.Length.ShouldBe(5);
+            _stream.Position.ShouldBe(3);
             _stream.SetLength(-1);
             _stream.Length.ShouldBe(0);
+            _stream.Position.ShouldBe(0);
         }
 
         [Fact]
