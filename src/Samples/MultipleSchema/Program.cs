@@ -1,5 +1,4 @@
 using GraphQL.MicrosoftDI;
-using GraphQL.SystemReactive;
 using GraphQL.SystemTextJson;
 using Shane32.GraphQL.AspNetCore;
 
@@ -12,7 +11,6 @@ builder.Services.AddGraphQL(b => b
     .AddSchema<MultipleSchema.Cats.CatsSchema>()
     .AddSchema<MultipleSchema.Dogs.DogsSchema>()
     .AddAutoClrMappings()
-    .AddSubscriptionExecutionStrategy()
     .AddSystemTextJson()
     .AddServer());
 

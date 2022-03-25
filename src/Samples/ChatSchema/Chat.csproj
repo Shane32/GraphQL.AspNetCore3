@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="GraphQL" Version="5.0.0-preview-500" />
+    <PackageReference Include="GraphQL" Version="5.0.0-preview-503" />
     <PackageReference Include="System.Reactive" Version="5.0.0" />
     <Using Include="Chat.Schema" />
     <Using Include="Chat.Services" />
