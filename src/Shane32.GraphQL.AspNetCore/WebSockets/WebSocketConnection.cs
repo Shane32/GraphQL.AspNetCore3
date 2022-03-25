@@ -72,6 +72,8 @@ public class WebSocketConnection : IWebSocketConnection
             byte[] buffer = new byte[16384];
             // prep a Memory instance pointing to the block
             var bufferMemory = new Memory<byte>(buffer);
+            // prep a reader stream
+            var bufferStream = new ReusableMemoryReaderStream(buffer);
             // read messages until an exception occurs, the cancellation token is signaled, or a 'close' message is received
             while (true) {
                 var result = await _webSocket.ReceiveAsync(bufferMemory, _cancellationToken);
@@ -98,7 +100,7 @@ public class WebSocketConnection : IWebSocketConnection
                         if (result.Count == 0)
                             continue;
                         // read the message
-                        var bufferStream = new MemoryStream(buffer, 0, result.Count, false);
+                        bufferStream.ResetLength(result.Count);
                         var message = await _serializer.ReadAsync<OperationMessage>(bufferStream, _cancellationToken);
                         // dispatch the message
                         if (message != null)
