@@ -12,9 +12,9 @@ public class Message
     public int Id { get; set; }
 
     [Name("Message")]
-    public string Value { get; set; }
+    public string Value { get; set; } = null!;
 
-    public string From { get; set; }
+    public string From { get; set; } = null!;
 
     public DateTime Sent { get; set; }
 }
