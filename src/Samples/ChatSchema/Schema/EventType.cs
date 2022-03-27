@@ -4,12 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Chat.Schema
+namespace Chat.Schema;
+
+public enum EventType
 {
-    public enum EventType
-    {
-        NewMessage,
-        DeleteMessage,
-        ClearMessages,
-    }
+    NewMessage,
+    DeleteMessage,
+    ClearMessages,
 }

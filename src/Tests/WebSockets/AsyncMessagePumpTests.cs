@@ -1,6 +1,6 @@
 using Shane32.GraphQL.AspNetCore.WebSockets;
 
-namespace AsyncResetEventTests;
+namespace Tests.AsyncResetEventTests;
 
 public class AsyncMessagePumpTests
 {

@@ -4,11 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Chat.Schema
+namespace Chat.Schema;
+
+public class Event
 {
-    public class Event
-    {
-        public EventType Type { get; set; }
-        public Message? Message { get; set; }
-    }
+    public EventType Type { get; set; }
+    public Message? Message { get; set; }
 }

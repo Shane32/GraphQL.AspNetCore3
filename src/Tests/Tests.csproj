@@ -13,7 +13,7 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <NoWarn>1701;1702;1591;IDE1006;IDE0060;0618</NoWarn>
+    <NoWarn>1701;1702;1591;IDE1006;IDE0060;0618;IDE0053</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -32,7 +32,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Samples\ChatSchema\Chat.csproj" />
     <ProjectReference Include="..\Shane32.GraphQL.AspNetCore\Shane32.GraphQL.AspNetCore.csproj" />
+    <PackageReference Include="GraphQL.SystemTextJson" Version="5.0.0-preview-503" />
   </ItemGroup>
 
   <ItemGroup>
@@ -42,6 +44,22 @@
     <Using Include="Shane32.GraphQL.AspNetCore.WebSockets" />
     <Using Include="Moq" />
     <Using Include="Moq.Protected" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net6.0'">
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing">
+      <Version>6.0.*</Version>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net5.0'">
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing">
+      <Version>5.0.*</Version>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'netcoreapp3.1'">
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing">
+      <Version>3.1.*</Version>
+    </PackageReference>
   </ItemGroup>
 
 </Project>

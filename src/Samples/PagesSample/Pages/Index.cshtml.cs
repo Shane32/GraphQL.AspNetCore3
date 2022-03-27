@@ -1,32 +1,31 @@
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace PagesSample.Pages
+namespace PagesSample.Pages;
+
+public class IndexModel : PageModel
 {
-    public class IndexModel : PageModel
+    private readonly ILogger<IndexModel> _logger;
+
+    public IndexModel(ILogger<IndexModel> logger)
     {
-        private readonly ILogger<IndexModel> _logger;
+        _logger = logger;
+    }
 
-        public IndexModel(ILogger<IndexModel> logger)
-        {
-            _logger = logger;
-        }
+    public void OnGet()
+    {
 
-        public void OnGet()
-        {
-            
-        }
+    }
 
-        public string GraphQLEndPoint => "/graphql";
+    public string GraphQLEndPoint => "/graphql";
 
-        public string SubscriptionsEndPoint => "/graphql";
+    public string SubscriptionsEndPoint => "/graphql";
 
-        public IDictionary<string, object?> Headers { get; } = new Dictionary<string, object?> {
+    public IDictionary<string, object?> Headers { get; } = new Dictionary<string, object?> {
             { "Accept", "application/json" },
             { "Content-Type", "application/json" },
         };
 
-        public string GraphiQLElement => "GraphiQLWithExtensions.GraphiQLWithExtensions";
+    public string GraphiQLElement => "GraphiQLWithExtensions.GraphiQLWithExtensions";
 
-        public bool HeaderEditorEnabled => true;
-    }
+    public bool HeaderEditorEnabled => true;
 }

@@ -1,8 +1,7 @@
-namespace MultipleSchema.Cats
+namespace MultipleSchema.Cats;
+
+public class Subscription
 {
-    public class Subscription
-    {
-        public static IObservable<Cat> Cats([FromServices] CatsData cats)
-            => cats.CatObservable();
-    }
+    public static IObservable<Cat> Cats([FromServices] CatsData cats)
+        => cats.CatObservable();
 }

@@ -1,12 +1,11 @@
-namespace MultipleSchema.Cats
+namespace MultipleSchema.Cats;
+
+public class CatsSchema : Schema
 {
-    public class CatsSchema : Schema
+    public CatsSchema(IServiceProvider serviceProvider) : base(serviceProvider)
     {
-        public CatsSchema(IServiceProvider serviceProvider) : base(serviceProvider)
-        {
-            Query = new AutoRegisteringObjectGraphType<Query>();
-            Mutation = new AutoRegisteringObjectGraphType<Mutation>();
-            Subscription = new AutoRegisteringObjectGraphType<Subscription>();
-        }
+        Query = new AutoRegisteringObjectGraphType<Query>();
+        Mutation = new AutoRegisteringObjectGraphType<Mutation>();
+        Subscription = new AutoRegisteringObjectGraphType<Subscription>();
     }
 }
