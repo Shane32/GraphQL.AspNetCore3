@@ -33,9 +33,9 @@ application if you have not already done so.  For best performance, please use t
 `GraphQL.SystemTextJson` package.
 
 Then update your `Program.cs` or `Startup.cs` to register the schema, the serialization engine,
-the HTTP middleware and WebSocket services.  Configure WebSockets and GraphQL in the HTTP pipeline
-by calling `UseWebSockets` and `UseGraphQL` at the appropriate point.  Below is a complete sample
-of a .NET 6 console app that hosts a GraphQL endpoint at `http://localhost:5000/graphql`:
+and optionally the HTTP middleware and WebSocket services.  Configure WebSockets and GraphQL
+in the HTTP pipeline by calling `UseWebSockets` and `UseGraphQL` at the appropriate point.
+Below is a complete sample of a .NET 6 console app that hosts a GraphQL endpoint at `http://localhost:5000/graphql`:
 
 #### Project file
 
@@ -118,65 +118,30 @@ await app.RunAsync();
 
 Although not recommended, you may set up a controller action to execute GraphQL
 requests.  You will not need `UseGraphQL` or `MapGraphQL` in the application
-startup.  Below is the sample controller content.  It does not contain code
-to handle WebSockets connections.
+startup.  Below is a very basic sample; a much more complete sample can be found
+in the `ControllerSample` project within this repository.
 
 #### HomeController.cs
 
 ```csharp
-[Route("Home")]
 public class HomeController : Controller
 {
-    private readonly IDocumentExecuter<ISchema> _executer;
-    private readonly IGraphQLTextSerializer _serializer;
+    private readonly IDocumentExecuter _documentExecuter;
 
-    public HomeController(IDocumentExecuter<ISchema> executer, IGraphQLTextSerializer serializer)
+    public TestController(IDocumentExecuter<ISchema> documentExecuter)
     {
-        _executer = executer;
-        _serializer = serializer;
+        _documentExecuter = documentExecuter;
     }
 
-    [HttpGet("graphql")]
-    public Task<IActionResult> GraphQLGetAsync(string query, string? operationName)
-        => ExecuteGraphQLRequestAsync(ParseRequest(query, operationName));
-
-    [HttpPost("graphql")]
-    public async Task<IActionResult> GraphQLPostAsync(string query, string? variables, string? operationName, string? extensions)
+    [HttpGet]
+    public async Task<IActionResult> GraphQL(string query)
     {
-        if (HttpContext.Request.HasFormContentType) {
-            return await ExecuteGraphQLRequestAsync(ParseRequest(query, operationName, variables, extensions));
-        } else if (HttpContext.Request.HasJsonContentType()) {
-            var request = await _serializer.ReadAsync<GraphQLRequest>(HttpContext.Request.Body, HttpContext.RequestAborted);
-            return await ExecuteGraphQLRequestAsync(request);
-        }
-        return BadRequest();
-    }
-
-    private GraphQLRequest ParseRequest(string query, string? operationName, string? variables = null, string? extensions = null)
-        => new GraphQLRequest {
+        var result = await _documentExecuter.ExecuteAsync(new() {
             Query = query,
-            OperationName = operationName,
-            Variables = _serializer.Deserialize<Inputs>(variables),
-            Extensions = _serializer.Deserialize<Inputs>(extensions),
-        };
-
-    private async Task<IActionResult> ExecuteGraphQLRequestAsync(GraphQLRequest? request)
-    {
-        if (string.IsNullOrWhiteSpace(request?.Query))
-            return BadRequest();
-        try {
-            return new ExecutionResultActionResult(await _executer.ExecuteAsync(new ExecutionOptions {
-                Query = request.Query,
-                OperationName = request.OperationName,
-                Variables = request.Variables,
-                Extensions = request.Extensions,
-                CancellationToken = HttpContext.RequestAborted,
-                RequestServices = HttpContext.RequestServices,
-            }));
-        }
-        catch {
-            return BadRequest();
-        }
+            RequestServices = HttpContext.RequestServices,
+            CancellationToken = HttpContext.RequestAborted,
+        });
+        return new ExecutionResultActionResult(result);
     }
 }
 ```
@@ -185,7 +150,8 @@ public class HomeController : Controller
 
 To set the user context to be used during the execution of GraphQL requests,
 call `AddUserContextBuilder` during the GraphQL service setup to set a delegate
-which will be called when the user context is built.
+which will be called when the user context is built.  Alternatively, you can
+register an `IUserContextBuilder` implementation to do the same.
 
 #### Program.cs / Startup.cs
 
@@ -218,10 +184,10 @@ contain XML comments to provide assistance while coding with Visual Studio.
 
 | Builder interface | Method | Description |
 |-------------------|--------|-------------|
-| `IGraphQLBuilder` | `AddWebSocketHandler`   | Registers the default WebSocket handler with the dependency injection framework. |
-| `IGraphQLBuilder` | `AddUserContextBuilder` | Set up a delegate to create the UserContext for each GraphQL request. |
-| `IApplicationBuilder`   | `UseGraphQL`      | Add the GraphQL middleware to the HTTP request pipeline. |
-| `IEndpointRouteBuilder` | `MapGraphQL`      | Add the GraphQL middleware to the HTTP request pipeline. |
+| `IGraphQLBuilder` | `AddWebSocketHandler`   | Configures the default WebSocket handler or registers an alternative handler with the dependency injection framework. |
+| `IGraphQLBuilder` | `AddUserContextBuilder` | Sets up a delegate to create the UserContext for each GraphQL request. |
+| `IApplicationBuilder`   | `UseGraphQL`      | Adds the GraphQL middleware to the HTTP request pipeline. |
+| `IEndpointRouteBuilder` | `MapGraphQL`      | Adds the GraphQL middleware to the HTTP request pipeline. |
 
 A number of the methods contain optional parameters or configuration delegates to
 allow further customization.  Please review the overloads of each method to determine
@@ -231,7 +197,9 @@ comments than shown above.
 ### Configuration options
 
 Below are descriptions of the options available when registering the HTTP middleware
-or WebSocket handler.
+or WebSocket handler.  Note that the HTTP middleware options are configured via the
+`UseGraphQL` or `MapGraphQL` methods allowing for different options for each configured
+endpoint; the WebSocket handler options are configured globally via `AddWebSocketHandler`.
 
 #### GraphQLHttpMiddlewareOptions
 
@@ -242,9 +210,9 @@ or WebSocket handler.
 | `HandleGet`                        | Enables handling of GET requests. | True |
 | `HandlePost`                       | Enables handling of POST requests. | True |
 | `HandleWebSockets`                 | Enables handling of WebSockets requests. | True |
-| `ReadExtensionsFromQueryString`    | Enables reading extensions from the query string. | False |
-| `ReadQueryStringOnPost`            | Enables parsing the query string on POST requests. | False |
-| `ReadVariablesFromQueryString`     | Enables reading variables from the query string. | False |
+| `ReadExtensionsFromQueryString`    | Enables reading extensions from the query string. | True |
+| `ReadQueryStringOnPost`            | Enables parsing the query string on POST requests. | True |
+| `ReadVariablesFromQueryString`     | Enables reading variables from the query string. | True |
 | `ValidationErrorsReturnBadRequest` | When enabled, GraphQL requests with validation errors have the HTTP status code set to 400 Bad Request. | True |
 
 #### WebSocketHandlerOptions
@@ -390,6 +358,14 @@ dependency injection service scope as the field resolvers.  Since WebSocket conn
 are long-lived, using scoped services within a user context builder will result in those
 scoped services having a matching long lifetime.  You may wish to alleviate this by
 creating a service scope temporarily within your user context builder.
+
+### Mutations within GET request
+
+For security reasons and pursuant to current recommendations, mutation GraphQL requests
+are rejected over HTTP GET connections.  Derive from `GraphQLHttpMiddleware` and override
+`ExecuteRequestAsync` to prevent injection of the validation rules that enforce this behavior.
+
+As would be expected, subscription requests are only allowed over WebSocket channels.
 
 ## Samples
 
