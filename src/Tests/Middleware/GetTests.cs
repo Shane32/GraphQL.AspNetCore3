@@ -102,8 +102,7 @@ public class GetTests : IDisposable
         _options.ValidationErrorsReturnBadRequest = badRequest;
         var client = _server.CreateClient();
         using var response = await client.GetAsync("/graphql");
-        // always returns BadRequest here
-        await response.ShouldBeAsync(true, @"{""errors"":[{""message"":""GraphQL query is missing.""}]}");
+        await response.ShouldBeAsync(badRequest, @"{""errors"":[{""message"":""GraphQL query is missing.""}]}");
     }
 
     [Theory]
@@ -114,8 +113,7 @@ public class GetTests : IDisposable
         _options.ValidationErrorsReturnBadRequest = badRequest;
         var client = _server.CreateClient();
         using var response = await client.GetAsync("/graphql?query=");
-        // always returns BadRequest here
-        await response.ShouldBeAsync(true, @"{""errors"":[{""message"":""GraphQL query is missing.""}]}");
+        await response.ShouldBeAsync(badRequest, @"{""errors"":[{""message"":""GraphQL query is missing.""}]}");
     }
 
     [Theory]

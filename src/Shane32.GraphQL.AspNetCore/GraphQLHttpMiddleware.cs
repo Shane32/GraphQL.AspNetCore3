@@ -440,7 +440,7 @@ public abstract class GraphQLHttpMiddleware
     /// Writes a '400 GraphQL query is missing.' message to the output.
     /// </summary>
     protected virtual Task HandleNoQueryErrorAsync(HttpContext context, RequestDelegate next)
-        => WriteErrorResponseAsync(context, HttpStatusCode.BadRequest, "GraphQL query is missing.");
+        => WriteErrorResponseAsync(context, Options.ValidationErrorsReturnBadRequest ? HttpStatusCode.BadRequest : HttpStatusCode.OK, "GraphQL query is missing.");
 
     /// <summary>
     /// Writes a '415 Invalid Content-Type header: could not be parsed.' message to the output.

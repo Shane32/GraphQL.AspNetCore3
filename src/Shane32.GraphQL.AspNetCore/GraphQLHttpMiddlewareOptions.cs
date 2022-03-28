@@ -51,19 +51,19 @@ public class GraphQLHttpMiddlewareOptions
     /// Enables parsing the query string on POST requests.
     /// If enabled, the query string properties override those in the body of the request.
     /// </summary>
-    public bool ReadQueryStringOnPost { get; set; } = false;
+    public bool ReadQueryStringOnPost { get; set; } = true;
 
     /// <summary>
     /// Enables reading variables from the query string.
     /// Variables are interpreted as JSON and deserialized before being
     /// provided to the <see cref="IDocumentExecuter"/>.
     /// </summary>
-    public bool ReadVariablesFromQueryString { get; set; } = false;
+    public bool ReadVariablesFromQueryString { get; set; } = true;
 
     /// <summary>
     /// Enables reading extensions from the query string.
     /// Extensions are interpreted as JSON and deserialized before being
     /// provided to the <see cref="IDocumentExecuter"/>.
     /// </summary>
-    public bool ReadExtensionsFromQueryString { get; set; } = false;
+    public bool ReadExtensionsFromQueryString { get; set; } = true;
 }

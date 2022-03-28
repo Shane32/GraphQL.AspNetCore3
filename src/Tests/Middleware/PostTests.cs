@@ -220,8 +220,7 @@ public class PostTests : IDisposable
     {
         _options.ValidationErrorsReturnBadRequest = badRequest;
         using var response = await PostJsonAsync("{}");
-        // always returns BadRequest here
-        await response.ShouldBeAsync(true, @"{""errors"":[{""message"":""GraphQL query is missing.""}]}");
+        await response.ShouldBeAsync(badRequest, @"{""errors"":[{""message"":""GraphQL query is missing.""}]}");
     }
 
     [Theory]
@@ -231,8 +230,7 @@ public class PostTests : IDisposable
     {
         _options.ValidationErrorsReturnBadRequest = badRequest;
         using var response = await PostJsonAsync("null");
-        // always returns BadRequest here
-        await response.ShouldBeAsync(true, @"{""errors"":[{""message"":""GraphQL query is missing.""}]}");
+        await response.ShouldBeAsync(badRequest, @"{""errors"":[{""message"":""GraphQL query is missing.""}]}");
     }
 
     [Fact]
