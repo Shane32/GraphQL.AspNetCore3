@@ -280,13 +280,14 @@ public abstract class GraphQLHttpMiddleware
     /// <summary>
     /// Executes a GraphQL request.
     /// <br/><br/>
-    /// It is suggested to use the <see cref="OperationTypeValidationRule"/> to ensure that only
-    /// query operations are executed for GET requests, and query or mutation operations for
+    /// It is suggested to use the <see cref="HttpGetValidationRule"/> and
+    /// <see cref="HttpPostValidationRule"/> to ensure that only query operations
+    /// are executed for GET requests, and query or mutation operations for
     /// POST requests.
     /// This should be set in both <see cref="ExecutionOptions.ValidationRules"/> and
     /// <see cref="ExecutionOptions.CachedDocumentValidationRules"/>, as shown below:
     /// <code>
-    /// var rule = new OperationTypeValidationRule(httpContextAccessor);
+    /// var rule = isGet ? new HttpGetValidationRule() : new HttpPostValidationRule();
     /// options.ValidationRules = DocumentValidator.CoreRules.Append(rule);
     /// options.CachedDocumentValidationRules = new[] { rule };
     /// </code>

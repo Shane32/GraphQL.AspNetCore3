@@ -9,7 +9,7 @@ public sealed class HttpGetValidationRule : IValidationRule
     public ValueTask<INodeVisitor?> ValidateAsync(ValidationContext context)
     {
         if (context.Operation.Operation != OperationType.Query) {
-            context.ReportError(new OperationTypeValidationError(context.Document.Source, context.Operation, "Only query operations allowed for GET requests."));
+            context.ReportError(new HttpMethodValidationError(context.Document.Source, context.Operation, "Only query operations allowed for GET requests."));
         }
         return default;
     }

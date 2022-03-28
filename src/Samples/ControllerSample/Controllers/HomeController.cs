@@ -9,16 +9,11 @@ public class HomeController : Controller
 {
     private readonly IDocumentExecuter<ISchema> _executer;
     private readonly IGraphQLTextSerializer _serializer;
-    private readonly IEnumerable<IValidationRule> _validationRules;
-    private readonly IEnumerable<IValidationRule> _cachedDocumentValidationRules;
 
-    public HomeController(IDocumentExecuter<ISchema> executer, IGraphQLTextSerializer serializer, IHttpContextAccessor httpContextAccessor)
+    public HomeController(IDocumentExecuter<ISchema> executer, IGraphQLTextSerializer serializer)
     {
         _executer = executer;
         _serializer = serializer;
-        var rule = new OperationTypeValidationRule(httpContextAccessor);
-        _validationRules = DocumentValidator.CoreRules.Append(rule).ToArray();
-        _cachedDocumentValidationRules = new[] { rule };
     }
 
     public IActionResult Index()
@@ -56,16 +51,18 @@ public class HomeController : Controller
         if (string.IsNullOrWhiteSpace(request?.Query))
             return BadRequest();
         try {
-            return new ExecutionResultActionResult(await _executer.ExecuteAsync(new ExecutionOptions {
+            var opts = new ExecutionOptions {
                 Query = request.Query,
                 OperationName = request.OperationName,
                 Variables = request.Variables,
                 Extensions = request.Extensions,
                 CancellationToken = HttpContext.RequestAborted,
                 RequestServices = HttpContext.RequestServices,
-                ValidationRules = _validationRules,
-                CachedDocumentValidationRules = _cachedDocumentValidationRules,
-            }));
+            };
+            IValidationRule rule = HttpMethods.IsGet(HttpContext.Request.Method) ? new HttpGetValidationRule() : new HttpPostValidationRule();
+            opts.ValidationRules = DocumentValidator.CoreRules.Append(rule);
+            opts.CachedDocumentValidationRules = new[] { rule };
+            return new ExecutionResultActionResult(await _executer.ExecuteAsync(opts));
         }
         catch {
             return BadRequest();

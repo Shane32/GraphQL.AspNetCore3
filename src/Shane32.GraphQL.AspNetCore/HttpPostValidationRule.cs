@@ -9,7 +9,7 @@ public class HttpPostValidationRule : IValidationRule
     public ValueTask<INodeVisitor?> ValidateAsync(ValidationContext context)
     {
         if (context.Operation.Operation == OperationType.Subscription) {
-            context.ReportError(new OperationTypeValidationError(context.Document.Source, context.Operation, "Subscription operations are not supported for POST requests."));
+            context.ReportError(new HttpMethodValidationError(context.Document.Source, context.Operation, "Subscription operations are not supported for POST requests."));
         }
         return default;
     }

@@ -61,26 +61,18 @@ public class GraphQLHttpMiddlewareTests : IDisposable
     {
         var client = _server.CreateClient();
         using var response = await client.GetAsync("/graphql?query={count}");
-        response.EnsureSuccessStatusCode();
-        response.Content.Headers.ContentType!.MediaType.ShouldBe("application/json");
-        response.Content.Headers.ContentType.CharSet.ShouldBeNull();
-        var str = await response.Content.ReadAsStringAsync();
-        str.ShouldBe(@"{""data"":{""count"":0}}");
+        await response.ShouldBeAsync(@"{""data"":{""count"":0}}");
     }
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Get_WithError(bool validationErrorsReturnBadRequest)
+    public async Task Get_WithError(bool badRequest)
     {
-        _options.ValidationErrorsReturnBadRequest = validationErrorsReturnBadRequest;
+        _options.ValidationErrorsReturnBadRequest = badRequest;
         var client = _server.CreateClient();
         using var response = await client.GetAsync("/graphql?query={invalid}");
-        response.StatusCode.ShouldBe(validationErrorsReturnBadRequest ? HttpStatusCode.BadRequest : HttpStatusCode.OK);
-        response.Content.Headers.ContentType!.MediaType.ShouldBe("application/json");
-        response.Content.Headers.ContentType.CharSet.ShouldBeNull();
-        var str = await response.Content.ReadAsStringAsync();
-        str.ShouldBe(@"{""errors"":[{""message"":""Cannot query field \u0027invalid\u0027 on type \u0027Query\u0027."",""locations"":[{""line"":1,""column"":2}],""extensions"":{""code"":""FIELDS_ON_CORRECT_TYPE"",""codes"":[""FIELDS_ON_CORRECT_TYPE""],""number"":""5.3.1""}}]}");
+        await response.ShouldBeAsync(badRequest, @"{""errors"":[{""message"":""Cannot query field \u0027invalid\u0027 on type \u0027Query\u0027."",""locations"":[{""line"":1,""column"":2}],""extensions"":{""code"":""FIELDS_ON_CORRECT_TYPE"",""codes"":[""FIELDS_ON_CORRECT_TYPE""],""number"":""5.3.1""}}]}");
     }
 
     [Fact]
@@ -95,61 +87,46 @@ public class GraphQLHttpMiddlewareTests : IDisposable
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Get_QueryParseError(bool validationErrorsReturnBadRequest)
+    public async Task Get_QueryParseError(bool badRequest)
     {
-        _options.ValidationErrorsReturnBadRequest = validationErrorsReturnBadRequest;
+        _options.ValidationErrorsReturnBadRequest = badRequest;
         var client = _server.CreateClient();
         using var response = await client.GetAsync("/graphql?query={");
-        response.StatusCode.ShouldBe(validationErrorsReturnBadRequest ? HttpStatusCode.BadRequest : HttpStatusCode.OK);
-        response.Content.Headers.ContentType!.MediaType.ShouldBe("application/json");
-        response.Content.Headers.ContentType.CharSet.ShouldBeNull();
-        var str = await response.Content.ReadAsStringAsync();
-        str.ShouldBe(@"{""errors"":[{""message"":""Error parsing query: Expected Name, found EOF; for more information see http://spec.graphql.org/October2021/#Field"",""locations"":[{""line"":1,""column"":2}],""extensions"":{""code"":""SYNTAX_ERROR"",""codes"":[""SYNTAX_ERROR""]}}]}");
+        await response.ShouldBeAsync(badRequest, @"{""errors"":[{""message"":""Error parsing query: Expected Name, found EOF; for more information see http://spec.graphql.org/October2021/#Field"",""locations"":[{""line"":1,""column"":2}],""extensions"":{""code"":""SYNTAX_ERROR"",""codes"":[""SYNTAX_ERROR""]}}]}");
     }
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Get_NoQuery(bool validationErrorsReturnBadRequest)
+    public async Task Get_NoQuery(bool badRequest)
     {
-        _options.ValidationErrorsReturnBadRequest = validationErrorsReturnBadRequest;
+        _options.ValidationErrorsReturnBadRequest = badRequest;
         var client = _server.CreateClient();
         using var response = await client.GetAsync("/graphql?query=");
-        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        response.Content.Headers.ContentType!.MediaType.ShouldBe("application/json");
-        response.Content.Headers.ContentType.CharSet.ShouldBeNull();
-        var str = await response.Content.ReadAsStringAsync();
-        str.ShouldBe(@"{""errors"":[{""message"":""GraphQL query is missing.""}]}");
+        // always returns BadRequest here
+        await response.ShouldBeAsync(true, @"{""errors"":[{""message"":""GraphQL query is missing.""}]}");
     }
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Get_Mutation(bool validationErrorsReturnBadRequest)
+    public async Task Get_Mutation(bool badRequest)
     {
-        _options.ValidationErrorsReturnBadRequest = validationErrorsReturnBadRequest;
+        _options.ValidationErrorsReturnBadRequest = badRequest;
         var client = _server.CreateClient();
         using var response = await client.GetAsync("/graphql?query=mutation{clearMessages}");
-        response.StatusCode.ShouldBe(validationErrorsReturnBadRequest ? HttpStatusCode.BadRequest : HttpStatusCode.OK);
-        response.Content.Headers.ContentType!.MediaType.ShouldBe("application/json");
-        response.Content.Headers.ContentType.CharSet.ShouldBeNull();
-        var str = await response.Content.ReadAsStringAsync();
-        str.ShouldBe(@"{""errors"":[{""message"":""Only query operations allowed for GET requests."",""locations"":[{""line"":1,""column"":1}],""extensions"":{""code"":""OPERATION_TYPE_VALIDATION"",""codes"":[""OPERATION_TYPE_VALIDATION""]}}]}");
+        await response.ShouldBeAsync(badRequest, @"{""errors"":[{""message"":""Only query operations allowed for GET requests."",""locations"":[{""line"":1,""column"":1}],""extensions"":{""code"":""HTTP_METHOD_VALIDATION"",""codes"":[""HTTP_METHOD_VALIDATION""]}}]}");
     }
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Get_Subscription(bool validationErrorsReturnBadRequest)
+    public async Task Get_Subscription(bool badRequest)
     {
-        _options.ValidationErrorsReturnBadRequest = validationErrorsReturnBadRequest;
+        _options.ValidationErrorsReturnBadRequest = badRequest;
         var client = _server.CreateClient();
         using var response = await client.GetAsync("/graphql?query=subscription{newMessages{id}}");
-        response.StatusCode.ShouldBe(validationErrorsReturnBadRequest ? HttpStatusCode.BadRequest : HttpStatusCode.OK);
-        response.Content.Headers.ContentType!.MediaType.ShouldBe("application/json");
-        response.Content.Headers.ContentType.CharSet.ShouldBeNull();
-        var str = await response.Content.ReadAsStringAsync();
-        str.ShouldBe(@"{""errors"":[{""message"":""Only query operations allowed for GET requests."",""locations"":[{""line"":1,""column"":1}],""extensions"":{""code"":""OPERATION_TYPE_VALIDATION"",""codes"":[""OPERATION_TYPE_VALIDATION""]}}]}");
+        await response.ShouldBeAsync(badRequest, @"{""errors"":[{""message"":""Only query operations allowed for GET requests."",""locations"":[{""line"":1,""column"":1}],""extensions"":{""code"":""HTTP_METHOD_VALIDATION"",""codes"":[""HTTP_METHOD_VALIDATION""]}}]}");
     }
 
     [Theory]
@@ -161,30 +138,22 @@ public class GraphQLHttpMiddlewareTests : IDisposable
         _options.ValidationErrorsReturnBadRequest = false;
         var client = _server.CreateClient();
         using var response = await client.GetAsync("/graphql?query=query($from:String!){allMessages(from:$from){id}}&variables={%22from%22:%22abc%22}");
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        response.Content.Headers.ContentType!.MediaType.ShouldBe("application/json");
-        response.Content.Headers.ContentType.CharSet.ShouldBeNull();
-        var str = await response.Content.ReadAsStringAsync();
         if (readVariablesFromQueryString) {
-            str.ShouldBe(@"{""data"":{""allMessages"":[]}}");
+            await response.ShouldBeAsync(@"{""data"":{""allMessages"":[]}}");
         } else {
-            str.ShouldBe(@"{""errors"":[{""message"":""Variable \u0027$from\u0027 is invalid. No value provided for a non-null variable."",""locations"":[{""line"":1,""column"":7}],""extensions"":{""code"":""INVALID_VALUE"",""codes"":[""INVALID_VALUE""],""number"":""5.8""}}]}");
+            await response.ShouldBeAsync(@"{""errors"":[{""message"":""Variable \u0027$from\u0027 is invalid. No value provided for a non-null variable."",""locations"":[{""line"":1,""column"":7}],""extensions"":{""code"":""INVALID_VALUE"",""codes"":[""INVALID_VALUE""],""number"":""5.8""}}]}");
         }
     }
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Get_VariableParseError(bool validationErrorsReturnBadRequest)
+    public async Task Get_VariableParseError(bool badRequest)
     {
-        _options.ValidationErrorsReturnBadRequest = validationErrorsReturnBadRequest;
+        _options.ValidationErrorsReturnBadRequest = badRequest;
         var client = _server.CreateClient();
         using var response = await client.GetAsync("/graphql?query=query($from:String!){allMessages(from:$from){id}}&variables={");
-        response.StatusCode.ShouldBe(validationErrorsReturnBadRequest ? HttpStatusCode.BadRequest : HttpStatusCode.OK);
-        response.Content.Headers.ContentType!.MediaType.ShouldBe("application/json");
-        response.Content.Headers.ContentType.CharSet.ShouldBeNull();
-        var str = await response.Content.ReadAsStringAsync();
-        str.ShouldBe(@"{""errors"":[{""message"":""Variable \u0027$from\u0027 is invalid. No value provided for a non-null variable."",""locations"":[{""line"":1,""column"":7}],""extensions"":{""code"":""INVALID_VALUE"",""codes"":[""INVALID_VALUE""],""number"":""5.8""}}]}");
+        await response.ShouldBeAsync(badRequest, @"{""errors"":[{""message"":""Variable \u0027$from\u0027 is invalid. No value provided for a non-null variable."",""locations"":[{""line"":1,""column"":7}],""extensions"":{""code"":""INVALID_VALUE"",""codes"":[""INVALID_VALUE""],""number"":""5.8""}}]}");
     }
 
     [Theory]
@@ -194,11 +163,7 @@ public class GraphQLHttpMiddlewareTests : IDisposable
     {
         var client = _server.CreateClient();
         using var response = await client.GetAsync("/graphql?query=query test1{count} query test2{allMessages{id}}&operationName=" + opName);
-        response.EnsureSuccessStatusCode();
-        response.Content.Headers.ContentType!.MediaType.ShouldBe("application/json");
-        response.Content.Headers.ContentType.CharSet.ShouldBeNull();
-        var str = await response.Content.ReadAsStringAsync();
-        str.ShouldBe(expected);
+        await response.ShouldBeAsync(expected);
     }
 
     [Theory]
@@ -209,10 +174,6 @@ public class GraphQLHttpMiddlewareTests : IDisposable
         _options2.ReadExtensionsFromQueryString = readExtensions;
         var client = _server.CreateClient();
         using var response = await client.GetAsync("/graphql2?query={ext}&extensions={%22test%22:%22abc%22}");
-        response.EnsureSuccessStatusCode();
-        response.Content.Headers.ContentType!.MediaType.ShouldBe("application/json");
-        response.Content.Headers.ContentType.CharSet.ShouldBeNull();
-        var str = await response.Content.ReadAsStringAsync();
-        str.ShouldBe(expected);
+        await response.ShouldBeAsync(expected);
     }
 }
