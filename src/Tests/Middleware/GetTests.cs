@@ -25,8 +25,7 @@ public class GetTests : IDisposable
                     .WithMutation<Chat.Schema.Mutation>()
                     .WithSubscription<Chat.Schema.Subscription>())
                 .AddSchema<Schema2>()
-                .AddSystemTextJson()
-                .AddServer());
+                .AddSystemTextJson());
         });
         hostBuilder.Configure(app => {
             app.UseWebSockets();
