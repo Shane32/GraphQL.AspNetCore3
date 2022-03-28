@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Hosting;
+
 namespace Shane32.GraphQL.AspNetCore;
 
 /// <inheritdoc/>
@@ -9,11 +11,28 @@ public class GraphQLHttpMiddleware<TSchema> : GraphQLHttpMiddleware
     where TSchema : ISchema
 {
     private readonly IDocumentExecuter _documentExecuter;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly IEnumerable<IValidationRule> _getValidationRules;
     private readonly IEnumerable<IValidationRule> _getCachedDocumentValidationRules;
     private readonly IEnumerable<IValidationRule> _postValidationRules;
     private readonly IEnumerable<IValidationRule> _postCachedDocumentValidationRules;
-    private readonly IServiceScopeFactory _serviceScopeFactory;
+
+    /// <summary>
+    /// Initializes a new instance with the default web socket handler.
+    /// </summary>
+    public GraphQLHttpMiddleware(
+        RequestDelegate next,
+        IGraphQLTextSerializer serializer,
+        IDocumentExecuter<TSchema> documentExecuter,
+        IServiceScopeFactory serviceScopeFactory,
+        GraphQLHttpMiddlewareOptions options,
+        IHostApplicationLifetime hostApplicationLifetime)
+        : this(next, serializer, documentExecuter, serviceScopeFactory, options, hostApplicationLifetime,
+            new IWebSocketHandler<TSchema>[] {
+                new WebSocketHandler<TSchema>(serializer, documentExecuter, serviceScopeFactory, new WebSocketHandlerOptions(), hostApplicationLifetime),
+            })
+    {
+    }
 
     /// <summary>
     /// Initializes a new instance.
@@ -23,18 +42,20 @@ public class GraphQLHttpMiddleware<TSchema> : GraphQLHttpMiddleware
         IGraphQLTextSerializer serializer,
         IDocumentExecuter<TSchema> documentExecuter,
         IServiceScopeFactory serviceScopeFactory,
-        IEnumerable<IWebSocketHandler<TSchema>> webSocketHandlers,
-        GraphQLHttpMiddlewareOptions options)
-        : base(next, serializer, webSocketHandlers, options)
+        GraphQLHttpMiddlewareOptions options,
+        IHostApplicationLifetime hostApplicationLifetime, // <-- necessary so DI can select the proper constructor if any handlers are installed
+        IEnumerable<IWebSocketHandler<TSchema>> webSocketHandlers)
+        : base(next, serializer, options, webSocketHandlers)
    {
+        _ = hostApplicationLifetime;
         _documentExecuter = documentExecuter ?? throw new ArgumentNullException(nameof(documentExecuter));
+        _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
         var getRule = new HttpGetValidationRule();
         _getValidationRules = DocumentValidator.CoreRules.Append(getRule).ToArray();
         _getCachedDocumentValidationRules = new[] { getRule };
         var postRule = new HttpPostValidationRule();
         _postValidationRules = DocumentValidator.CoreRules.Append(postRule).ToArray();
         _postCachedDocumentValidationRules = new[] { postRule };
-        _serviceScopeFactory = serviceScopeFactory;
     }
 
     /// <inheritdoc/>
@@ -47,6 +68,13 @@ public class GraphQLHttpMiddleware<TSchema> : GraphQLHttpMiddleware
     /// <inheritdoc/>
     protected override async Task<ExecutionResult> ExecuteRequestAsync(HttpContext context, GraphQLRequest request, IServiceProvider serviceProvider, IDictionary<string, object?> userContext)
     {
+        if (request?.Query == null) {
+            return new ExecutionResult {
+                Errors = new ExecutionErrors {
+                    new ExecutionError("GraphQL query is missing.")
+                }
+            };
+        }
         var opts = new ExecutionOptions {
             Query = request.Query,
             Variables = request.Variables,
@@ -76,7 +104,7 @@ public class GraphQLHttpMiddleware<TSchema> : GraphQLHttpMiddleware
 public abstract class GraphQLHttpMiddleware
 {
     private readonly IGraphQLTextSerializer _serializer;
-    private readonly IEnumerable<IWebSocketHandler> _webSocketHandlers;
+    private readonly IEnumerable<IWebSocketHandler>? _webSocketHandlers;
     private readonly RequestDelegate _next;
 
     private const string QUERY_KEY = "query";
@@ -97,13 +125,13 @@ public abstract class GraphQLHttpMiddleware
     public GraphQLHttpMiddleware(
         RequestDelegate next,
         IGraphQLTextSerializer serializer,
-        IEnumerable<IWebSocketHandler> webSocketHandlers,
-        GraphQLHttpMiddlewareOptions options)
+        GraphQLHttpMiddlewareOptions options,
+        IEnumerable<IWebSocketHandler>? webSocketHandlers = null)
     {
         _next = next ?? throw new ArgumentNullException(nameof(next));
         _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
-        _webSocketHandlers = webSocketHandlers;
         Options = options ?? throw new ArgumentNullException(nameof(options));
+        _webSocketHandlers = webSocketHandlers;
     }
 
     /// <inheritdoc/>
@@ -182,6 +210,7 @@ public abstract class GraphQLHttpMiddleware
                         } catch (Exception ex) {
                             if (!await HandleDeserializationErrorAsync(context, _next, ex))
                                 throw;
+                            return;
                         }
                         break;
                     }
@@ -194,7 +223,16 @@ public abstract class GraphQLHttpMiddleware
             // If we don't have a batch request, parse the query from URL too to determine the actual request to run.
             // Query string params take priority.
             GraphQLRequest? gqlRequest = null;
-            var urlGQLRequest = isGet || Options.ReadQueryStringOnPost ? DeserializeFromQueryString(httpRequest.Query) : null;
+            GraphQLRequest? urlGQLRequest = null;
+            if (isGet || Options.ReadQueryStringOnPost) {
+                try {
+                    urlGQLRequest = DeserializeFromQueryString(httpRequest.Query);
+                } catch (Exception ex) {
+                    if (!await HandleDeserializationErrorAsync(context, _next, ex))
+                        throw;
+                    return;
+                }
+            }
 
             gqlRequest = new GraphQLRequest {
                 Query = urlGQLRequest?.Query ?? bodyGQLRequest?.Query!,

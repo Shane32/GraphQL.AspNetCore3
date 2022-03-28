@@ -11,7 +11,7 @@
     <ProjectReference Include="..\..\Shane32.GraphQL.AspNetCore\Shane32.GraphQL.AspNetCore.csproj" />
     <ProjectReference Include="..\ChatSchema\Chat.csproj" />
     <PackageReference Include="GraphQL.Server.Ui.Playground" Version="5.2.0" />
-    <PackageReference Include="GraphQL.SystemTextJson" Version="5.0.0-preview-503" />
+    <PackageReference Include="GraphQL.SystemTextJson" Version="5.0.0-preview-508" />
   </ItemGroup>
 
 </Project>

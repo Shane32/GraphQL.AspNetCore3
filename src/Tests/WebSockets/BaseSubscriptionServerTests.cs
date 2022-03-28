@@ -1,6 +1,5 @@
 using System.Reactive.Subjects;
 using GraphQL.Execution;
-using GraphQL.Subscription;
 using GraphQL.Transport;
 
 namespace Tests.WebSockets;
@@ -336,7 +335,7 @@ public class BaseSubscriptionServerTests : IDisposable
     {
         var message = new OperationMessage { Id = "abc" };
         var source = new Subject<ExecutionResult>();
-        var result = new SubscriptionExecutionResult {
+        var result = new ExecutionResult {
             Streams = new Dictionary<string, IObservable<ExecutionResult>> {
                     { "field", source },
                 },
@@ -358,14 +357,14 @@ public class BaseSubscriptionServerTests : IDisposable
     {
         var message1 = new OperationMessage { Id = "abc" };
         var source1 = new Subject<ExecutionResult>();
-        var result1 = new SubscriptionExecutionResult {
+        var result1 = new ExecutionResult {
             Streams = new Dictionary<string, IObservable<ExecutionResult>> {
                     { "field", source1 },
                 },
         };
         var message2 = new OperationMessage { Id = "abc" };
         var source2 = new Subject<ExecutionResult>();
-        var result2 = new SubscriptionExecutionResult {
+        var result2 = new ExecutionResult {
             Streams = new Dictionary<string, IObservable<ExecutionResult>> {
                     { "field", source2 },
                 },
@@ -519,7 +518,7 @@ public class BaseSubscriptionServerTests : IDisposable
     {
         var message = new OperationMessage { Id = "abc" };
         var source = new Subject<ExecutionResult>();
-        var result = new SubscriptionExecutionResult {
+        var result = new ExecutionResult {
             Streams = new Dictionary<string, IObservable<ExecutionResult>> {
                     { "field", source },
                 },
@@ -559,7 +558,7 @@ public class BaseSubscriptionServerTests : IDisposable
     {
         var message = new OperationMessage { Id = "abc" };
         var source = new Subject<ExecutionResult>();
-        var result = new SubscriptionExecutionResult {
+        var result = new ExecutionResult {
             Streams = new Dictionary<string, IObservable<ExecutionResult>> {
                     { "field", source },
                 },
@@ -583,7 +582,7 @@ public class BaseSubscriptionServerTests : IDisposable
     {
         var message = new OperationMessage { Id = "abc" };
         var source = new Subject<ExecutionResult>();
-        var result = new SubscriptionExecutionResult {
+        var result = new ExecutionResult {
             Streams = new Dictionary<string, IObservable<ExecutionResult>> {
                     { "field", source },
                 },
@@ -613,7 +612,7 @@ public class BaseSubscriptionServerTests : IDisposable
         _options.DisconnectAfterAnyError = closeAfterError;
         var message = new OperationMessage { Id = "abc" };
         var source = new Subject<ExecutionResult>();
-        var result = new SubscriptionExecutionResult {
+        var result = new ExecutionResult {
             Streams = new Dictionary<string, IObservable<ExecutionResult>> {
                     { "field", source },
                 },
@@ -646,7 +645,7 @@ public class BaseSubscriptionServerTests : IDisposable
     {
         var message = new OperationMessage { Id = "abc" };
         var source = new Subject<ExecutionResult>();
-        var result = new SubscriptionExecutionResult {
+        var result = new ExecutionResult {
             Streams = new Dictionary<string, IObservable<ExecutionResult>> {
                     { "field", source },
                 },
@@ -681,7 +680,7 @@ public class BaseSubscriptionServerTests : IDisposable
         _options.DisconnectAfterErrorEvent = closeAfterError;
         var message = new OperationMessage { Id = "abc" };
         var source = new Subject<ExecutionResult>();
-        var result = new SubscriptionExecutionResult {
+        var result = new ExecutionResult {
             Streams = new Dictionary<string, IObservable<ExecutionResult>> {
                     { "field", source },
                 },
@@ -720,7 +719,7 @@ public class BaseSubscriptionServerTests : IDisposable
     {
         var message = new OperationMessage { Id = "abc" };
         var source = new Subject<ExecutionResult>();
-        var result = new SubscriptionExecutionResult {
+        var result = new ExecutionResult {
             Streams = new Dictionary<string, IObservable<ExecutionResult>> {
                     { "field", source },
                 },

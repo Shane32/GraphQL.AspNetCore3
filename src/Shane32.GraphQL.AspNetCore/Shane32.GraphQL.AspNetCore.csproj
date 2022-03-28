@@ -10,14 +10,13 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <PackageReference Include="GraphQL.MicrosoftDI" Version="5.0.0-preview-503" />
+    <PackageReference Include="GraphQL.MicrosoftDI" Version="5.0.0-preview-508" />
     <PackageReference Include="System.Reactive" Version="5.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <Using Include="GraphQL.DI" />
     <Using Include="GraphQL.Execution" />
-    <Using Include="GraphQL.Subscription" />
     <Using Include="GraphQL.Transport" />
     <Using Include="GraphQL.Validation" />
     <Using Include="GraphQLParser.AST" />

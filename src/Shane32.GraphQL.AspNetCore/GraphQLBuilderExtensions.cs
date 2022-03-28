@@ -8,47 +8,6 @@ namespace Shane32.GraphQL.AspNetCore;
 public static class GraphQLBuilderExtensions
 {
     /// <summary>
-    /// Registers the default HTTP middleware and WebSockets handler with the dependency injection framework.
-    /// </summary>
-    public static IGraphQLBuilder AddServer(this IGraphQLBuilder builder, Action<WebSocketHandlerOptions>? configureWebSockets = null)
-    {
-        AddHttpMiddleware(builder);
-        AddWebSocketHandler(builder, configureWebSockets);
-        return builder;
-    }
-
-    /// <summary>
-    /// Registers the default HTTP middleware and WebSockets handler with the dependency injection framework.
-    /// </summary>
-    public static IGraphQLBuilder AddServer(this IGraphQLBuilder builder, Action<WebSocketHandlerOptions, IServiceProvider>? configureWebSockets)
-    {
-        AddHttpMiddleware(builder);
-        AddWebSocketHandler(builder, configureWebSockets);
-        return builder;
-    }
-
-    /// <summary>
-    /// Registers the default HTTP middleware with the dependency injection framework.
-    /// </summary>
-    public static IGraphQLBuilder AddHttpMiddleware(this IGraphQLBuilder builder)
-    {
-        //builder.Services.Register(typeof(GraphQLHttpMiddleware<>), typeof(GraphQLHttpMiddleware<>), ServiceLifetime.Singleton);
-        //builder.Services.TryRegister<IHttpContextAccessor, HttpContextAccessor>(ServiceLifetime.Singleton);
-        return builder;
-    }
-
-    /// <summary>
-    /// Registers HTTP middleware for the specified schema with the dependency injection framework.
-    /// </summary>
-    public static IGraphQLBuilder AddHttpMiddleware<TSchema, TMiddleware>(this IGraphQLBuilder builder)
-        where TSchema : ISchema
-        where TMiddleware : GraphQLHttpMiddleware<TSchema>
-    {
-        //builder.Services.Register<TMiddleware>(ServiceLifetime.Singleton);
-        return builder;
-    }
-
-    /// <summary>
     /// Registers the default WebSocket handler with the dependency injection framework and
     /// optionally configures it with the specified configuration delegate.
     /// </summary>

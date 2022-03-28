@@ -251,9 +251,9 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
             var result = await ExecuteRequestAsync(message);
             if (!Subscriptions.Contains(message.Id, dummyDisposer))
                 return;
-            if (result is SubscriptionExecutionResult subscriptionExecutionResult && subscriptionExecutionResult.Streams?.Count == 1) {
+            if (result.Streams?.Count == 1) {
                 // do not return a result, but set up a subscription
-                var stream = subscriptionExecutionResult.Streams!.Single().Value;
+                var stream = result.Streams!.Single().Value;
                 // note that this may immediately trigger some notifications
                 var disposer = stream.Subscribe(new Observer(this, message.Id, _options.DisconnectAfterErrorEvent, _options.DisconnectAfterAnyError));
                 try {

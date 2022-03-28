@@ -11,8 +11,7 @@ builder.Services.AddGraphQL(b => b
     .AddSchema<MultipleSchema.Cats.CatsSchema>()
     .AddSchema<MultipleSchema.Dogs.DogsSchema>()
     .AddAutoClrMappings()
-    .AddSystemTextJson()
-    .AddServer());
+    .AddSystemTextJson());
 
 var app = builder.Build();
 app.UseDeveloperExceptionPage();

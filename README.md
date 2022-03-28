@@ -68,8 +68,7 @@ using Shane32.GraphQL.AspNetCore;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddGraphQL(b => b
     .AddAutoSchema<Query>()  // schema
-    .AddSystemTextJson()     // serializer
-    .AddServer());           // HTTP middleware and WebSocket services
+    .AddSystemTextJson());   // serializer
 
 var app = builder.Build();
 app.UseDeveloperExceptionPage();
@@ -194,7 +193,6 @@ which will be called when the user context is built.
 builder.Services.AddGraphQL(b => b
     .AddAutoSchema<Query>()
     .AddSystemTextJson()
-    .AddServer()
     .AddUserContextBuilder(httpContext => new MyUserContext(httpContext));
 ```
 
@@ -220,8 +218,6 @@ contain XML comments to provide assistance while coding with Visual Studio.
 
 | Builder interface | Method | Description |
 |-------------------|--------|-------------|
-| `IGraphQLBuilder` | `AddServer`             | Registers the default HTTP middleware and WebSockets handler with the dependency injection framework. |
-| `IGraphQLBuilder` | `AddHttpMiddleware`     | Registers the default HTTP middleware with the dependency injection framework. |
 | `IGraphQLBuilder` | `AddWebSocketHandler`   | Registers the default WebSocket handler with the dependency injection framework. |
 | `IGraphQLBuilder` | `AddUserContextBuilder` | Set up a delegate to create the UserContext for each GraphQL request. |
 | `IApplicationBuilder`   | `UseGraphQL`      | Add the GraphQL middleware to the HTTP request pipeline. |
@@ -346,10 +342,8 @@ you will need to perform the following:
       request arrives.  If your handler supports multiple sub-protocols, it should return the
       proper subscription server for the requested sub-protocol.
 3. Register the new WebSocket hander in the DI framework via `.AddWebSocketHandler<T>()`.
-4. If desired, disable the existing WebSocket handler by replacing the call to `.AddServer()`
-   with `.AddHttpMiddleware()`, or by removing the call to `.AddWebSocketHandler()`.
-   Alternatively, register the WebSocket handlers in the order of priority, for instance adding
-   the call to `.AddWebSocketHandler<T>()` prior to the call of `.AddServer()`.
+4. Optionally also call `.AddWebSocketHandler()` to register the default WebSocket handler also.
+   WebSocket handlers are prioritized in the order they are registered.
 
 There exists a few additional classes to support the above.  Please refer to the source code
 of `NewSubscriptionServer` if you are attempting to add support for another protocol.

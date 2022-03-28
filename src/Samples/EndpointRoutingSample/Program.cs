@@ -9,8 +9,7 @@ builder.Services.AddGraphQL(b => b
     .AddAutoSchema<Chat.Schema.Query>(s => s
         .WithMutation<Chat.Schema.Mutation>()
         .WithSubscription<Chat.Schema.Subscription>())
-    .AddSystemTextJson()
-    .AddServer());
+    .AddSystemTextJson());
 
 var app = builder.Build();
 app.UseDeveloperExceptionPage();

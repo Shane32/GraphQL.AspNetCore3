@@ -7,15 +7,15 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Shane32.GraphQL.AspNetCore;
 
-namespace Tests;
+namespace Tests.Middleware;
 
-public class GraphQLHttpMiddlewareTests : IDisposable
+public class GetTests : IDisposable
 {
     private GraphQLHttpMiddlewareOptions _options = null!;
     private GraphQLHttpMiddlewareOptions _options2 = null!;
     private readonly TestServer _server;
 
-    public GraphQLHttpMiddlewareTests()
+    public GetTests()
     {
         var hostBuilder = new WebHostBuilder();
         hostBuilder.ConfigureServices(services => {
@@ -57,7 +57,7 @@ public class GraphQLHttpMiddlewareTests : IDisposable
     public void Dispose() => _server.Dispose();
 
     [Fact]
-    public async Task Get_Works()
+    public async Task BasicTest()
     {
         var client = _server.CreateClient();
         using var response = await client.GetAsync("/graphql?query={count}");
@@ -67,7 +67,7 @@ public class GraphQLHttpMiddlewareTests : IDisposable
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Get_WithError(bool badRequest)
+    public async Task WithError(bool badRequest)
     {
         _options.ValidationErrorsReturnBadRequest = badRequest;
         var client = _server.CreateClient();
@@ -76,7 +76,7 @@ public class GraphQLHttpMiddlewareTests : IDisposable
     }
 
     [Fact]
-    public async Task Get_Disabled()
+    public async Task Disabled()
     {
         _options.HandleGet = false;
         var client = _server.CreateClient();
@@ -87,7 +87,7 @@ public class GraphQLHttpMiddlewareTests : IDisposable
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Get_QueryParseError(bool badRequest)
+    public async Task QueryParseError(bool badRequest)
     {
         _options.ValidationErrorsReturnBadRequest = badRequest;
         var client = _server.CreateClient();
@@ -98,7 +98,19 @@ public class GraphQLHttpMiddlewareTests : IDisposable
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Get_NoQuery(bool badRequest)
+    public async Task NoQuery(bool badRequest)
+    {
+        _options.ValidationErrorsReturnBadRequest = badRequest;
+        var client = _server.CreateClient();
+        using var response = await client.GetAsync("/graphql");
+        // always returns BadRequest here
+        await response.ShouldBeAsync(true, @"{""errors"":[{""message"":""GraphQL query is missing.""}]}");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task EmptyQuery(bool badRequest)
     {
         _options.ValidationErrorsReturnBadRequest = badRequest;
         var client = _server.CreateClient();
@@ -110,7 +122,7 @@ public class GraphQLHttpMiddlewareTests : IDisposable
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Get_Mutation(bool badRequest)
+    public async Task Mutation(bool badRequest)
     {
         _options.ValidationErrorsReturnBadRequest = badRequest;
         var client = _server.CreateClient();
@@ -121,7 +133,7 @@ public class GraphQLHttpMiddlewareTests : IDisposable
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Get_Subscription(bool badRequest)
+    public async Task Subscription(bool badRequest)
     {
         _options.ValidationErrorsReturnBadRequest = badRequest;
         var client = _server.CreateClient();
@@ -132,7 +144,7 @@ public class GraphQLHttpMiddlewareTests : IDisposable
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Get_WithVariables(bool readVariablesFromQueryString)
+    public async Task WithVariables(bool readVariablesFromQueryString)
     {
         _options.ReadVariablesFromQueryString = readVariablesFromQueryString;
         _options.ValidationErrorsReturnBadRequest = false;
@@ -148,18 +160,20 @@ public class GraphQLHttpMiddlewareTests : IDisposable
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Get_VariableParseError(bool badRequest)
+    public async Task VariableParseError(bool badRequest)
     {
         _options.ValidationErrorsReturnBadRequest = badRequest;
+        _options.ReadVariablesFromQueryString = true;
         var client = _server.CreateClient();
         using var response = await client.GetAsync("/graphql?query=query($from:String!){allMessages(from:$from){id}}&variables={");
-        await response.ShouldBeAsync(badRequest, @"{""errors"":[{""message"":""Variable \u0027$from\u0027 is invalid. No value provided for a non-null variable."",""locations"":[{""line"":1,""column"":7}],""extensions"":{""code"":""INVALID_VALUE"",""codes"":[""INVALID_VALUE""],""number"":""5.8""}}]}");
+        // always returns BadRequest here
+        await response.ShouldBeAsync(true, @"{""errors"":[{""message"":""JSON body text could not be parsed. Expected depth to be zero at the end of the JSON payload. There is an open JSON object or array that should be closed. Path: $ | LineNumber: 0 | BytePositionInLine: 1.""}]}");
     }
 
     [Theory]
     [InlineData("test1", @"{""data"":{""count"":0}}")]
     [InlineData("test2", @"{""data"":{""allMessages"":[]}}")]
-    public async Task Get_OperationName(string opName, string expected)
+    public async Task OperationName(string opName, string expected)
     {
         var client = _server.CreateClient();
         using var response = await client.GetAsync("/graphql?query=query test1{count} query test2{allMessages{id}}&operationName=" + opName);
@@ -169,11 +183,24 @@ public class GraphQLHttpMiddlewareTests : IDisposable
     [Theory]
     [InlineData(true, @"{""data"":{""ext"":""abc""}}")]
     [InlineData(false, @"{""data"":{""ext"":null}}")]
-    public async Task Get_Extensions(bool readExtensions, string expected)
+    public async Task Extensions(bool readExtensions, string expected)
     {
         _options2.ReadExtensionsFromQueryString = readExtensions;
         var client = _server.CreateClient();
         using var response = await client.GetAsync("/graphql2?query={ext}&extensions={%22test%22:%22abc%22}");
         await response.ShouldBeAsync(expected);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExtensionsParseError(bool badRequest)
+    {
+        _options2.ReadExtensionsFromQueryString = true;
+        _options2.ValidationErrorsReturnBadRequest = badRequest;
+        var client = _server.CreateClient();
+        using var response = await client.GetAsync("/graphql2?query={ext}&extensions={");
+        // always returns BadRequest here
+        await response.ShouldBeAsync(true, @"{""errors"":[{""message"":""JSON body text could not be parsed. Expected depth to be zero at the end of the JSON payload. There is an open JSON object or array that should be closed. Path: $ | LineNumber: 0 | BytePositionInLine: 1.""}]}");
     }
 }
