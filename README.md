@@ -367,6 +367,18 @@ are rejected over HTTP GET connections.  Derive from `GraphQLHttpMiddleware` and
 
 As would be expected, subscription requests are only allowed over WebSocket channels.
 
+### Apollo Tracing
+
+To include Apollo Tracing results, be sure to register the `ApolloTracingDocumentExecuter`.
+
+```csharp
+services.AddGraphQL(b => b
+    .AddAutoSchema<Query>()
+    .AddSystemTextJson()
+    .AddMetrics()
+    .AddDocumentExecuter<ApolloTracingDocumentExecuter>());
+```
+
 ## Samples
 
 The following samples are provided to show how to integrate this project with various
