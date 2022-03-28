@@ -10,9 +10,9 @@ public static class GraphQLBuilderExtensions
     /// <summary>
     /// Registers the default HTTP middleware and WebSockets handler with the dependency injection framework.
     /// </summary>
-    public static IGraphQLBuilder AddServer(this IGraphQLBuilder builder, Action<GraphQLHttpMiddlewareOptions>? configureMiddleware = null, Action<WebSocketHandlerOptions>? configureWebSockets = null)
+    public static IGraphQLBuilder AddServer(this IGraphQLBuilder builder, Action<WebSocketHandlerOptions>? configureWebSockets = null)
     {
-        AddHttpMiddleware(builder, configureMiddleware);
+        AddHttpMiddleware(builder);
         AddWebSocketHandler(builder, configureWebSockets);
         return builder;
     }
@@ -20,9 +20,9 @@ public static class GraphQLBuilderExtensions
     /// <summary>
     /// Registers the default HTTP middleware and WebSockets handler with the dependency injection framework.
     /// </summary>
-    public static IGraphQLBuilder AddServer(this IGraphQLBuilder builder, Action<GraphQLHttpMiddlewareOptions, IServiceProvider>? configureMiddleware, Action<WebSocketHandlerOptions, IServiceProvider>? configureWebSockets = null)
+    public static IGraphQLBuilder AddServer(this IGraphQLBuilder builder, Action<WebSocketHandlerOptions, IServiceProvider>? configureWebSockets)
     {
-        AddHttpMiddleware(builder, configureMiddleware);
+        AddHttpMiddleware(builder);
         AddWebSocketHandler(builder, configureWebSockets);
         return builder;
     }
@@ -30,22 +30,10 @@ public static class GraphQLBuilderExtensions
     /// <summary>
     /// Registers the default HTTP middleware with the dependency injection framework.
     /// </summary>
-    public static IGraphQLBuilder AddHttpMiddleware(this IGraphQLBuilder builder, Action<GraphQLHttpMiddlewareOptions>? configure = null)
+    public static IGraphQLBuilder AddHttpMiddleware(this IGraphQLBuilder builder)
     {
-        builder.Services.Register(typeof(GraphQLHttpMiddleware<>), typeof(GraphQLHttpMiddleware<>), ServiceLifetime.Singleton);
-        builder.Services.Configure(configure);
-        builder.Services.TryRegister<IHttpContextAccessor, HttpContextAccessor>(ServiceLifetime.Singleton);
-        return builder;
-    }
-
-    /// <summary>
-    /// Registers the default HTTP middleware with the dependency injection framework.
-    /// </summary>
-    public static IGraphQLBuilder AddHttpMiddleware(this IGraphQLBuilder builder, Action<GraphQLHttpMiddlewareOptions, IServiceProvider>? configure)
-    {
-        builder.Services.Register(typeof(GraphQLHttpMiddleware<>), typeof(GraphQLHttpMiddleware<>), ServiceLifetime.Singleton);
-        builder.Services.Configure(configure);
-        builder.Services.TryRegister<IHttpContextAccessor, HttpContextAccessor>(ServiceLifetime.Singleton);
+        //builder.Services.Register(typeof(GraphQLHttpMiddleware<>), typeof(GraphQLHttpMiddleware<>), ServiceLifetime.Singleton);
+        //builder.Services.TryRegister<IHttpContextAccessor, HttpContextAccessor>(ServiceLifetime.Singleton);
         return builder;
     }
 
@@ -56,7 +44,7 @@ public static class GraphQLBuilderExtensions
         where TSchema : ISchema
         where TMiddleware : GraphQLHttpMiddleware<TSchema>
     {
-        builder.Services.Register<TMiddleware>(ServiceLifetime.Singleton);
+        //builder.Services.Register<TMiddleware>(ServiceLifetime.Singleton);
         return builder;
     }
 

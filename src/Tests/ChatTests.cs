@@ -1,10 +1,36 @@
+using GraphQL.MicrosoftDI;
+using GraphQL.SystemTextJson;
 using GraphQL.Transport;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Shane32.GraphQL.AspNetCore;
 
 namespace Tests;
 
 public class ChatTests : IDisposable
 {
-    private readonly TestChatApp _app = new();
+    private readonly TestServer _app = new(ConfigureBuilder());
+
+    private static IWebHostBuilder ConfigureBuilder()
+    {
+        var hostBuilder = new WebHostBuilder();
+        hostBuilder.ConfigureServices(services => {
+            services.AddSingleton<Chat.Services.ChatService>();
+            services.AddGraphQL(b => b
+                .AddAutoSchema<Chat.Schema.Query>(s => s
+                    .WithMutation<Chat.Schema.Mutation>()
+                    .WithSubscription<Chat.Schema.Subscription>())
+                .AddSystemTextJson()
+                .AddServer());
+        });
+        hostBuilder.Configure(app => {
+            app.UseWebSockets();
+            app.UseGraphQL("/graphql");
+        });
+        return hostBuilder;
+    }
 
     public void Dispose() => _app.Dispose();
 

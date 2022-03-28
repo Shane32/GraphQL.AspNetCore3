@@ -14,9 +14,10 @@ public static class GraphQLHttpEndpointRouteBuilderExtensions
     /// </summary>
     /// <param name="endpoints">Defines a contract for a route builder in an application. A route builder specifies the routes for an application.</param>
     /// <param name="pattern">The route pattern.</param>
+    /// <param name="configureMiddleware">A delegate to configure the middleware</param>
     /// <returns>The <see cref="IApplicationBuilder"/> received as parameter</returns>
-    public static GraphQLEndpointConventionBuilder MapGraphQL(this IEndpointRouteBuilder endpoints, string pattern = "graphql")
-        => endpoints.MapGraphQL<ISchema>(pattern);
+    public static GraphQLEndpointConventionBuilder MapGraphQL(this IEndpointRouteBuilder endpoints, string pattern = "graphql", Action<GraphQLHttpMiddlewareOptions>? configureMiddleware = null)
+        => endpoints.MapGraphQL<ISchema>(pattern, configureMiddleware);
 
     /// <summary>
     /// Add the GraphQL middleware to the HTTP request pipeline for the specified schema.
@@ -24,10 +25,20 @@ public static class GraphQLHttpEndpointRouteBuilderExtensions
     /// <typeparam name="TSchema">The implementation of <see cref="ISchema"/> to use</typeparam>
     /// <param name="endpoints">Defines a contract for a route builder in an application. A route builder specifies the routes for an application.</param>
     /// <param name="pattern">The route pattern.</param>
+    /// <param name="configureMiddleware">A delegate to configure the middleware</param>
     /// <returns>The <see cref="IApplicationBuilder"/> received as parameter</returns>
-    public static GraphQLEndpointConventionBuilder MapGraphQL<TSchema>(this IEndpointRouteBuilder endpoints, string pattern = "graphql")
+    public static GraphQLEndpointConventionBuilder MapGraphQL<TSchema>(this IEndpointRouteBuilder endpoints, string pattern = "graphql", Action<GraphQLHttpMiddlewareOptions>? configureMiddleware = null)
         where TSchema : ISchema
-        => endpoints.MapGraphQL<TSchema, GraphQLHttpMiddleware<TSchema>>(pattern);
+    {
+        if (endpoints == null)
+            throw new ArgumentNullException(nameof(endpoints));
+
+        var opts = new GraphQLHttpMiddlewareOptions();
+        configureMiddleware?.Invoke(opts);
+
+        var requestDelegate = endpoints.CreateApplicationBuilder().UseMiddleware<GraphQLHttpMiddleware<TSchema>>(opts).Build();
+        return new GraphQLEndpointConventionBuilder(endpoints.Map(pattern, requestDelegate).WithDisplayName("GraphQL"));
+    }
 
     /// <summary>
     /// Add the GraphQL middleware to the HTTP request pipeline for the specified schema.
@@ -38,8 +49,8 @@ public static class GraphQLHttpEndpointRouteBuilderExtensions
     /// <param name="pattern">The route pattern.</param>
     /// <returns>The <see cref="IApplicationBuilder"/> received as parameter</returns>
     public static GraphQLEndpointConventionBuilder MapGraphQL<TSchema, TMiddleware>(this IEndpointRouteBuilder endpoints, string pattern = "graphql")
-            where TSchema : ISchema
-            where TMiddleware : GraphQLHttpMiddleware<TSchema>
+        where TSchema : ISchema
+        where TMiddleware : GraphQLHttpMiddleware<TSchema>
     {
         if (endpoints == null)
             throw new ArgumentNullException(nameof(endpoints));

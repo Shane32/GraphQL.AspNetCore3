@@ -9,26 +9,31 @@ public class GraphQLHttpMiddleware<TSchema> : GraphQLHttpMiddleware
     where TSchema : ISchema
 {
     private readonly IDocumentExecuter _documentExecuter;
-    private readonly IEnumerable<IValidationRule> _validationRules;
-    private readonly IEnumerable<IValidationRule> _cachedDocumentValidationRules;
+    private readonly IEnumerable<IValidationRule> _getValidationRules;
+    private readonly IEnumerable<IValidationRule> _getCachedDocumentValidationRules;
+    private readonly IEnumerable<IValidationRule> _postValidationRules;
+    private readonly IEnumerable<IValidationRule> _postCachedDocumentValidationRules;
     private readonly IServiceScopeFactory _serviceScopeFactory;
 
     /// <summary>
     /// Initializes a new instance.
     /// </summary>
     public GraphQLHttpMiddleware(
+        RequestDelegate next,
         IGraphQLTextSerializer serializer,
         IDocumentExecuter<TSchema> documentExecuter,
-        IHttpContextAccessor httpContextAccessor,
         IServiceScopeFactory serviceScopeFactory,
         IEnumerable<IWebSocketHandler<TSchema>> webSocketHandlers,
         GraphQLHttpMiddlewareOptions options)
-        : base(serializer, webSocketHandlers, options)
+        : base(next, serializer, webSocketHandlers, options)
    {
         _documentExecuter = documentExecuter ?? throw new ArgumentNullException(nameof(documentExecuter));
-        var rule = new OperationTypeValidationRule(httpContextAccessor);
-        _validationRules = DocumentValidator.CoreRules.Append(rule).ToArray();
-        _cachedDocumentValidationRules = new[] { rule };
+        var getRule = new HttpGetValidationRule();
+        _getValidationRules = DocumentValidator.CoreRules.Append(getRule).ToArray();
+        _getCachedDocumentValidationRules = new[] { getRule };
+        var postRule = new HttpPostValidationRule();
+        _postValidationRules = DocumentValidator.CoreRules.Append(postRule).ToArray();
+        _postCachedDocumentValidationRules = new[] { postRule };
         _serviceScopeFactory = serviceScopeFactory;
     }
 
@@ -41,7 +46,8 @@ public class GraphQLHttpMiddleware<TSchema> : GraphQLHttpMiddleware
 
     /// <inheritdoc/>
     protected override async Task<ExecutionResult> ExecuteRequestAsync(HttpContext context, GraphQLRequest request, IServiceProvider serviceProvider, IDictionary<string, object?> userContext)
-        => await _documentExecuter.ExecuteAsync(new ExecutionOptions {
+    {
+        var opts = new ExecutionOptions {
             Query = request.Query,
             Variables = request.Variables,
             Extensions = request.Extensions,
@@ -49,19 +55,29 @@ public class GraphQLHttpMiddleware<TSchema> : GraphQLHttpMiddleware
             OperationName = request.OperationName,
             RequestServices = serviceProvider,
             UserContext = userContext,
-            ValidationRules = _validationRules,
-            CachedDocumentValidationRules = _cachedDocumentValidationRules,
-        });
+        };
+        if (!context.WebSockets.IsWebSocketRequest) {
+            if (HttpMethods.IsGet(context.Request.Method)) {
+                opts.ValidationRules = _getValidationRules;
+                opts.CachedDocumentValidationRules = _getCachedDocumentValidationRules;
+            } else if (HttpMethods.IsPost(context.Request.Method)) {
+                opts.ValidationRules = _postValidationRules;
+                opts.CachedDocumentValidationRules = _postCachedDocumentValidationRules;
+            }
+        }
+        return await _documentExecuter.ExecuteAsync(opts);
+    }
 }
 
 /// <summary>
 /// ASP.NET Core middleware for processing GraphQL requests. Handles both single and batch requests,
 /// and dispatches WebSocket requests to the registered <see cref="IWebSocketHandler"/>.
 /// </summary>
-public abstract class GraphQLHttpMiddleware : IMiddleware
+public abstract class GraphQLHttpMiddleware
 {
     private readonly IGraphQLTextSerializer _serializer;
     private readonly IEnumerable<IWebSocketHandler> _webSocketHandlers;
+    private readonly RequestDelegate _next;
 
     private const string QUERY_KEY = "query";
     private const string VARIABLES_KEY = "variables";
@@ -79,23 +95,25 @@ public abstract class GraphQLHttpMiddleware : IMiddleware
     /// Initializes a new instance.
     /// </summary>
     public GraphQLHttpMiddleware(
+        RequestDelegate next,
         IGraphQLTextSerializer serializer,
         IEnumerable<IWebSocketHandler> webSocketHandlers,
         GraphQLHttpMiddlewareOptions options)
     {
+        _next = next ?? throw new ArgumentNullException(nameof(next));
         _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
         _webSocketHandlers = webSocketHandlers;
         Options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
     /// <inheritdoc/>
-    public virtual async Task InvokeAsync(HttpContext context, RequestDelegate next)
+    public virtual async Task InvokeAsync(HttpContext context)
     {
         if (context.WebSockets.IsWebSocketRequest) {
             if (Options.HandleWebSockets)
-                await HandleWebSocketAsync(context, next);
+                await HandleWebSocketAsync(context, _next);
             else
-                await HandleInvalidHttpMethodErrorAsync(context, next);
+                await HandleInvalidHttpMethodErrorAsync(context, _next);
             return;
         }
 
@@ -108,7 +126,7 @@ public abstract class GraphQLHttpMiddleware : IMiddleware
         bool isGet = HttpMethods.IsGet(httpRequest.Method);
         bool isPost = HttpMethods.IsPost(httpRequest.Method);
         if (isGet && !Options.HandleGet || isPost && !Options.HandlePost || !isGet && !isPost) {
-            await HandleInvalidHttpMethodErrorAsync(context, next);
+            await HandleInvalidHttpMethodErrorAsync(context, _next);
             return;
         }
 
@@ -117,7 +135,7 @@ public abstract class GraphQLHttpMiddleware : IMiddleware
         IList<GraphQLRequest>? bodyGQLBatchRequest = null;
         if (isPost) {
             if (!MediaTypeHeaderValue.TryParse(httpRequest.ContentType, out var mediaTypeHeader)) {
-                await HandleContentTypeCouldNotBeParsedErrorAsync(context, next);
+                await HandleContentTypeCouldNotBeParsedErrorAsync(context, _next);
                 return;
             }
 
@@ -127,7 +145,7 @@ public abstract class GraphQLHttpMiddleware : IMiddleware
                     try {
 #if NET5_0_OR_GREATER
                         if (!TryGetEncoding(mediaTypeHeader.CharSet, out var sourceEncoding)) {
-                            await HandleContentTypeCouldNotBeParsedErrorAsync(context, next);
+                            await HandleContentTypeCouldNotBeParsedErrorAsync(context, _next);
                             return;
                         }
                         // Wrap content stream into a transcoding stream that buffers the data transcoded from the sourceEncoding to utf-8.
@@ -141,7 +159,7 @@ public abstract class GraphQLHttpMiddleware : IMiddleware
                         deserializationResult = await _serializer.ReadAsync<IList<GraphQLRequest>>(httpRequest.Body, context.RequestAborted);
 #endif
                     } catch (Exception ex) {
-                        if (!await HandleDeserializationErrorAsync(context, next, ex))
+                        if (!await HandleDeserializationErrorAsync(context, _next, ex))
                             throw;
                         return;
                     }
@@ -162,12 +180,12 @@ public abstract class GraphQLHttpMiddleware : IMiddleware
                         try {
                             bodyGQLRequest = DeserializeFromFormBody(formCollection);
                         } catch (Exception ex) {
-                            if (!await HandleDeserializationErrorAsync(context, next, ex))
+                            if (!await HandleDeserializationErrorAsync(context, _next, ex))
                                 throw;
                         }
                         break;
                     }
-                    await HandleInvalidContentTypeErrorAsync(context, next);
+                    await HandleInvalidContentTypeErrorAsync(context, _next);
                     return;
             }
         }
@@ -186,17 +204,17 @@ public abstract class GraphQLHttpMiddleware : IMiddleware
             };
 
             if (string.IsNullOrWhiteSpace(gqlRequest.Query)) {
-                await HandleNoQueryErrorAsync(context, next);
+                await HandleNoQueryErrorAsync(context, _next);
                 return;
             }
 
             // Prepare context and execute
-            await HandleRequestAsync(context, next, gqlRequest);
+            await HandleRequestAsync(context, _next, gqlRequest);
         }
         else if (Options.EnableBatchedRequests) {
-            await HandleBatchRequestAsync(context, next, bodyGQLBatchRequest);
+            await HandleBatchRequestAsync(context, _next, bodyGQLBatchRequest);
         } else {
-            await HandleBatchedRequestsNotSupportedAsync(context, next);
+            await HandleBatchedRequestsNotSupportedAsync(context, _next);
         }
     }
 
