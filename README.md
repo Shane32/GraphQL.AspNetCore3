@@ -366,7 +366,15 @@ to a disposed service scope that cannot be used.
 To solve this issue, please configure the scoped subscription execution strategy from the
 GraphQL.MicrosoftDI package as follows:
 
-> Unfortunately this class does not yet exist
+```csharp
+services.AddGraphQL(b => b
+    .AddAutoSchema<Query>()
+    .AddSystemTextJson()
+    // configure queries for serial execution (optional)
+    .AddExecutionStrategy<SerialExecutionStrategy>(OperationType.Query)
+    // configure subscription field resolvers for scoped serial execution (parallel is optional)
+    .AddScopedExecutionStrategy());
+```
 
 For single GET / POST requests, the service scope from the underlying HTTP context is used.
 
