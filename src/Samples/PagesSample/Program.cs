@@ -1,3 +1,4 @@
+using GraphQL;
 using GraphQL.MicrosoftDI;
 using GraphQL.SystemTextJson;
 using Shane32.GraphQL.AspNetCore;

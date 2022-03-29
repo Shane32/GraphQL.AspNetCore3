@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Hosting;
-
 namespace Shane32.GraphQL.AspNetCore.WebSockets;
 
 /// <inheritdoc cref="WebSocketHandler"/>
