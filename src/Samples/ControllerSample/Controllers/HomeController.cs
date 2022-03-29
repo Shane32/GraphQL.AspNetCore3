@@ -65,8 +65,7 @@ public class HomeController : Controller
             opts.ValidationRules = DocumentValidator.CoreRules.Append(rule);
             opts.CachedDocumentValidationRules = new[] { rule };
             return new ExecutionResultActionResult(await _executer.ExecuteAsync(opts));
-        }
-        catch {
+        } catch {
             return BadRequest();
         }
     }

@@ -235,5 +235,5 @@ public class BatchTests : IDisposable
         using var response = await PostBatchRequestAsync(url, request);
         await response.ShouldBeAsync(@"[{""data"":{""ext"":""postext"",""var"":""postvar""}}]");
     }
-    
+
 }

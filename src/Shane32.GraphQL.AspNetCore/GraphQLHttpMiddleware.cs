@@ -44,7 +44,7 @@ public class GraphQLHttpMiddleware<TSchema> : GraphQLHttpMiddleware
         IHostApplicationLifetime hostApplicationLifetime, // <-- necessary so DI can select the proper constructor if any handlers are installed
         IEnumerable<IWebSocketHandler<TSchema>> webSocketHandlers)
         : base(next, serializer, options, webSocketHandlers)
-   {
+    {
         _ = hostApplicationLifetime;
         _documentExecuter = documentExecuter ?? throw new ArgumentNullException(nameof(documentExecuter));
         _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
@@ -246,8 +246,7 @@ public abstract class GraphQLHttpMiddleware
 
             // Prepare context and execute
             await HandleRequestAsync(context, _next, gqlRequest);
-        }
-        else if (Options.EnableBatchedRequests) {
+        } else if (Options.EnableBatchedRequests) {
             await HandleBatchRequestAsync(context, _next, bodyGQLBatchRequest);
         } else {
             await HandleBatchedRequestsNotSupportedAsync(context, _next);
@@ -283,8 +282,7 @@ public abstract class GraphQLHttpMiddleware
         var results = new ExecutionResult[gqlRequests.Count];
         if (gqlRequests.Count == 1) {
             results[0] = await ExecuteRequestAsync(context, gqlRequests[0], context.RequestServices, userContext);
-        }
-        else {
+        } else {
             // Batched execution with multiple graphql requests
             if (!Options.BatchedRequestsExecuteInParallel) {
                 for (int i = 0; i < gqlRequests.Count; i++) {

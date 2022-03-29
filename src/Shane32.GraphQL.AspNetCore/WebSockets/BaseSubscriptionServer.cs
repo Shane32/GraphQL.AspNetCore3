@@ -401,8 +401,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
             try {
                 if (_closeAfterOnError)
                     await _handler.SendCompletedAsync(_id);
-            }
-            catch { }
+            } catch { }
         }
 
         public async void OnNext(ExecutionResult value)
