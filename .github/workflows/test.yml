@@ -37,9 +37,9 @@ jobs:
       - name: Install dependencies
         run: dotnet restore
       - name: Build solution [Release]
-        run: dotnet build --no-restore -c Release -p:NoWarn=CS1591
+        run: dotnet build --no-restore -c Release
       - name: Build solution [Debug]
-        run: dotnet build --no-restore -p:NoWarn=CS1591
+        run: dotnet build --no-restore
       - name: Test solution [Debug]
         run: dotnet test --no-restore --no-build -p:CollectCoverage=true -p:CoverletOutputFormat=lcov -p:CoverletOutput=../../${{ matrix.os }}.lcov.info
       # ==== code coverage reports (ubuntu-latest only) ====
