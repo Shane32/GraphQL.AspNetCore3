@@ -97,6 +97,16 @@ public class WebSocketTests : IDisposable
         error.Message.ShouldBe("Incomplete handshake, status code: 400");
     }
 
+    [Fact]
+    public async Task Disabled()
+    {
+        Configure(o => o.HandleWebSockets = false);
+
+        var webSocketClient = BuildClient();
+        var error = await Should.ThrowAsync<InvalidOperationException>(() => webSocketClient.ConnectAsync(new Uri(_server.BaseAddress, "/graphql"), default));
+        error.Message.ShouldBe("Incomplete handshake, status code: 404");
+    }
+
     private class MyGraphQLHttpMiddleware : GraphQLHttpMiddleware
     {
         public MyGraphQLHttpMiddleware(
