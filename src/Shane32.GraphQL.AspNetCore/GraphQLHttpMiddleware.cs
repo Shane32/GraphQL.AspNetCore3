@@ -17,22 +17,7 @@ public class GraphQLHttpMiddleware<TSchema> : GraphQLHttpMiddleware
     private readonly IEnumerable<IValidationRule> _postValidationRules;
     private readonly IEnumerable<IValidationRule> _postCachedDocumentValidationRules;
 
-    /// <summary>
-    /// Initializes a new instance with the default web socket handler.
-    /// </summary>
-    public GraphQLHttpMiddleware(
-        RequestDelegate next,
-        IGraphQLTextSerializer serializer,
-        IDocumentExecuter<TSchema> documentExecuter,
-        IServiceScopeFactory serviceScopeFactory,
-        GraphQLHttpMiddlewareOptions options,
-        IHostApplicationLifetime hostApplicationLifetime)
-        : this(next, serializer, documentExecuter, serviceScopeFactory, options, hostApplicationLifetime,
-            new IWebSocketHandler<TSchema>[] {
-                new WebSocketHandler<TSchema>(serializer, documentExecuter, serviceScopeFactory, new WebSocketHandlerOptions(), hostApplicationLifetime),
-            })
-    {
-    }
+    // important: when using convention-based ASP.NET Core middleware, the first constructor is always used
 
     /// <summary>
     /// Initializes a new instance.
@@ -43,11 +28,10 @@ public class GraphQLHttpMiddleware<TSchema> : GraphQLHttpMiddleware
         IDocumentExecuter<TSchema> documentExecuter,
         IServiceScopeFactory serviceScopeFactory,
         GraphQLHttpMiddlewareOptions options,
-        IHostApplicationLifetime hostApplicationLifetime, // <-- necessary so DI can select the proper constructor if any handlers are installed
-        IEnumerable<IWebSocketHandler<TSchema>> webSocketHandlers)
-        : base(next, serializer, options, webSocketHandlers)
+        IHostApplicationLifetime hostApplicationLifetime,
+        IEnumerable<IWebSocketHandler<TSchema>>? webSocketHandlers)
+        : base(next, serializer, options, GetWebSocketHandlers(serializer, documentExecuter, serviceScopeFactory, hostApplicationLifetime, webSocketHandlers))
     {
-        _ = hostApplicationLifetime;
         _documentExecuter = documentExecuter ?? throw new ArgumentNullException(nameof(documentExecuter));
         _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
         var getRule = new HttpGetValidationRule();
@@ -56,6 +40,22 @@ public class GraphQLHttpMiddleware<TSchema> : GraphQLHttpMiddleware
         var postRule = new HttpPostValidationRule();
         _postValidationRules = DocumentValidator.CoreRules.Append(postRule).ToArray();
         _postCachedDocumentValidationRules = new[] { postRule };
+    }
+
+    private static IEnumerable<IWebSocketHandler<TSchema>> GetWebSocketHandlers(
+        IGraphQLSerializer serializer,
+        IDocumentExecuter<TSchema> documentExecuter,
+        IServiceScopeFactory serviceScopeFactory,
+        IHostApplicationLifetime hostApplicationLifetime,
+        IEnumerable<IWebSocketHandler<TSchema>>? webSocketHandlers)
+    {
+        if (webSocketHandlers == null || !webSocketHandlers.Any()) {
+            return new IWebSocketHandler<TSchema>[] {
+                new WebSocketHandler<TSchema>(serializer, documentExecuter, serviceScopeFactory, new WebSocketHandlerOptions(),
+                    hostApplicationLifetime ?? throw new ArgumentNullException(nameof(hostApplicationLifetime))),
+            };
+        }
+        return webSocketHandlers;
     }
 
     /// <inheritdoc/>

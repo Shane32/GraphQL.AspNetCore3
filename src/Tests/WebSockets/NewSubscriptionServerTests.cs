@@ -1,6 +1,3 @@
-using GraphQL.Transport;
-using Microsoft.Extensions.DependencyInjection;
-
 namespace Tests.WebSockets;
 
 public class NewSubscriptionServerTests : IDisposable

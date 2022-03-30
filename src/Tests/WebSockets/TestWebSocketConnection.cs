@@ -1,5 +1,4 @@
 using System.Net.WebSockets;
-using GraphQL.Transport;
 
 namespace Tests.WebSockets;
 

@@ -65,27 +65,23 @@ public static class GraphQLHttpApplicationBuilderExtensions
     /// <summary>
     /// Add the GraphQL custom middleware to the HTTP request pipeline for the specified schema.
     /// </summary>
-    /// <typeparam name="TSchema">The implementation of <see cref="ISchema"/> to use</typeparam>
     /// <typeparam name="TMiddleware">Custom middleware inherited from <see cref="GraphQLHttpMiddleware{TSchema}"/></typeparam>
     /// <param name="builder">The application builder</param>
     /// <param name="path">The path to the GraphQL endpoint which defaults to '/graphql'</param>
     /// <returns>The <see cref="IApplicationBuilder"/> received as parameter</returns>
-    public static IApplicationBuilder UseGraphQL<TSchema, TMiddleware>(this IApplicationBuilder builder, string path = "/graphql")
-        where TSchema : ISchema
-        where TMiddleware : GraphQLHttpMiddleware<TSchema>
-        => builder.UseGraphQL<TSchema, TMiddleware>(new PathString(path));
+    public static IApplicationBuilder UseGraphQL<TMiddleware>(this IApplicationBuilder builder, string path = "/graphql")
+        where TMiddleware : GraphQLHttpMiddleware
+        => builder.UseGraphQL<TMiddleware>(new PathString(path));
 
     /// <summary>
     /// Add the GraphQL custom middleware to the HTTP request pipeline for the specified schema.
     /// </summary>
-    /// <typeparam name="TSchema">The implementation of <see cref="ISchema"/> to use</typeparam>
     /// <typeparam name="TMiddleware">Custom middleware inherited from <see cref="GraphQLHttpMiddleware{TSchema}"/></typeparam>
     /// <param name="builder">The application builder</param>
     /// <param name="path">The path to the GraphQL endpoint</param>
     /// <returns>The <see cref="IApplicationBuilder"/> received as parameter</returns>
-    public static IApplicationBuilder UseGraphQL<TSchema, TMiddleware>(this IApplicationBuilder builder, PathString path)
-        where TSchema : ISchema
-        where TMiddleware : GraphQLHttpMiddleware<TSchema>
+    public static IApplicationBuilder UseGraphQL<TMiddleware>(this IApplicationBuilder builder, PathString path)
+        where TMiddleware : GraphQLHttpMiddleware
     {
         return builder.UseWhen(
             context => context.Request.Path.StartsWithSegments(path, out var remaining) && string.IsNullOrEmpty(remaining),

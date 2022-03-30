@@ -1,12 +1,3 @@
-using GraphQL.MicrosoftDI;
-using GraphQL.SystemTextJson;
-using GraphQL.Transport;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.DependencyInjection;
-using Shane32.GraphQL.AspNetCore;
-
 namespace Tests;
 
 public class ChatTests : IDisposable

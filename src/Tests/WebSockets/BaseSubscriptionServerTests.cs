@@ -1,6 +1,5 @@
 using System.Reactive.Subjects;
 using GraphQL.Execution;
-using GraphQL.Transport;
 
 namespace Tests.WebSockets;
 

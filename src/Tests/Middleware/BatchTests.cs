@@ -1,13 +1,3 @@
-using System.Net;
-using GraphQL.MicrosoftDI;
-using GraphQL.SystemTextJson;
-using GraphQL.Transport;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.DependencyInjection;
-using Shane32.GraphQL.AspNetCore;
-
 namespace Tests.Middleware;
 
 public class BatchTests : IDisposable
@@ -74,6 +64,14 @@ public class BatchTests : IDisposable
 
     private Task<HttpResponseMessage> PostBatchRequestAsync(string url, params GraphQLRequest[] request)
         => PostJsonAsync(url, new GraphQLSerializer().Serialize(request));
+
+    [Fact]
+    public async Task NotParallelTest()
+    {
+        _options.BatchedRequestsExecuteInParallel = false;
+        using var response = await PostBatchRequestAsync(new GraphQLRequest() { Query = "{count}" }, new GraphQLRequest() { Query = "{count}"});
+        await response.ShouldBeAsync(@"[{""data"":{""count"":0}},{""data"":{""count"":0}}]");
+    }
 
     [Fact]
     public async Task BasicTest()

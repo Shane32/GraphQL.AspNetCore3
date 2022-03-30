@@ -1,6 +1,4 @@
 using System.Net.WebSockets;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 namespace Tests.WebSockets;

@@ -1,12 +1,4 @@
 using System.Net;
-using GraphQL.MicrosoftDI;
-using GraphQL.SystemTextJson;
-using GraphQL.Transport;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.DependencyInjection;
-using Shane32.GraphQL.AspNetCore;
 
 namespace Tests.Middleware;
 
@@ -90,6 +82,28 @@ public class PostTests : IDisposable
         var content = new StringContent(@"{""query"":""{var(test:\""ë\"")}""}", Encoding.Latin1, "application/json");
         using var response = await client.PostAsync("/graphql2", content);
         await response.ShouldBeAsync(false, @"{""data"":{""var"":""\u00EB""}}");
+    }
+
+    [Fact]
+    public async Task AltCharset_Quoted()
+    {
+        var client = _server.CreateClient();
+        var bytes = Encoding.UTF8.GetBytes(@"{""query"":""{var(test:\""ë\"")}""}");
+        var content = new ByteArrayContent(bytes, 0, bytes.Length);
+        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json") { CharSet = "\"UTF-8\"" };
+        using var response = await client.PostAsync("/graphql2", content);
+        await response.ShouldBeAsync(false, @"{""data"":{""var"":""\u00EB""}}");
+    }
+
+    [Fact]
+    public async Task AltCharset_Invalid()
+    {
+        var client = _server.CreateClient();
+        var bytes = Encoding.UTF8.GetBytes(@"{""query"":""{var(test:\""ë\"")}""}");
+        var content = new ByteArrayContent(bytes, 0, bytes.Length);
+        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json") { CharSet = "unknown" };
+        using var response = await client.PostAsync("/graphql2", content);
+        await response.ShouldBeAsync(HttpStatusCode.UnsupportedMediaType, @"{""errors"":[{""message"":""Invalid \u0027Content-Type\u0027 header: value \u0027application/json; charset=unknown\u0027 could not be parsed.""}]}");
     }
 #endif
 

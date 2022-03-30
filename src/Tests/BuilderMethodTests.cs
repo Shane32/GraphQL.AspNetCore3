@@ -82,7 +82,7 @@ public class BuilderMethodTests
         _hostBuilder.ConfigureServices(services => services.AddSingleton<GraphQLHttpMiddlewareOptions>());
         _hostBuilder.Configure(app => {
             app.UseWebSockets();
-            app.UseGraphQL<ISchema, GraphQLHttpMiddleware<ISchema>>("/graphql");
+            app.UseGraphQL<GraphQLHttpMiddleware<ISchema>>("/graphql");
         });
         await VerifyAsync();
     }
@@ -93,7 +93,7 @@ public class BuilderMethodTests
         _hostBuilder.ConfigureServices(services => services.AddSingleton<GraphQLHttpMiddlewareOptions>());
         _hostBuilder.Configure(app => {
             app.UseWebSockets();
-            app.UseGraphQL<ISchema, GraphQLHttpMiddleware<ISchema>>(new PathString("/graphql"));
+            app.UseGraphQL<GraphQLHttpMiddleware<ISchema>>(new PathString("/graphql"));
         });
         await VerifyAsync();
     }

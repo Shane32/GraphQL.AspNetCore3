@@ -1,12 +1,4 @@
-using GraphQL.MicrosoftDI;
-using GraphQL.SystemTextJson;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.DependencyInjection;
-using Shane32.GraphQL.AspNetCore;
 
 namespace Tests;
 

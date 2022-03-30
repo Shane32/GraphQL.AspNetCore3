@@ -1,5 +1,3 @@
-using GraphQL.Transport;
-
 namespace Tests.WebSockets;
 
 public class TestBaseSubscriptionServer : BaseSubscriptionServer

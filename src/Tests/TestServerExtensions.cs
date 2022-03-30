@@ -1,6 +1,3 @@
-using GraphQL.Transport;
-using Microsoft.AspNetCore.TestHost;
-
 namespace Tests;
 
 internal static class TestServerExtensions

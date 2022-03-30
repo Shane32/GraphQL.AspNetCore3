@@ -1,12 +1,11 @@
 using System.Net.WebSockets;
 using System.Text.Json;
-using GraphQL.Transport;
 
 namespace Tests;
 
 public static class WebSocketExtensions
 {
-    private static readonly IGraphQLTextSerializer _serializer = new GraphQL.SystemTextJson.GraphQLSerializer();
+    private static readonly IGraphQLTextSerializer _serializer = new GraphQLSerializer();
 
     public static Task SendMessageAsync(this WebSocket socket, OperationMessage message)
         => SendStringAsync(socket, _serializer.Serialize(message));

@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Text;
-using Microsoft.AspNetCore.Http;
-using Shane32.GraphQL.AspNetCore;
-
 namespace Tests;
 
 public class UserContextBuilderTests
