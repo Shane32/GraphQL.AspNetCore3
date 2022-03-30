@@ -89,9 +89,9 @@ public class WebSocketConnectionTests : IDisposable
     public async Task ExecuteAsync_CanOnlyRunOnce()
     {
         _mockConnection.CallBase = true;
-        _ = _connection.ExecuteAsync(Mock.Of<IOperationMessageReceiveStream>(MockBehavior.Strict));
+        _ = _connection.ExecuteAsync(Mock.Of<IOperationMessageProcessor>(MockBehavior.Strict));
         await Should.ThrowAsync<InvalidOperationException>(()
-            => _connection.ExecuteAsync(Mock.Of<IOperationMessageReceiveStream>(MockBehavior.Strict)));
+            => _connection.ExecuteAsync(Mock.Of<IOperationMessageProcessor>(MockBehavior.Strict)));
         _cts.Cancel();
     }
 
@@ -99,9 +99,10 @@ public class WebSocketConnectionTests : IDisposable
     public async Task ExecuteAsync_DecodeSmallMessage()
     {
         _mockConnection.CallBase = true;
-        var mockReceiveStream = new Mock<IOperationMessageReceiveStream>(MockBehavior.Strict);
+        var mockReceiveStream = new Mock<IOperationMessageProcessor>(MockBehavior.Strict);
         var message = new OperationMessage();
         var message2 = new OperationMessage();
+        mockReceiveStream.Setup(x => x.InitializeConnectionAsync()).Returns(Task.CompletedTask).Verifiable();
         mockReceiveStream.Setup(x => x.OnMessageReceivedAsync(message)).Returns(Task.CompletedTask).Verifiable();
         mockReceiveStream.Setup(x => x.OnMessageReceivedAsync(message2)).Returns(Task.CompletedTask).Verifiable();
         mockReceiveStream.Setup(x => x.Dispose()).Verifiable();
@@ -127,9 +128,10 @@ public class WebSocketConnectionTests : IDisposable
     public async Task ExecuteAsync_DecodeMultipartMessage()
     {
         _mockConnection.CallBase = true;
-        var mockReceiveStream = new Mock<IOperationMessageReceiveStream>(MockBehavior.Strict);
+        var mockReceiveStream = new Mock<IOperationMessageProcessor>(MockBehavior.Strict);
         var message = new OperationMessage();
         var message2 = new OperationMessage();
+        mockReceiveStream.Setup(x => x.InitializeConnectionAsync()).Returns(Task.CompletedTask).Verifiable();
         mockReceiveStream.Setup(x => x.OnMessageReceivedAsync(message)).Returns(Task.CompletedTask).Verifiable();
         mockReceiveStream.Setup(x => x.OnMessageReceivedAsync(message2)).Returns(Task.CompletedTask).Verifiable();
         mockReceiveStream.Setup(x => x.Dispose()).Verifiable();
@@ -156,8 +158,9 @@ public class WebSocketConnectionTests : IDisposable
     public async Task ExecuteAsync_SkipZeroLengthMessages()
     {
         _mockConnection.CallBase = true;
-        var mockReceiveStream = new Mock<IOperationMessageReceiveStream>(MockBehavior.Strict);
+        var mockReceiveStream = new Mock<IOperationMessageProcessor>(MockBehavior.Strict);
         var message = new OperationMessage();
+        mockReceiveStream.Setup(x => x.InitializeConnectionAsync()).Returns(Task.CompletedTask).Verifiable();
         mockReceiveStream.Setup(x => x.OnMessageReceivedAsync(message)).Returns(Task.CompletedTask).Verifiable();
         mockReceiveStream.Setup(x => x.Dispose()).Verifiable();
         SetupWebSocketReceive(new byte[] { 1, 2, 3 }, new ValueWebSocketReceiveResult(3, WebSocketMessageType.Text, true));
@@ -176,7 +179,8 @@ public class WebSocketConnectionTests : IDisposable
     public async Task ExecuteAsync_SkipNullMessages()
     {
         _mockConnection.CallBase = true;
-        var mockReceiveStream = new Mock<IOperationMessageReceiveStream>(MockBehavior.Strict);
+        var mockReceiveStream = new Mock<IOperationMessageProcessor>(MockBehavior.Strict);
+        mockReceiveStream.Setup(x => x.InitializeConnectionAsync()).Returns(Task.CompletedTask).Verifiable();
         mockReceiveStream.Setup(x => x.Dispose()).Verifiable();
         SetupWebSocketReceive(new byte[] { 1, 2, 3 }, new ValueWebSocketReceiveResult(3, WebSocketMessageType.Text, true));
         SetupWebSocketReceive(new byte[] { }, new ValueWebSocketReceiveResult(0, WebSocketMessageType.Close, true));
@@ -193,7 +197,8 @@ public class WebSocketConnectionTests : IDisposable
     public async Task ExecuteAsync_SkipNullMessages_Multipart()
     {
         _mockConnection.CallBase = true;
-        var mockReceiveStream = new Mock<IOperationMessageReceiveStream>(MockBehavior.Strict);
+        var mockReceiveStream = new Mock<IOperationMessageProcessor>(MockBehavior.Strict);
+        mockReceiveStream.Setup(x => x.InitializeConnectionAsync()).Returns(Task.CompletedTask).Verifiable();
         mockReceiveStream.Setup(x => x.Dispose()).Verifiable();
         SetupWebSocketReceive(new byte[] { 1, 2, 3 }, new ValueWebSocketReceiveResult(3, WebSocketMessageType.Text, false));
         SetupWebSocketReceive(new byte[] { }, new ValueWebSocketReceiveResult(0, WebSocketMessageType.Text, true));
@@ -211,9 +216,10 @@ public class WebSocketConnectionTests : IDisposable
     public async Task ExecuteAsync_SkipZeroLength_Multipart()
     {
         _mockConnection.CallBase = true;
-        var mockReceiveStream = new Mock<IOperationMessageReceiveStream>(MockBehavior.Strict);
+        var mockReceiveStream = new Mock<IOperationMessageProcessor>(MockBehavior.Strict);
         var message = new OperationMessage();
         var message2 = new OperationMessage();
+        mockReceiveStream.Setup(x => x.InitializeConnectionAsync()).Returns(Task.CompletedTask).Verifiable();
         mockReceiveStream.Setup(x => x.OnMessageReceivedAsync(message)).Returns(Task.CompletedTask).Verifiable();
         mockReceiveStream.Setup(x => x.OnMessageReceivedAsync(message2)).Returns(Task.CompletedTask).Verifiable();
         mockReceiveStream.Setup(x => x.Dispose()).Verifiable();
@@ -241,9 +247,10 @@ public class WebSocketConnectionTests : IDisposable
     public async Task ExecuteAsync_DecodeMultipartMessage_ZeroLastMessage()
     {
         _mockConnection.CallBase = true;
-        var mockReceiveStream = new Mock<IOperationMessageReceiveStream>(MockBehavior.Strict);
+        var mockReceiveStream = new Mock<IOperationMessageProcessor>(MockBehavior.Strict);
         var message = new OperationMessage();
         var message2 = new OperationMessage();
+        mockReceiveStream.Setup(x => x.InitializeConnectionAsync()).Returns(Task.CompletedTask).Verifiable();
         mockReceiveStream.Setup(x => x.OnMessageReceivedAsync(message)).Returns(Task.CompletedTask).Verifiable();
         mockReceiveStream.Setup(x => x.OnMessageReceivedAsync(message2)).Returns(Task.CompletedTask).Verifiable();
         mockReceiveStream.Setup(x => x.Dispose()).Verifiable();
@@ -270,7 +277,8 @@ public class WebSocketConnectionTests : IDisposable
     public async Task ExecuteAsync_WebSocket_Canceled()
     {
         _mockConnection.CallBase = true;
-        var mockReceiveStream = new Mock<IOperationMessageReceiveStream>(MockBehavior.Strict);
+        var mockReceiveStream = new Mock<IOperationMessageProcessor>(MockBehavior.Strict);
+        mockReceiveStream.Setup(x => x.InitializeConnectionAsync()).Returns(Task.CompletedTask).Verifiable();
         mockReceiveStream.Setup(x => x.Dispose());
         _mockWebSocket.Setup(x => x.ReceiveAsync(It.IsAny<Memory<byte>>(), _token))
             .Returns<Memory<byte>, CancellationToken>((_, token) => {
@@ -286,7 +294,8 @@ public class WebSocketConnectionTests : IDisposable
     public async Task ExecuteAsync_WebSocket_EatsWebSocketExceptions()
     {
         _mockConnection.CallBase = true;
-        var mockReceiveStream = new Mock<IOperationMessageReceiveStream>(MockBehavior.Strict);
+        var mockReceiveStream = new Mock<IOperationMessageProcessor>(MockBehavior.Strict);
+        mockReceiveStream.Setup(x => x.InitializeConnectionAsync()).Returns(Task.CompletedTask).Verifiable();
         mockReceiveStream.Setup(x => x.Dispose());
         _mockWebSocket.Setup(x => x.ReceiveAsync(It.IsAny<Memory<byte>>(), _token))
             .Returns<Memory<byte>, CancellationToken>((_, _) => throw new WebSocketException())
@@ -298,7 +307,8 @@ public class WebSocketConnectionTests : IDisposable
     public async Task ExecuteAsync_Serializer_Canceled()
     {
         _mockConnection.CallBase = true;
-        var mockReceiveStream = new Mock<IOperationMessageReceiveStream>(MockBehavior.Strict);
+        var mockReceiveStream = new Mock<IOperationMessageProcessor>(MockBehavior.Strict);
+        mockReceiveStream.Setup(x => x.InitializeConnectionAsync()).Returns(Task.CompletedTask).Verifiable();
         mockReceiveStream.Setup(x => x.Dispose());
         SetupWebSocketReceive(new byte[] { 1, 2, 3, 4, 5 }, new ValueWebSocketReceiveResult(5, WebSocketMessageType.Text, true), false);
         _mockSerializer.Setup(x => x.ReadAsync<OperationMessage>(It.IsAny<Stream>(), _token))
@@ -315,7 +325,8 @@ public class WebSocketConnectionTests : IDisposable
     public async Task ExecuteAsync_Serializer_Canceled_Multipart()
     {
         _mockConnection.CallBase = true;
-        var mockReceiveStream = new Mock<IOperationMessageReceiveStream>(MockBehavior.Strict);
+        var mockReceiveStream = new Mock<IOperationMessageProcessor>(MockBehavior.Strict);
+        mockReceiveStream.Setup(x => x.InitializeConnectionAsync()).Returns(Task.CompletedTask).Verifiable();
         mockReceiveStream.Setup(x => x.Dispose());
         SetupWebSocketReceive(new byte[] { 1, 2, 3, 4, 5 }, new ValueWebSocketReceiveResult(5, WebSocketMessageType.Text, false), false);
         SetupWebSocketReceive(new byte[] { }, new ValueWebSocketReceiveResult(0, WebSocketMessageType.Text, true), false);
@@ -395,7 +406,7 @@ public class WebSocketConnectionTests : IDisposable
     public async Task OnDispatchMessageAsync()
     {
         var message = new OperationMessage();
-        var mockReceiveStream = new Mock<IOperationMessageReceiveStream>(MockBehavior.Strict);
+        var mockReceiveStream = new Mock<IOperationMessageProcessor>(MockBehavior.Strict);
         mockReceiveStream.Setup(x => x.OnMessageReceivedAsync(message))
             .Returns(Task.CompletedTask).Verifiable();
         _mockConnection.CallBase = true;

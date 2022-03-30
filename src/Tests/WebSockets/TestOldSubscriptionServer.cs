@@ -5,7 +5,7 @@ namespace Tests.WebSockets;
 
 public class TestOldSubscriptionServer : OldSubscriptionServer
 {
-    public TestOldSubscriptionServer(IOperationMessageSendStream sendStream, WebSocketHandlerOptions options,
+    public TestOldSubscriptionServer(IWebSocketConnection sendStream, WebSocketHandlerOptions options,
         IDocumentExecuter executer, IGraphQLSerializer serializer, IServiceScopeFactory serviceScopeFactory,
         IDictionary<string, object?> userContext)
         : base(sendStream, options, executer, serializer, serviceScopeFactory, userContext) { }

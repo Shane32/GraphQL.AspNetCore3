@@ -1,19 +1,19 @@
 namespace Shane32.GraphQL.AspNetCore.WebSockets;
 
 /// <summary>
-/// Represents a stream of messages received from a WebSockets client.
-/// All public methods must be thread-safe.
+/// Processes a stream of messages received from a WebSockets client.
+/// <see cref="IDisposable.Dispose"/> must be called when the connection terminates.
+/// Methods defined within this interface need not be thread-safe.
 /// </summary>
-public interface IOperationMessageReceiveStream : IDisposable
+public interface IOperationMessageProcessor : IDisposable
 {
     /// <summary>
     /// Starts the connection initialization timer, if configured.
     /// </summary>
-    void StartConnectionInitTimer();
+    Task InitializeConnectionAsync();
 
     /// <summary>
     /// Called when a message is received from the client.
     /// </summary>
-    /// <exception cref="OperationCanceledException"/>
     Task OnMessageReceivedAsync(OperationMessage message);
 }

@@ -86,9 +86,9 @@ public class WebSocketHandler : IWebSocketHandler
         => new WebSocketConnection(webSocket, _serializer, Options, cancellationToken);
 
     /// <summary>
-    /// Builds an <see cref="IOperationMessageReceiveStream"/> for the specified sub-protocol.
+    /// Builds an <see cref="IOperationMessageProcessor"/> for the specified sub-protocol.
     /// </summary>
-    protected virtual IOperationMessageReceiveStream CreateReceiveStream(IOperationMessageSendStream webSocketConnection, string subProtocol, IDictionary<string, object?> userContext)
+    protected virtual IOperationMessageProcessor CreateReceiveStream(IWebSocketConnection webSocketConnection, string subProtocol, IDictionary<string, object?> userContext)
     {
         switch (subProtocol) {
             case "graphql-transport-ws": {
@@ -99,7 +99,6 @@ public class WebSocketHandler : IWebSocketHandler
                     _serializer,
                     _serviceScopeFactory,
                     userContext);
-                server.StartConnectionInitTimer();
                 return server;
             }
             case "graphql-ws": {
@@ -110,7 +109,6 @@ public class WebSocketHandler : IWebSocketHandler
                     _serializer,
                     _serviceScopeFactory,
                     userContext);
-                server.StartConnectionInitTimer();
                 return server;
             }
         }

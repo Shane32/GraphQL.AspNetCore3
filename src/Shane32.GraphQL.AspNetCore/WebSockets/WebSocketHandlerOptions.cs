@@ -37,5 +37,5 @@ public class WebSocketHandlerOptions
     /// <summary>
     /// Disconnects a subscription from the client there are any GraphQL errors during a subscription.
     /// </summary>
-    public bool DisconnectAfterAnyError { get; set; } = false;
+    public bool DisconnectAfterAnyError { get; set; }
 }

@@ -3,17 +3,17 @@ namespace Shane32.GraphQL.AspNetCore.WebSockets;
 /// <summary>
 /// Manages a WebSocket message stream.
 /// </summary>
-public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
+public abstract class BaseSubscriptionServer : IOperationMessageProcessor
 {
-    private volatile int _initialized = 0;
+    private volatile int _initialized;
     private CancellationTokenSource? _cancellationTokenSource;
     private readonly WebSocketHandlerOptions _options;
 
     /// <summary>
-    /// Returns a <see cref="IOperationMessageSendStream"/> instance that can be used
+    /// Returns a <see cref="IWebSocketConnection"/> instance that can be used
     /// to send messages to the client.
     /// </summary>
-    protected IOperationMessageSendStream Client { get; }
+    protected IWebSocketConnection Client { get; }
 
     /// <summary>
     /// Returns a <see cref="System.Threading.CancellationToken"/> that is signaled
@@ -42,17 +42,21 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
     /// <param name="sendStream">The WebSockets stream used to send data packets or close the connection.</param>
     /// <param name="options">Configuration options for this instance</param>
     public BaseSubscriptionServer(
-        IOperationMessageSendStream sendStream,
+        IWebSocketConnection sendStream,
         WebSocketHandlerOptions options)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         if (options.ConnectionInitWaitTimeout.HasValue) {
             if (options.ConnectionInitWaitTimeout.Value != Timeout.InfiniteTimeSpan && options.ConnectionInitWaitTimeout.Value <= TimeSpan.Zero || options.ConnectionInitWaitTimeout.Value > TimeSpan.FromMilliseconds(int.MaxValue))
+#pragma warning disable CA2208 // Instantiate argument exceptions correctly
                 throw new ArgumentOutOfRangeException(nameof(options) + "." + nameof(WebSocketHandlerOptions.ConnectionInitWaitTimeout));
+#pragma warning restore CA2208 // Instantiate argument exceptions correctly
         }
         if (options.KeepAliveTimeout.HasValue) {
             if (options.KeepAliveTimeout.Value != Timeout.InfiniteTimeSpan && options.KeepAliveTimeout.Value <= TimeSpan.Zero || options.KeepAliveTimeout.Value > TimeSpan.FromMilliseconds(int.MaxValue))
+#pragma warning disable CA2208 // Instantiate argument exceptions correctly
                 throw new ArgumentOutOfRangeException(nameof(options) + "." + nameof(WebSocketHandlerOptions.KeepAliveTimeout));
+#pragma warning restore CA2208 // Instantiate argument exceptions correctly
         }
         Client = sendStream ?? throw new ArgumentNullException(nameof(sendStream));
         _cancellationTokenSource = new();
@@ -61,16 +65,17 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
     }
 
     /// <inheritdoc/>
-    public void StartConnectionInitTimer()
+    public virtual Task InitializeConnectionAsync()
     {
         var connectInitWaitTimeout = _options.ConnectionInitWaitTimeout ?? DefaultConnectionTimeout;
         if (connectInitWaitTimeout != Timeout.InfiniteTimeSpan) {
             _ = Task.Run(async () => {
-                await Task.Delay(connectInitWaitTimeout, CancellationToken);
+                await Task.Delay(connectInitWaitTimeout, CancellationToken); // CancellationToken is set when this class is disposed
                 if (_initialized == 0)
                     await OnConnectionInitWaitTimeoutAsync();
             });
         }
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -92,6 +97,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
             cts.Dispose();
             Subscriptions.Dispose();
         }
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>
@@ -297,14 +303,14 @@ public abstract class BaseSubscriptionServer : IOperationMessageReceiveStream
     /// <summary>
     /// Sends an execution error to the client during set-up of a subscription.
     /// </summary>
-    protected virtual Task SendErrorResultAsync(OperationMessage message, ExecutionError error)
-        => SendErrorResultAsync(message.Id!, error);
+    protected virtual Task SendErrorResultAsync(OperationMessage message, ExecutionError executionError)
+        => SendErrorResultAsync(message.Id!, executionError);
 
     /// <summary>
     /// Sends an execution error to the client during set-up of a subscription.
     /// </summary>
-    protected virtual Task SendErrorResultAsync(string id, ExecutionError error)
-        => SendErrorResultAsync(id, new ExecutionResult { Errors = new ExecutionErrors { error } });
+    protected virtual Task SendErrorResultAsync(string id, ExecutionError executionError)
+        => SendErrorResultAsync(id, new ExecutionResult { Errors = new ExecutionErrors { executionError } });
 
     /// <summary>
     /// Sends an error result to the client during set-up of a subscription.

@@ -5,4 +5,7 @@
     <WarningsNotAsErrors>$(WarningsNotAsErrors);IDE0060</WarningsNotAsErrors>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(IsPackable)' == 'true'">
+    <AnalysisMode>Recommended</AnalysisMode>
+  </PropertyGroup>
 </Project>

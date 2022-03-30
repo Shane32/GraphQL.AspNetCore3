@@ -21,6 +21,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <GraphQLVersion>5.0.0-preview-508</GraphQLVersion>
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

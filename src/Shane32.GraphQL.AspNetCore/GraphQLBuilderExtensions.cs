@@ -42,6 +42,9 @@ public static class GraphQLBuilderExtensions
     /// <summary>
     /// Registers an <see cref="IUserContextBuilder"/> type with the dependency injection framework
     /// and configures it to be used when executing a GraphQL request.
+    /// <br/><br/>
+    /// Requires <see cref="IHttpContextAccessor"/> to be registered within the dependency injection framework
+    /// if calling <see cref="DocumentExecuter.ExecuteAsync(ExecutionOptions)"/> directly.
     /// </summary>
     public static IGraphQLBuilder AddUserContextBuilder<TUserContextBuilder>(this IGraphQLBuilder builder, ServiceLifetime serviceLifetime = ServiceLifetime.Singleton)
         where TUserContextBuilder : class, IUserContextBuilder
@@ -60,12 +63,15 @@ public static class GraphQLBuilderExtensions
     }
 
     /// <summary>
-    /// Set up a delegate to create the UserContext for each GraphQL request.
+    /// Configures a delegate to be used to create a user context for each GraphQL request.
+    /// <br/><br/>
+    /// Requires <see cref="IHttpContextAccessor"/> to be registered within the dependency injection framework
+    /// if calling <see cref="DocumentExecuter.ExecuteAsync(ExecutionOptions)"/> directly.
     /// </summary>
     public static IGraphQLBuilder AddUserContextBuilder<TUserContext>(this IGraphQLBuilder builder, Func<HttpContext, TUserContext> creator)
         where TUserContext : class, IDictionary<string, object?>
     {
-        builder.Services.Register<IUserContextBuilder>(new UserContextBuilder<TUserContext>(creator));
+        builder.Services.Register<IUserContextBuilder>(new UserContextBuilder<TUserContext>(creator ?? throw new ArgumentNullException(nameof(creator))));
         builder.ConfigureExecutionOptions(options => {
             if (options.UserContext == null || options.UserContext.Count == 0 && options.UserContext.GetType() == typeof(Dictionary<string, object>)) {
                 var requestServices = options.RequestServices ?? throw new MissingRequestServicesException();
@@ -77,9 +83,7 @@ public static class GraphQLBuilderExtensions
         return builder;
     }
 
-    /// <summary>
-    /// Set up a delegate to create the UserContext for each GraphQL request.
-    /// </summary>
+    /// <inheritdoc cref="AddUserContextBuilder{TUserContext}(IGraphQLBuilder, Func{HttpContext, TUserContext})"/>
     public static IGraphQLBuilder AddUserContextBuilder<TUserContext>(this IGraphQLBuilder builder, Func<HttpContext, Task<TUserContext>> creator)
         where TUserContext : class, IDictionary<string, object?>
     {

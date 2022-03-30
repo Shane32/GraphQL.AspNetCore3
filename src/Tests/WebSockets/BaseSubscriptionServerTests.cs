@@ -7,8 +7,8 @@ namespace Tests.WebSockets;
 public class BaseSubscriptionServerTests : IDisposable
 {
     private readonly WebSocketHandlerOptions _options = new();
-    private readonly Mock<IOperationMessageSendStream> _mockStream = new(MockBehavior.Strict);
-    private readonly IOperationMessageSendStream _stream;
+    private readonly Mock<IWebSocketConnection> _mockStream = new(MockBehavior.Strict);
+    private readonly IWebSocketConnection _stream;
     private readonly Mock<TestBaseSubscriptionServer> _mockServer;
     private TestBaseSubscriptionServer _server => _mockServer.Object;
 
@@ -168,17 +168,17 @@ public class BaseSubscriptionServerTests : IDisposable
     }
 
     [Fact]
-    public void StartConnectionInitTimer_Infinite()
+    public async Task StartConnectionInitTimer_Infinite()
     {
         _options.ConnectionInitWaitTimeout = Timeout.InfiniteTimeSpan;
-        _server.Do_StartConnectionInitTimer();
+        await _server.Do_InitializeConnectionAsync();
     }
 
     [Fact]
-    public void StartConnectionInitTimer_Default()
+    public async Task StartConnectionInitTimer_Default()
     {
         _server.Get_DefaultConnectionTimeout.ShouldBe(TimeSpan.FromSeconds(10));
-        _server.Do_StartConnectionInitTimer();
+        await _server.Do_InitializeConnectionAsync();
     }
 
     [Fact]
@@ -190,7 +190,7 @@ public class BaseSubscriptionServerTests : IDisposable
             tcs.TrySetResult(true);
             return Task.CompletedTask;
         }).Verifiable();
-        _server.Do_StartConnectionInitTimer();
+        await _server.Do_InitializeConnectionAsync();
         // verify that if it did not initialize, it triggers OnConnectionInitWaitTimeoutAsync
         (await Task.WhenAny(tcs.Task, Task.Delay(5000))).ShouldBe(tcs.Task);
         _mockServer.Verify();
@@ -205,7 +205,7 @@ public class BaseSubscriptionServerTests : IDisposable
             tcs.TrySetResult(true);
             return Task.CompletedTask;
         });
-        _server.Do_StartConnectionInitTimer();
+        await _server.Do_InitializeConnectionAsync();
         _server.Do_TryInitialize();
         // verify that if it has initialized, it does not trigger OnConnectionInitWaitTimeoutAsync
         (await Task.WhenAny(tcs.Task, Task.Delay(5000))).ShouldNotBe(tcs.Task);
@@ -221,7 +221,7 @@ public class BaseSubscriptionServerTests : IDisposable
             tcs.TrySetResult(true);
             return Task.CompletedTask;
         });
-        _server.Do_StartConnectionInitTimer();
+        await _server.Do_InitializeConnectionAsync();
         _server.Dispose();
         // verify that after the server has disposed, it does not trigger OnConnectionInitWaitTimeoutAsync
         (await Task.WhenAny(tcs.Task, Task.Delay(5000))).ShouldNotBe(tcs.Task);

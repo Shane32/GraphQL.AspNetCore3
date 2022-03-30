@@ -6,8 +6,8 @@ namespace Tests.WebSockets;
 public class NewSubscriptionServerTests : IDisposable
 {
     private readonly WebSocketHandlerOptions _options = new();
-    private readonly Mock<IOperationMessageSendStream> _mockStream = new(MockBehavior.Strict);
-    private readonly IOperationMessageSendStream _stream;
+    private readonly Mock<IWebSocketConnection> _mockStream = new(MockBehavior.Strict);
+    private readonly IWebSocketConnection _stream;
     private readonly Mock<TestNewSubscriptionServer> _mockServer;
     private TestNewSubscriptionServer _server => _mockServer.Object;
     private readonly Mock<IDocumentExecuter> _mockDocumentExecuter = new(MockBehavior.Strict);

@@ -28,6 +28,6 @@ public class UserContextBuilder<TUserContext> : IUserContextBuilder
     }
 
     /// <inheritdoc/>
-    public async ValueTask<IDictionary<string, object?>> BuildUserContextAsync(HttpContext httpContext)
-        => await _func(httpContext);
+    public async ValueTask<IDictionary<string, object?>> BuildUserContextAsync(HttpContext context)
+        => await _func(context);
 }

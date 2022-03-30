@@ -95,9 +95,9 @@ public class WebSocketHandlerTests : IDisposable
         var webSocketConnection = mockWebSocketConnection.Object;
         _mockHandler.Protected().Setup<IWebSocketConnection>("CreateWebSocketConnection", _webSocket, ItExpr.IsAny<CancellationToken>())
             .Returns(webSocketConnection).Verifiable();
-        var mockSubServer = new Mock<IOperationMessageReceiveStream>(MockBehavior.Strict);
+        var mockSubServer = new Mock<IOperationMessageProcessor>(MockBehavior.Strict);
         var subServer = mockSubServer.Object;
-        _mockHandler.Protected().Setup<IOperationMessageReceiveStream>("CreateReceiveStream", webSocketConnection, subProtocol, _userContext)
+        _mockHandler.Protected().Setup<IOperationMessageProcessor>("CreateReceiveStream", webSocketConnection, subProtocol, _userContext)
             .Returns(subServer).Verifiable();
         mockSubServer.Setup(x => x.Dispose()).Verifiable();
         mockWebSocketConnection.Setup(x => x.ExecuteAsync(subServer)).Returns(Task.CompletedTask).Verifiable();
@@ -122,12 +122,12 @@ public class WebSocketHandlerTests : IDisposable
                 token2 = token3;
                 return webSocketConnection;
             }).Verifiable();
-        var mockSubServer = new Mock<IOperationMessageReceiveStream>(MockBehavior.Strict);
+        var mockSubServer = new Mock<IOperationMessageProcessor>(MockBehavior.Strict);
         var subServer = mockSubServer.Object;
-        _mockHandler.Protected().Setup<IOperationMessageReceiveStream>("CreateReceiveStream", webSocketConnection, subProtocol, _userContext)
+        _mockHandler.Protected().Setup<IOperationMessageProcessor>("CreateReceiveStream", webSocketConnection, subProtocol, _userContext)
             .Returns(subServer).Verifiable();
         mockSubServer.Setup(x => x.Dispose()).Verifiable();
-        mockWebSocketConnection.Setup(x => x.ExecuteAsync(subServer)).Returns<IOperationMessageReceiveStream>(_ => {
+        mockWebSocketConnection.Setup(x => x.ExecuteAsync(subServer)).Returns<IOperationMessageProcessor>(_ => {
             cts.Cancel();
             token2.ThrowIfCancellationRequested();
             return Task.CompletedTask;
@@ -153,12 +153,12 @@ public class WebSocketHandlerTests : IDisposable
                 token2 = token3;
                 return webSocketConnection;
             }).Verifiable();
-        var mockSubServer = new Mock<IOperationMessageReceiveStream>(MockBehavior.Strict);
+        var mockSubServer = new Mock<IOperationMessageProcessor>(MockBehavior.Strict);
         var subServer = mockSubServer.Object;
-        _mockHandler.Protected().Setup<IOperationMessageReceiveStream>("CreateReceiveStream", webSocketConnection, subProtocol, _userContext)
+        _mockHandler.Protected().Setup<IOperationMessageProcessor>("CreateReceiveStream", webSocketConnection, subProtocol, _userContext)
             .Returns(subServer).Verifiable();
         mockSubServer.Setup(x => x.Dispose()).Verifiable();
-        mockWebSocketConnection.Setup(x => x.ExecuteAsync(subServer)).Returns<IOperationMessageReceiveStream>(_ => {
+        mockWebSocketConnection.Setup(x => x.ExecuteAsync(subServer)).Returns<IOperationMessageProcessor>(_ => {
             cts.Cancel();
             token2.ThrowIfCancellationRequested();
             return Task.CompletedTask;
@@ -179,7 +179,7 @@ public class WebSocketHandlerTests : IDisposable
     public void CreateSendStream_Old()
     {
         _options.ConnectionInitWaitTimeout = Timeout.InfiniteTimeSpan;
-        var mockSendStream = new Mock<IOperationMessageSendStream>(MockBehavior.Strict);
+        var mockSendStream = new Mock<IWebSocketConnection>(MockBehavior.Strict);
         var receiveStream = _handler.Do_CreateReceiveStream(mockSendStream.Object, "graphql-transport-ws", _userContext);
         receiveStream.ShouldBeOfType<NewSubscriptionServer>();
     }
@@ -188,7 +188,7 @@ public class WebSocketHandlerTests : IDisposable
     public void CreateSendStream_New()
     {
         _options.ConnectionInitWaitTimeout = Timeout.InfiniteTimeSpan;
-        var mockSendStream = new Mock<IOperationMessageSendStream>(MockBehavior.Strict);
+        var mockSendStream = new Mock<IWebSocketConnection>(MockBehavior.Strict);
         var receiveStream = _handler.Do_CreateReceiveStream(mockSendStream.Object, "graphql-ws", _userContext);
         receiveStream.ShouldBeOfType<OldSubscriptionServer>();
     }
@@ -196,7 +196,7 @@ public class WebSocketHandlerTests : IDisposable
     [Fact]
     public void CreateSendStream_Invalid()
     {
-        var mockSendStream = new Mock<IOperationMessageSendStream>(MockBehavior.Strict);
+        var mockSendStream = new Mock<IWebSocketConnection>(MockBehavior.Strict);
         Should.Throw<ArgumentOutOfRangeException>(() => _handler.Do_CreateReceiveStream(mockSendStream.Object, "unknown", _userContext));
     }
 

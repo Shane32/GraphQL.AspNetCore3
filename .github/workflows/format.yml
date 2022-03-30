@@ -1,0 +1,31 @@
+name: Check formatting
+
+on:
+  pull_request:
+    branches:
+      - master
+      - develop
+  push:
+    branches:
+      - master
+      - develop
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v3
+      - name: Use .NET Core SDK
+        uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: 6.0.x
+          source-url: https://nuget.pkg.github.com/Shane32/index.json
+        env:
+          NUGET_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+      - name: Add graphql-dotnet nuget source
+        run: dotnet nuget add source https://nuget.pkg.github.com/graphql-dotnet/index.json -n graphqldotnet -u ${{ secrets.NUGET_PUBLIC_USER }} -p ${{ secrets.NUGET_PUBLIC_TOKEN }} --store-password-in-clear-text
+      - name: Install dependencies
+        run: dotnet restore
+      - name: Check formatting
+        run: dotnet format --no-restore --verify-no-changes

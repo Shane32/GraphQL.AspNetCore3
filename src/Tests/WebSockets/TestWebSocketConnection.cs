@@ -14,7 +14,7 @@ public class TestWebSocketConnection : WebSocketConnection
     {
     }
 
-    public Task Do_OnDispatchMessageAsync(IOperationMessageReceiveStream operationMessageReceiveStream, OperationMessage message)
+    public Task Do_OnDispatchMessageAsync(IOperationMessageProcessor operationMessageReceiveStream, OperationMessage message)
         => OnDispatchMessageAsync(operationMessageReceiveStream, message);
 
     public Task Do_OnSendMessageAsync(OperationMessage message)

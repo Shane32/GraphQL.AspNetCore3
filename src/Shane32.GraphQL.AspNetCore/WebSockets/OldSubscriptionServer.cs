@@ -33,7 +33,7 @@ public class OldSubscriptionServer : BaseSubscriptionServer
     /// <param name="serviceScopeFactory">A <see cref="IServiceScopeFactory"/> to create service scopes for execution of GraphQL requests.</param>
     /// <param name="userContext">The user context to pass to the <see cref="IDocumentExecuter"/>.</param>
     public OldSubscriptionServer(
-        IOperationMessageSendStream sendStream,
+        IWebSocketConnection sendStream,
         WebSocketHandlerOptions options,
         IDocumentExecuter executer,
         IGraphQLSerializer serializer,

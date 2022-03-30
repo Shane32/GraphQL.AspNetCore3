@@ -1,3 +1,5 @@
+#pragma warning disable CA1716 // Identifiers should not match keywords
+
 namespace Shane32.GraphQL.AspNetCore;
 
 /// <inheritdoc/>
@@ -346,7 +348,7 @@ public abstract class GraphQLHttpMiddleware
     /// In this manner, both scoped and singleton <see cref="IUserContextBuilder"/>
     /// instances are supported, although singleton instances are recommended.
     /// </summary>
-    protected virtual async Task<IDictionary<string, object?>> BuildUserContextAsync(HttpContext context)
+    protected virtual async ValueTask<IDictionary<string, object?>> BuildUserContextAsync(HttpContext context)
     {
         var userContextBuilder = context.RequestServices.GetService<IUserContextBuilder>();
         var userContext = userContextBuilder == null
@@ -490,17 +492,19 @@ public abstract class GraphQLHttpMiddleware
         OperationName = formCollection.TryGetValue(OPERATION_NAME_KEY, out var operationNameValues) ? operationNameValues[0] : null,
     };
 
-    private async Task<GraphQLRequest> DeserializeFromGraphBodyAsync(Stream bodyStream)
+    /// <summary>
+    /// Reads body of content type: application/graphql
+    /// </summary>
+    private static async Task<GraphQLRequest> DeserializeFromGraphBodyAsync(Stream bodyStream)
     {
-        // In this case, the query is the raw value in the POST body
+        // do not close underlying HTTP connection
+        using var streamReader = new StreamReader(bodyStream, leaveOpen: true); 
 
-        // Do not explicitly or implicitly (via using, etc.) call dispose because StreamReader will dispose inner stream.
-        // This leads to the inability to use the stream further by other consumers/middlewares of the request processing
-        // pipeline. In fact, it is absolutely not dangerous not to dispose StreamReader as it does not perform any useful
-        // work except for the disposing inner stream.
-        string query = await new StreamReader(bodyStream).ReadToEndAsync();
+        // read query text
+        string query = await streamReader.ReadToEndAsync();
 
-        return new GraphQLRequest { Query = query }; // application/graphql MediaType supports only query text
+        // return request
+        return new GraphQLRequest { Query = query };
     }
 
 #if NET5_0_OR_GREATER

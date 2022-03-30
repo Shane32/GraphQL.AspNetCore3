@@ -4,7 +4,7 @@ namespace Tests.WebSockets;
 
 public class TestBaseSubscriptionServer : BaseSubscriptionServer
 {
-    public TestBaseSubscriptionServer(IOperationMessageSendStream sendStream, WebSocketHandlerOptions options)
+    public TestBaseSubscriptionServer(IWebSocketConnection sendStream, WebSocketHandlerOptions options)
         : base(sendStream, options) { }
 
     public override Task OnMessageReceivedAsync(OperationMessage message) => throw new NotImplementedException();
@@ -15,7 +15,7 @@ public class TestBaseSubscriptionServer : BaseSubscriptionServer
     protected override Task SendDataAsync(string id, ExecutionResult result) => throw new NotImplementedException();
     protected override Task SendErrorResultAsync(string id, ExecutionResult result) => throw new NotImplementedException();
 
-    public void Do_StartConnectionInitTimer() => StartConnectionInitTimer();
+    public Task Do_InitializeConnectionAsync() => InitializeConnectionAsync();
 
     public Task Do_OnConnectionInitWaitTimeoutAsync() => OnConnectionInitWaitTimeoutAsync();
 

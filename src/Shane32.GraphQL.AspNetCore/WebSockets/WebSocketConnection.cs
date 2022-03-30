@@ -1,14 +1,14 @@
 namespace Shane32.GraphQL.AspNetCore.WebSockets;
 
 /// <summary>
-/// Manages a WebSocket connection, dispatching messages to the specified <see cref="IOperationMessageReceiveStream"/>,
-/// and sending messages requested by the <see cref="IOperationMessageSendStream"/> implementation.
+/// Manages a WebSocket connection, dispatching messages to the specified <see cref="IOperationMessageProcessor"/>,
+/// and sending messages requested by the <see cref="IOperationMessageProcessor"/> implementation.
 /// <br/><br/>
-/// The <see cref="ExecuteAsync(IOperationMessageReceiveStream)"/> method may only be executed once for each
+/// The <see cref="ExecuteAsync(IOperationMessageProcessor)"/> method may only be executed once for each
 /// instance. Awaiting the result will return once the WebSocket connection has been properly closed from both
 /// ends, after all messages have been sent.
 /// <br/><br/>
-/// Calls to <see cref="IOperationMessageReceiveStream.OnMessageReceivedAsync(OperationMessage)"/> be awaited
+/// Calls to <see cref="IOperationMessageProcessor.OnMessageReceivedAsync(OperationMessage)"/> be awaited
 /// before dispatching subsequent messages.
 /// <br/><br/>
 /// Calls to <see cref="CloseConnectionAsync()"/> and <see cref="SendMessageAsync(OperationMessage)"/> may be
@@ -22,9 +22,11 @@ public class WebSocketConnection : IWebSocketConnection
     private readonly IGraphQLSerializer _serializer;
     private readonly WebSocketWriterStream _stream;
     private readonly TaskCompletionSource<bool> _outputClosed = new();
-    private readonly CancellationToken _cancellationToken;
     private readonly int _closeTimeoutMs;
     private int _executed;
+
+    /// <inheritdoc/>
+    public CancellationToken RequestAborted { get; }
 
     /// <summary>
     /// Returns the default disconnection timeout value.
@@ -44,28 +46,31 @@ public class WebSocketConnection : IWebSocketConnection
             throw new ArgumentNullException(nameof(options));
         if (options.DisconnectionTimeout.HasValue) {
             if ((options.DisconnectionTimeout.Value != Timeout.InfiniteTimeSpan && options.DisconnectionTimeout.Value.TotalMilliseconds < 0) || options.DisconnectionTimeout.Value.TotalMilliseconds > int.MaxValue)
+#pragma warning disable CA2208 // Instantiate argument exceptions correctly
                 throw new ArgumentOutOfRangeException(nameof(options) + "." + nameof(WebSocketHandlerOptions.DisconnectionTimeout));
+#pragma warning restore CA2208 // Instantiate argument exceptions correctly
         }
         _closeTimeoutMs = (int)(options.DisconnectionTimeout ?? DefaultDisconnectionTimeout).TotalMilliseconds;
         _webSocket = webSocket ?? throw new ArgumentNullException(nameof(webSocket));
         _stream = new(webSocket);
         _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
         _pump = new(HandleMessageAsync);
-        _cancellationToken = cancellationToken;
+        RequestAborted = cancellationToken;
     }
 
     /// <summary>
     /// Listens to incoming messages on the WebSocket specified in the constructor,
-    /// dispatching the messages to the specified <paramref name="operationMessageReceiveStream"/>.
+    /// dispatching the messages to the specified <paramref name="operationMessageProcessor"/>.
     /// Returns or throws <see cref="OperationCanceledException"/> when the WebSocket connection is closed.
     /// </summary>
-    public virtual async Task ExecuteAsync(IOperationMessageReceiveStream operationMessageReceiveStream)
+    public virtual async Task ExecuteAsync(IOperationMessageProcessor operationMessageProcessor)
     {
-        if (operationMessageReceiveStream == null)
-            throw new ArgumentNullException(nameof(operationMessageReceiveStream));
+        if (operationMessageProcessor == null)
+            throw new ArgumentNullException(nameof(operationMessageProcessor));
         if (Interlocked.Exchange(ref _executed, 1) == 1)
             throw new InvalidOperationException($"{nameof(ExecuteAsync)} may only be called once per instance.");
         try {
+            await operationMessageProcessor.InitializeConnectionAsync();
             // set up a buffer in case a message is longer than one block
             var receiveStream = new MemoryStream();
             // set up a 16KB data block
@@ -76,10 +81,10 @@ public class WebSocketConnection : IWebSocketConnection
             var bufferStream = new ReusableMemoryReaderStream(buffer);
             // read messages until an exception occurs, the cancellation token is signaled, or a 'close' message is received
             while (true) {
-                var result = await _webSocket.ReceiveAsync(bufferMemory, _cancellationToken);
+                var result = await _webSocket.ReceiveAsync(bufferMemory, RequestAborted);
                 if (result.MessageType == WebSocketMessageType.Close) {
                     // prevent any more messages from being queued
-                    operationMessageReceiveStream.Dispose();
+                    operationMessageProcessor.Dispose();
                     // send a close request if none was sent yet
                     if (!_outputClosed.Task.IsCompleted) {
                         // queue the closure
@@ -87,7 +92,7 @@ public class WebSocketConnection : IWebSocketConnection
                         // wait until the close has been sent
                         var completedTask = Task.WhenAny(
                             _outputClosed.Task,
-                            Task.Delay(_closeTimeoutMs, _cancellationToken));
+                            Task.Delay(_closeTimeoutMs, RequestAborted));
                     }
                     // quit
                     return;
@@ -101,22 +106,22 @@ public class WebSocketConnection : IWebSocketConnection
                             continue;
                         // read the message
                         bufferStream.ResetLength(result.Count);
-                        var message = await _serializer.ReadAsync<OperationMessage>(bufferStream, _cancellationToken);
+                        var message = await _serializer.ReadAsync<OperationMessage>(bufferStream, RequestAborted);
                         // dispatch the message
                         if (message != null)
-                            await OnDispatchMessageAsync(operationMessageReceiveStream, message);
+                            await OnDispatchMessageAsync(operationMessageProcessor, message);
                     } else {
                         // if there is any data in this block, add it to the buffer
                         if (result.Count > 0)
                             receiveStream.Write(buffer, 0, result.Count);
                         // read the message from the buffer
                         receiveStream.Position = 0;
-                        var message = await _serializer.ReadAsync<OperationMessage>(receiveStream, _cancellationToken);
+                        var message = await _serializer.ReadAsync<OperationMessage>(receiveStream, RequestAborted);
                         // clear the buffer
                         receiveStream.SetLength(0);
                         // dispatch the message
                         if (message != null)
-                            await OnDispatchMessageAsync(operationMessageReceiveStream, message);
+                            await OnDispatchMessageAsync(operationMessageProcessor, message);
                     }
                 } else {
                     // if there is any data in this block, add it to the buffer
@@ -129,7 +134,7 @@ public class WebSocketConnection : IWebSocketConnection
             // prevent any more messages from being sent
             _outputClosed.TrySetResult(false);
             // prevent any more messages from attempting to send
-            operationMessageReceiveStream.Dispose();
+            operationMessageProcessor.Dispose();
         }
     }
 
@@ -138,9 +143,9 @@ public class WebSocketConnection : IWebSocketConnection
         => CloseConnectionAsync(1000, null);
 
     /// <inheritdoc/>
-    public Task CloseConnectionAsync(int closeStatusId, string? closeDescription)
+    public Task CloseConnectionAsync(int eventId, string? description)
     {
-        _pump.Post(new Message { CloseStatus = (WebSocketCloseStatus)closeStatusId, CloseDescription = closeDescription });
+        _pump.Post(new Message { CloseStatus = (WebSocketCloseStatus)eventId, CloseDescription = description });
         return Task.CompletedTask;
     }
 
@@ -173,13 +178,13 @@ public class WebSocketConnection : IWebSocketConnection
     }
 
     /// <summary>
-    /// Dispatches a received message to an <see cref="IOperationMessageReceiveStream"/> instance.
+    /// Dispatches a received message to an <see cref="IOperationMessageProcessor"/> instance.
     /// Override if logging is desired.
     /// <br/><br/>
     /// This method is synchronized and will wait until completion before dispatching another message.
     /// </summary>
-    protected virtual Task OnDispatchMessageAsync(IOperationMessageReceiveStream operationMessageReceiveStream, OperationMessage message)
-        => operationMessageReceiveStream.OnMessageReceivedAsync(message);
+    protected virtual Task OnDispatchMessageAsync(IOperationMessageProcessor operationMessageProcessor, OperationMessage message)
+        => operationMessageProcessor.OnMessageReceivedAsync(message);
 
     /// <summary>
     /// Sends the specified message to the underlying <see cref="WebSocket"/>.
@@ -189,8 +194,8 @@ public class WebSocketConnection : IWebSocketConnection
     /// </summary>
     protected virtual async Task OnSendMessageAsync(OperationMessage message)
     {
-        await _serializer.WriteAsync(_stream, message, _cancellationToken);
-        await _stream.FlushAsync(_cancellationToken);
+        await _serializer.WriteAsync(_stream, message, RequestAborted);
+        await _stream.FlushAsync(RequestAborted);
     }
 
     /// <summary>
@@ -200,7 +205,7 @@ public class WebSocketConnection : IWebSocketConnection
     /// This method is synchronized and will wait until completion before sending another message or closing the output stream.
     /// </summary>
     protected virtual Task OnCloseOutputAsync(WebSocketCloseStatus closeStatus, string? closeDescription)
-        => _webSocket.CloseOutputAsync(closeStatus, closeDescription, _cancellationToken);
+        => _webSocket.CloseOutputAsync(closeStatus, closeDescription, RequestAborted);
 
     /// <summary>
     /// A queue entry; see <see cref="HandleMessageAsync(Message)"/>.
