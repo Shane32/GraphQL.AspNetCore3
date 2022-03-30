@@ -498,7 +498,7 @@ public abstract class GraphQLHttpMiddleware
     private static async Task<GraphQLRequest> DeserializeFromGraphBodyAsync(Stream bodyStream)
     {
         // do not close underlying HTTP connection
-        using var streamReader = new StreamReader(bodyStream, leaveOpen: true); 
+        using var streamReader = new StreamReader(bodyStream, leaveOpen: true);
 
         // read query text
         string query = await streamReader.ReadToEndAsync();

@@ -98,8 +98,8 @@ internal class AsyncMessagePump<T>
 #pragma warning disable CA2012 // Use ValueTasks correctly
                 _ = _queue.Dequeue();
 #pragma warning restore CA2012 // Use ValueTasks correctly
-                              // if the queue is empty, immedately quit the loop, as any new
-                              // events queued will start CompleteAsync
+                // if the queue is empty, immedately quit the loop, as any new
+                // events queued will start CompleteAsync
                 if (!_queue.TryPeek(out messageTask!))
                     return;
             }
