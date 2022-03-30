@@ -69,7 +69,7 @@ public class BatchTests : IDisposable
     public async Task NotParallelTest()
     {
         _options.BatchedRequestsExecuteInParallel = false;
-        using var response = await PostBatchRequestAsync(new GraphQLRequest() { Query = "{count}" }, new GraphQLRequest() { Query = "{count}"});
+        using var response = await PostBatchRequestAsync(new GraphQLRequest() { Query = "{count}" }, new GraphQLRequest() { Query = "{count}" });
         await response.ShouldBeAsync(@"[{""data"":{""count"":0}},{""data"":{""count"":0}}]");
     }
 
