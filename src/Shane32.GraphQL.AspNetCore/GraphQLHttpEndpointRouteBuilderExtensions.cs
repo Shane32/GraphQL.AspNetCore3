@@ -30,9 +30,6 @@ public static class GraphQLHttpEndpointRouteBuilderExtensions
     public static GraphQLEndpointConventionBuilder MapGraphQL<TSchema>(this IEndpointRouteBuilder endpoints, string pattern = "graphql", Action<GraphQLHttpMiddlewareOptions>? configureMiddleware = null)
         where TSchema : ISchema
     {
-        if (endpoints == null)
-            throw new ArgumentNullException(nameof(endpoints));
-
         var opts = new GraphQLHttpMiddlewareOptions();
         configureMiddleware?.Invoke(opts);
 
@@ -52,9 +49,6 @@ public static class GraphQLHttpEndpointRouteBuilderExtensions
         where TSchema : ISchema
         where TMiddleware : GraphQLHttpMiddleware<TSchema>
     {
-        if (endpoints == null)
-            throw new ArgumentNullException(nameof(endpoints));
-
         var requestDelegate = endpoints.CreateApplicationBuilder().UseMiddleware<TMiddleware>().Build();
         return new GraphQLEndpointConventionBuilder(endpoints.Map(pattern, requestDelegate).WithDisplayName("GraphQL"));
     }
