@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Windows)))' != 'true'">
     <TargetFrameworks>netcoreapp3.1;net6.0</TargetFrameworks>
@@ -24,6 +24,8 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <!-- reference to Microsoft.CodeAnalysis.CSharp is required for github formatting checks -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.1.0" />
   </ItemGroup>
 
   <ItemGroup>
