@@ -15,6 +15,7 @@ public class UserContextBuilderTests : IDisposable
                 b.AddAutoSchema<MyQuery>();
                 b.AddSystemTextJson();
             });
+            services.AddHttpContextAccessor();
         });
         hostBuilder.Configure(app => {
             app.UseWebSockets();
@@ -72,11 +73,36 @@ public class UserContextBuilderTests : IDisposable
         actual.ShouldBe(@"{""data"":{""test"":""" + name + @"""}}");
     }
 
+    private async Task TestDirect(string name)
+    {
+        var executer = _server.Services.GetRequiredService<IDocumentExecuter<ISchema>>();
+        var result = await executer.ExecuteAsync(new ExecutionOptions {
+            Query = "{test}",
+            RequestServices = _server.Services,
+        });
+        var serializer = _server.Services.GetRequiredService<IGraphQLTextSerializer>();
+        var actual = serializer.Serialize(result);
+        actual.ShouldBe(@"{""data"":{""test"":""" + name + @"""}}");
+    }
+
     [Fact]
     public async Task Builder1()
     {
         Configure(b => b.AddUserContextBuilder(ctx => new MyUserContext { Name = "John Doe" }));
         await Test("John Doe");
+    }
+
+    [Fact]
+    public async Task Builder1Direct()
+    {
+        Configure(b => b.AddUserContextBuilder(ctx => new MyUserContext { Name = "John Doe" }));
+        await TestDirect("John Doe");
+    }
+
+    [Fact]
+    public void Builder1Null()
+    {
+        Should.Throw<ArgumentNullException>(() => Configure(b => b.AddUserContextBuilder((Func<HttpContext, MyUserContext>)null!)));
     }
 
     [Fact]
@@ -87,10 +113,30 @@ public class UserContextBuilderTests : IDisposable
     }
 
     [Fact]
+    public async Task Builder2Direct()
+    {
+        Configure(b => b.AddUserContextBuilder(ctx => Task.FromResult(new MyUserContext { Name = "John Doe" })));
+        await TestDirect("John Doe");
+    }
+
+    [Fact]
+    public void Builder2Null()
+    {
+        Should.Throw<ArgumentNullException>(() => Configure(b => b.AddUserContextBuilder((Func<HttpContext, Task<MyUserContext>>)null!)));
+    }
+
+    [Fact]
     public async Task Builder3()
     {
         Configure(b => b.AddUserContextBuilder<MyBuilder>());
         await Test("John Doe");
+    }
+
+    [Fact]
+    public async Task Builder3Direct()
+    {
+        Configure(b => b.AddUserContextBuilder<MyBuilder>());
+        await TestDirect("John Doe");
     }
 
     private class MyBuilder : IUserContextBuilder
