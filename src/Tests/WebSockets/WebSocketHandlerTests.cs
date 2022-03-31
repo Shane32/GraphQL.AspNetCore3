@@ -179,7 +179,7 @@ public class WebSocketHandlerTests : IDisposable
         _options.ConnectionInitWaitTimeout = Timeout.InfiniteTimeSpan;
         var mockSendStream = new Mock<IWebSocketConnection>(MockBehavior.Strict);
         var receiveStream = _handler.Do_CreateReceiveStream(mockSendStream.Object, "graphql-transport-ws", _userContext);
-        receiveStream.ShouldBeOfType<Shane32.GraphQL.AspNetCore.WebSockets.GraphQLWs.SubscriptionServer>();
+        receiveStream.ShouldBeOfType<GraphQL.AspNetCore.WebSockets.GraphQLWs.SubscriptionServer>();
     }
 
     [Fact]
@@ -188,7 +188,7 @@ public class WebSocketHandlerTests : IDisposable
         _options.ConnectionInitWaitTimeout = Timeout.InfiniteTimeSpan;
         var mockSendStream = new Mock<IWebSocketConnection>(MockBehavior.Strict);
         var receiveStream = _handler.Do_CreateReceiveStream(mockSendStream.Object, "graphql-ws", _userContext);
-        receiveStream.ShouldBeOfType<Shane32.GraphQL.AspNetCore.WebSockets.SubscriptionsTransportWs.SubscriptionServer>();
+        receiveStream.ShouldBeOfType<GraphQL.AspNetCore.WebSockets.SubscriptionsTransportWs.SubscriptionServer>();
     }
 
     [Fact]

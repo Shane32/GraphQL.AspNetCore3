@@ -1,4 +1,4 @@
-using Shane32.GraphQL.AspNetCore.WebSockets.SubscriptionsTransportWs;
+using GraphQL.AspNetCore.WebSockets.SubscriptionsTransportWs;
 
 namespace Tests.WebSockets;
 

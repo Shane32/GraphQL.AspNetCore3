@@ -28,30 +28,30 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Samples\ChatSchema\Chat.csproj" />
-    <ProjectReference Include="..\Shane32.GraphQL.AspNetCore\Shane32.GraphQL.AspNetCore.csproj" />
+    <ProjectReference Include="..\GraphQL.AspNetCore\GraphQL.AspNetCore.csproj" />
     <PackageReference Include="GraphQL.SystemTextJson" Version="$(GraphQLVersion)" />
   </ItemGroup>
 
   <ItemGroup>
-    <Using Include="GraphQL"/>
-    <Using Include="GraphQL.DI"/>
-    <Using Include="GraphQL.MicrosoftDI"/>
-    <Using Include="GraphQL.Transport"/>
-    <Using Include="GraphQL.Types"/>
-    <Using Include="GraphQL.SystemTextJson"/>
-    <Using Include="Microsoft.AspNetCore.Builder"/>
-    <Using Include="Microsoft.AspNetCore.Hosting"/>
-    <Using Include="Microsoft.AspNetCore.Http"/>
-    <Using Include="Microsoft.AspNetCore.TestHost"/>
-    <Using Include="Microsoft.Extensions.DependencyInjection"/>
+    <Using Include="GraphQL" />
+    <Using Include="GraphQL.DI" />
+    <Using Include="GraphQL.MicrosoftDI" />
+    <Using Include="GraphQL.Transport" />
+    <Using Include="GraphQL.Types" />
+    <Using Include="GraphQL.SystemTextJson" />
+    <Using Include="Microsoft.AspNetCore.Builder" />
+    <Using Include="Microsoft.AspNetCore.Hosting" />
+    <Using Include="Microsoft.AspNetCore.Http" />
+    <Using Include="Microsoft.AspNetCore.TestHost" />
+    <Using Include="Microsoft.Extensions.DependencyInjection" />
     <Using Include="Moq" />
     <Using Include="Moq.Protected" />
-    <Using Include="Shane32.GraphQL.AspNetCore" />
-    <Using Include="Shane32.GraphQL.AspNetCore.WebSockets" />
+    <Using Include="GraphQL.AspNetCore" />
+    <Using Include="GraphQL.AspNetCore.WebSockets" />
     <Using Include="Shouldly" />
     <Using Include="System.Text" />
-    <Using Include="System.Threading"/>
-    <Using Include="System.Threading.Tasks"/>
+    <Using Include="System.Threading" />
+    <Using Include="System.Threading.Tasks" />
     <Using Include="Xunit" />
   </ItemGroup>
 

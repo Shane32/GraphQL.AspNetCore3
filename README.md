@@ -1,6 +1,6 @@
-# Shane32.GraphQL.AspNetCore
+# GraphQL.AspNetCore
 
-[![NuGet](https://img.shields.io/nuget/v/Shane32.GraphQL.AspNetCore.svg)](https://www.nuget.org/packages/Shane32.GraphQL.AspNetCore) [![Coverage Status](https://coveralls.io/repos/github/Shane32/GraphQL.AspNetCore/badge.svg?branch=master)](https://coveralls.io/github/Shane32/GraphQL.AspNetCore?branch=master)
+[![NuGet](https://img.shields.io/nuget/v/GraphQL.AspNetCore.svg)](https://www.nuget.org/packages/GraphQL.AspNetCore) [![Coverage Status](https://coveralls.io/repos/github/Shane32/GraphQL.AspNetCore/badge.svg?branch=master)](https://coveralls.io/github/Shane32/GraphQL.AspNetCore?branch=master)
 
 This package is designed for ASP.Net Core 3.1+ to facilitate easy set-up of GraphQL requests
 over HTTP.  The code is designed to be used as middleware within the ASP.Net Core pipeline,
@@ -24,7 +24,7 @@ framework in order to use them.
 
 ### Typical configuration with HTTP middleware
 
-First add the `Shane32.GraphQL.AspNetCore` nuget package to your application.  It requires
+First add the `GraphQL.AspNetCore` nuget package to your application.  It requires
 `GraphQL` version 5.0 or later and will default to the newest available 5.x version if none
 are installed in your application.
 
@@ -50,7 +50,7 @@ Below is a complete sample of a .NET 6 console app that hosts a GraphQL endpoint
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Shane32.GraphQL.AspNetCore" Version="1.0.0" />
+    <PackageReference Include="GraphQL.AspNetCore" Version="1.0.0" />
     <PackageReference Include="GraphQL.SystemTextJson" Version="5.0.0" />
   </ItemGroup>
 
@@ -63,7 +63,7 @@ Below is a complete sample of a .NET 6 console app that hosts a GraphQL endpoint
 using GraphQL;
 using GraphQL.MicrosoftDI;
 using GraphQL.SystemTextJson;
-using Shane32.GraphQL.AspNetCore;
+using GraphQL.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddGraphQL(b => b
