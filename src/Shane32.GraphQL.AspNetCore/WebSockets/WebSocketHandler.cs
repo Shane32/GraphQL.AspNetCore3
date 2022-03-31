@@ -29,7 +29,10 @@ public class WebSocketHandler : IWebSocketHandler
     /// </summary>
     protected WebSocketHandlerOptions Options { get; }
 
-    private static readonly IEnumerable<string> _supportedSubProtocols = new List<string>(new[] { "graphql-transport-ws", "graphql-ws" }).AsReadOnly();
+    private static readonly IEnumerable<string> _supportedSubProtocols = new List<string>(new[] {
+        GraphQLWs.SubscriptionServer.SubProtocol,
+        SubscriptionsTransportWs.SubscriptionServer.SubProtocol,
+    }).AsReadOnly();
     /// <inheritdoc/>
     public virtual IEnumerable<string> SupportedSubProtocols => _supportedSubProtocols;
 
@@ -91,8 +94,8 @@ public class WebSocketHandler : IWebSocketHandler
     protected virtual IOperationMessageProcessor CreateReceiveStream(IWebSocketConnection webSocketConnection, string subProtocol, IDictionary<string, object?> userContext)
     {
         switch (subProtocol) {
-            case "graphql-transport-ws": {
-                var server = new NewSubscriptionServer(
+            case GraphQLWs.SubscriptionServer.SubProtocol: {
+                var server = new GraphQLWs.SubscriptionServer(
                     webSocketConnection,
                     Options,
                     _executer,
@@ -101,8 +104,8 @@ public class WebSocketHandler : IWebSocketHandler
                     userContext);
                 return server;
             }
-            case "graphql-ws": {
-                var server = new OldSubscriptionServer(
+            case SubscriptionsTransportWs.SubscriptionServer.SubProtocol: {
+                var server = new SubscriptionsTransportWs.SubscriptionServer(
                     webSocketConnection,
                     Options,
                     _executer,

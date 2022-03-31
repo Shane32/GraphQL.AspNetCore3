@@ -1,8 +1,13 @@
-namespace Shane32.GraphQL.AspNetCore.WebSockets;
+namespace Shane32.GraphQL.AspNetCore.WebSockets.GraphQLWs;
 
 /// <inheritdoc/>
-public class OldSubscriptionServer : BaseSubscriptionServer
+public class SubscriptionServer : BaseSubscriptionServer
 {
+    /// <summary>
+    /// The WebSocket sub-protocol used for this protocol.
+    /// </summary>
+    public const string SubProtocol = "graphql-transport-ws";
+
     /// <summary>
     /// Returns the <see cref="IDocumentExecuter"/> used to execute requests.
     /// </summary>
@@ -32,7 +37,7 @@ public class OldSubscriptionServer : BaseSubscriptionServer
     /// <param name="serializer">The <see cref="IGraphQLSerializer"/> to use to deserialize payloads stored within <see cref="OperationMessage.Payload"/>.</param>
     /// <param name="serviceScopeFactory">A <see cref="IServiceScopeFactory"/> to create service scopes for execution of GraphQL requests.</param>
     /// <param name="userContext">The user context to pass to the <see cref="IDocumentExecuter"/>.</param>
-    public OldSubscriptionServer(
+    public SubscriptionServer(
         IWebSocketConnection sendStream,
         WebSocketHandlerOptions options,
         IDocumentExecuter executer,
@@ -50,14 +55,17 @@ public class OldSubscriptionServer : BaseSubscriptionServer
     /// <inheritdoc/>
     public override async Task OnMessageReceivedAsync(OperationMessage message)
     {
-        if (message.Type == OldMessageType.GQL_CONNECTION_TERMINATE) {
-            await OnCloseConnectionAsync();
+        if (message.Type == MessageType.Ping) {
+            await OnPingAsync(message);
             return;
-        } else if (message.Type == OldMessageType.GQL_CONNECTION_INIT) {
+        } else if (message.Type == MessageType.Pong) {
+            await OnPongAsync(message);
+            return;
+        } else if (message.Type == MessageType.ConnectionInit) {
             if (!TryInitialize()) {
                 await ErrorTooManyInitializationRequestsAsync(message);
             } else {
-                await OnConnectionInitAsync(message, false);
+                await OnConnectionInitAsync(message, true);
             }
             return;
         }
@@ -66,11 +74,11 @@ public class OldSubscriptionServer : BaseSubscriptionServer
             return;
         }
         switch (message.Type) {
-            case OldMessageType.GQL_START:
-                await OnStartAsync(message);
+            case MessageType.Subscribe:
+                await OnSubscribeAsync(message);
                 break;
-            case OldMessageType.GQL_STOP:
-                await OnStopAsync(message);
+            case MessageType.Complete:
+                await OnCompleteAsync(message);
                 break;
             default:
                 await ErrorUnrecognizedMessageAsync(message);
@@ -78,12 +86,29 @@ public class OldSubscriptionServer : BaseSubscriptionServer
         }
     }
 
-    private static readonly OperationMessage _keepAliveMessage = new() { Type = OldMessageType.GQL_CONNECTION_KEEP_ALIVE };
+    /// <summary>
+    /// GQL_PONG is a requrired response to a ping, and also a unidirectional keep-alive packet,
+    /// whereas GQL_PING is a bidirectional keep-alive packet.
+    /// </summary>
+    private static readonly OperationMessage _pongMessage = new() { Type = MessageType.Pong };
+
+    /// <summary>
+    /// Executes when a ping message is received.
+    /// </summary>
+    protected virtual Task OnPingAsync(OperationMessage message)
+        => Client.SendMessageAsync(_pongMessage);
+
+    /// <summary>
+    /// Executes when a pong message is received.
+    /// </summary>
+    protected virtual Task OnPongAsync(OperationMessage message)
+        => Task.CompletedTask;
+
     /// <inheritdoc/>
     protected override Task OnSendKeepAliveAsync()
-        => Client.SendMessageAsync(_keepAliveMessage);
+        => Client.SendMessageAsync(_pongMessage);
 
-    private static readonly OperationMessage _connectionAckMessage = new() { Type = OldMessageType.GQL_CONNECTION_ACK };
+    private static readonly OperationMessage _connectionAckMessage = new() { Type = MessageType.ConnectionAck };
     /// <inheritdoc/>
     protected override Task OnConnectionAcknowledgeAsync(OperationMessage message)
         => Client.SendMessageAsync(_connectionAckMessage);
@@ -91,13 +116,13 @@ public class OldSubscriptionServer : BaseSubscriptionServer
     /// <summary>
     /// Executes when a request is received to start a subscription.
     /// </summary>
-    protected virtual Task OnStartAsync(OperationMessage message)
-        => SubscribeAsync(message, true);
+    protected virtual Task OnSubscribeAsync(OperationMessage message)
+        => SubscribeAsync(message, false);
 
     /// <summary>
     /// Executes when a request is received to stop a subscription.
     /// </summary>
-    protected virtual Task OnStopAsync(OperationMessage message)
+    protected virtual Task OnCompleteAsync(OperationMessage message)
         => UnsubscribeAsync(message.Id);
 
     /// <inheritdoc/>
@@ -106,8 +131,8 @@ public class OldSubscriptionServer : BaseSubscriptionServer
         if (Subscriptions.TryRemove(id)) {
             await Client.SendMessageAsync(new OperationMessage {
                 Id = id,
-                Type = OldMessageType.GQL_ERROR,
-                Payload = result,
+                Type = MessageType.Error,
+                Payload = result.Errors?.ToArray() ?? Array.Empty<ExecutionError>(),
             });
         }
     }
@@ -118,7 +143,7 @@ public class OldSubscriptionServer : BaseSubscriptionServer
         if (Subscriptions.Contains(id)) {
             await Client.SendMessageAsync(new OperationMessage {
                 Id = id,
-                Type = OldMessageType.GQL_DATA,
+                Type = MessageType.Next,
                 Payload = result,
             });
         }
@@ -130,7 +155,7 @@ public class OldSubscriptionServer : BaseSubscriptionServer
         if (Subscriptions.TryRemove(id)) {
             await Client.SendMessageAsync(new OperationMessage {
                 Id = id,
-                Type = OldMessageType.GQL_COMPLETE,
+                Type = MessageType.Complete,
             });
         }
     }

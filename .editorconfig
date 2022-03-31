@@ -217,25 +217,24 @@ dotnet_naming_style.prefix_underscore.required_prefix = _
 # dotnet_naming_rule.<namingRuleTitle>.severity = <value>
 dotnet_naming_rule.private_fields_with_underscore.severity = warning
 
-########## name all constant fields using UPPER_CASE ##########
+########## name all constant fields using PascalCase ##########
 # https://docs.microsoft.com/en-us/visualstudio/ide/editorconfig-naming-conventions?view=vs-2019
 # dotnet_naming_rule.<namingRuleTitle>.symbols = <symbolTitle>
-dotnet_naming_rule.constant_fields_should_be_upper_case.symbols = constant_fields
+dotnet_naming_rule.constant_fields_should_be_pascal_case.symbols = constant_fields
 
 # dotnet_naming_symbols.<symbolTitle>.<property> = <value>
 dotnet_naming_symbols.constant_fields.applicable_kinds = field
-dotnet_naming_symbols.constant_fields.applicable_accessibilities = *
+dotnet_naming_symbols.constant_fields.applicable_accessibilities = public
 dotnet_naming_symbols.constant_fields.required_modifiers = const
 
 # dotnet_naming_rule.<namingRuleTitle>.style = <styleTitle>
-dotnet_naming_rule.constant_fields_should_be_upper_case.style = upper_case_style
+dotnet_naming_rule.constant_fields_should_be_pascal_case.style = pascal_case_style
 
 # dotnet_naming_style.<styleTitle>.<property> = <value>
-dotnet_naming_style.upper_case_style.capitalization = all_upper
-dotnet_naming_style.upper_case_style.word_separator = _
+dotnet_naming_style.pascal_case_style.capitalization = pascal_case
 
 # dotnet_naming_rule.<namingRuleTitle>.severity = <value>
-dotnet_naming_rule.constant_fields_should_be_upper_case.severity = warning
+dotnet_naming_rule.constant_fields_should_be_pascal_case.severity = warning
 
 ########## Async methods should have "Async" suffix ##########
 # https://docs.microsoft.com/en-us/visualstudio/ide/editorconfig-naming-conventions?view=vs-2019

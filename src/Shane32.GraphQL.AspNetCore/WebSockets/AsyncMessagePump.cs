@@ -1,9 +1,5 @@
 namespace Shane32.GraphQL.AspNetCore.WebSockets;
 
-// Copyright (c) 2022 Shane Krueger
-// source: https://github.com/Shane32/AsyncResetEvents/blob/4e0e50226bef91747ccc4c62950c52eb7fe740fd/src/AsyncResetEvents/AsyncMessagePump.cs
-// license: https://github.com/Shane32/AsyncResetEvents/blob/4e0e50226bef91747ccc4c62950c52eb7fe740fd/LICENSE
-
 /// <summary>
 /// <para>
 /// An asynchronous message pump, where messages can be posted

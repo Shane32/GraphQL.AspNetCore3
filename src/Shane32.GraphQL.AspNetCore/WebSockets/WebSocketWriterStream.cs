@@ -10,15 +10,10 @@ internal class WebSocketWriterStream : Stream
     }
 
     public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-    {
-        return _webSocket.SendAsync(new ArraySegment<byte>(buffer, offset, count), WebSocketMessageType.Text, false,
-            cancellationToken);
-    }
+        => _webSocket.SendAsync(new ArraySegment<byte>(buffer, offset, count), WebSocketMessageType.Text, false, cancellationToken);
 
     public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
-    {
-        return _webSocket.SendAsync(buffer, WebSocketMessageType.Text, false, cancellationToken);
-    }
+        => _webSocket.SendAsync(buffer, WebSocketMessageType.Text, false, cancellationToken);
 
     public override void Write(byte[] buffer, int offset, int count) => WriteAsync(buffer, offset, count).GetAwaiter().GetResult();
 

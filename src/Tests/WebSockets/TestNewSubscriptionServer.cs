@@ -1,6 +1,8 @@
+using Shane32.GraphQL.AspNetCore.WebSockets.GraphQLWs;
+
 namespace Tests.WebSockets;
 
-public class TestNewSubscriptionServer : NewSubscriptionServer
+public class TestNewSubscriptionServer : SubscriptionServer
 {
     public TestNewSubscriptionServer(IWebSocketConnection sendStream, WebSocketHandlerOptions options,
         IDocumentExecuter executer, IGraphQLSerializer serializer, IServiceScopeFactory serviceScopeFactory,

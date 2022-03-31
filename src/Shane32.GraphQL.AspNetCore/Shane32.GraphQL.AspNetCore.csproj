@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFrameworks>netcoreapp3.1;net5.0</TargetFrameworks>
     <Description>
-      Simple server for GraphQL projects
+      ASP.Net Core server for GraphQL projects
     </Description>
     <IsPackable>true</IsPackable>
   </PropertyGroup>
@@ -14,11 +14,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Using Include="GraphQL"/>
+    <Using Include="GraphQL" />
     <Using Include="GraphQL.DI" />
     <Using Include="GraphQL.Execution" />
     <Using Include="GraphQL.Transport" />
-    <Using Include="GraphQL.Types"/>
+    <Using Include="GraphQL.Types" />
     <Using Include="GraphQL.Validation" />
     <Using Include="GraphQLParser.AST" />
     <Using Include="Microsoft.AspNetCore.Builder" />
@@ -28,11 +28,15 @@
     <Using Include="Microsoft.Extensions.DependencyInjection" />
     <Using Include="Microsoft.Extensions.Hosting" />
     <Using Include="Shane32.GraphQL.AspNetCore.WebSockets" />
-    <Using Include="System"/>
+    <Using Include="System" />
     <Using Include="System.Net" />
     <Using Include="System.Net.Http.Headers" />
     <Using Include="System.Net.WebSockets" />
-    <Using Include="System.Threading"/>
-    <Using Include="System.Threading.Tasks"/>
+    <Using Include="System.Threading" />
+    <Using Include="System.Threading.Tasks" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Protocols\" />
   </ItemGroup>
 </Project>

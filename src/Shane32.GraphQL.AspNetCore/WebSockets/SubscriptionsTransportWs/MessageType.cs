@@ -1,10 +1,12 @@
-namespace Shane32.GraphQL.AspNetCore.WebSockets;
+#pragma warning disable CA1707 // Identifiers should not contain underscores
+
+namespace Shane32.GraphQL.AspNetCore.WebSockets.SubscriptionsTransportWs;
 
 /// <summary>
 ///     Protocol message types defined in
 ///     https://github.com/apollographql/subscriptions-transport-ws/blob/master/PROTOCOL.md
 /// </summary>
-public static class OldMessageType
+public static class MessageType
 {
     /// <summary>
     ///     Client sends this message after plain websocket connection to start the communication with the server

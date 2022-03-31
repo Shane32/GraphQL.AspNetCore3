@@ -1,8 +1,13 @@
-namespace Shane32.GraphQL.AspNetCore.WebSockets;
+namespace Shane32.GraphQL.AspNetCore.WebSockets.SubscriptionsTransportWs;
 
 /// <inheritdoc/>
-public class NewSubscriptionServer : BaseSubscriptionServer
+public class SubscriptionServer : BaseSubscriptionServer
 {
+    /// <summary>
+    /// The WebSocket sub-protocol used for this protocol.
+    /// </summary>
+    public const string SubProtocol = "graphql-ws";
+
     /// <summary>
     /// Returns the <see cref="IDocumentExecuter"/> used to execute requests.
     /// </summary>
@@ -32,7 +37,7 @@ public class NewSubscriptionServer : BaseSubscriptionServer
     /// <param name="serializer">The <see cref="IGraphQLSerializer"/> to use to deserialize payloads stored within <see cref="OperationMessage.Payload"/>.</param>
     /// <param name="serviceScopeFactory">A <see cref="IServiceScopeFactory"/> to create service scopes for execution of GraphQL requests.</param>
     /// <param name="userContext">The user context to pass to the <see cref="IDocumentExecuter"/>.</param>
-    public NewSubscriptionServer(
+    public SubscriptionServer(
         IWebSocketConnection sendStream,
         WebSocketHandlerOptions options,
         IDocumentExecuter executer,
@@ -50,17 +55,14 @@ public class NewSubscriptionServer : BaseSubscriptionServer
     /// <inheritdoc/>
     public override async Task OnMessageReceivedAsync(OperationMessage message)
     {
-        if (message.Type == NewMessageType.GQL_PING) {
-            await OnPingAsync(message);
+        if (message.Type == MessageType.GQL_CONNECTION_TERMINATE) {
+            await OnCloseConnectionAsync();
             return;
-        } else if (message.Type == NewMessageType.GQL_PONG) {
-            await OnPongAsync(message);
-            return;
-        } else if (message.Type == NewMessageType.GQL_CONNECTION_INIT) {
+        } else if (message.Type == MessageType.GQL_CONNECTION_INIT) {
             if (!TryInitialize()) {
                 await ErrorTooManyInitializationRequestsAsync(message);
             } else {
-                await OnConnectionInitAsync(message, true);
+                await OnConnectionInitAsync(message, false);
             }
             return;
         }
@@ -69,11 +71,11 @@ public class NewSubscriptionServer : BaseSubscriptionServer
             return;
         }
         switch (message.Type) {
-            case NewMessageType.GQL_SUBSCRIBE:
-                await OnSubscribeAsync(message);
+            case MessageType.GQL_START:
+                await OnStartAsync(message);
                 break;
-            case NewMessageType.GQL_COMPLETE:
-                await OnCompleteAsync(message);
+            case MessageType.GQL_STOP:
+                await OnStopAsync(message);
                 break;
             default:
                 await ErrorUnrecognizedMessageAsync(message);
@@ -81,29 +83,12 @@ public class NewSubscriptionServer : BaseSubscriptionServer
         }
     }
 
-    /// <summary>
-    /// GQL_PONG is a requrired response to a ping, and also a unidirectional keep-alive packet,
-    /// whereas GQL_PING is a bidirectional keep-alive packet.
-    /// </summary>
-    private static readonly OperationMessage _pongMessage = new() { Type = NewMessageType.GQL_PONG };
-
-    /// <summary>
-    /// Executes when a ping message is received.
-    /// </summary>
-    protected virtual Task OnPingAsync(OperationMessage message)
-        => Client.SendMessageAsync(_pongMessage);
-
-    /// <summary>
-    /// Executes when a pong message is received.
-    /// </summary>
-    protected virtual Task OnPongAsync(OperationMessage message)
-        => Task.CompletedTask;
-
+    private static readonly OperationMessage _keepAliveMessage = new() { Type = MessageType.GQL_CONNECTION_KEEP_ALIVE };
     /// <inheritdoc/>
     protected override Task OnSendKeepAliveAsync()
-        => Client.SendMessageAsync(_pongMessage);
+        => Client.SendMessageAsync(_keepAliveMessage);
 
-    private static readonly OperationMessage _connectionAckMessage = new() { Type = NewMessageType.GQL_CONNECTION_ACK };
+    private static readonly OperationMessage _connectionAckMessage = new() { Type = MessageType.GQL_CONNECTION_ACK };
     /// <inheritdoc/>
     protected override Task OnConnectionAcknowledgeAsync(OperationMessage message)
         => Client.SendMessageAsync(_connectionAckMessage);
@@ -111,13 +96,13 @@ public class NewSubscriptionServer : BaseSubscriptionServer
     /// <summary>
     /// Executes when a request is received to start a subscription.
     /// </summary>
-    protected virtual Task OnSubscribeAsync(OperationMessage message)
-        => SubscribeAsync(message, false);
+    protected virtual Task OnStartAsync(OperationMessage message)
+        => SubscribeAsync(message, true);
 
     /// <summary>
     /// Executes when a request is received to stop a subscription.
     /// </summary>
-    protected virtual Task OnCompleteAsync(OperationMessage message)
+    protected virtual Task OnStopAsync(OperationMessage message)
         => UnsubscribeAsync(message.Id);
 
     /// <inheritdoc/>
@@ -126,8 +111,8 @@ public class NewSubscriptionServer : BaseSubscriptionServer
         if (Subscriptions.TryRemove(id)) {
             await Client.SendMessageAsync(new OperationMessage {
                 Id = id,
-                Type = NewMessageType.GQL_ERROR,
-                Payload = result.Errors?.ToArray() ?? Array.Empty<ExecutionError>(),
+                Type = MessageType.GQL_ERROR,
+                Payload = result,
             });
         }
     }
@@ -138,7 +123,7 @@ public class NewSubscriptionServer : BaseSubscriptionServer
         if (Subscriptions.Contains(id)) {
             await Client.SendMessageAsync(new OperationMessage {
                 Id = id,
-                Type = NewMessageType.GQL_NEXT,
+                Type = MessageType.GQL_DATA,
                 Payload = result,
             });
         }
@@ -150,7 +135,7 @@ public class NewSubscriptionServer : BaseSubscriptionServer
         if (Subscriptions.TryRemove(id)) {
             await Client.SendMessageAsync(new OperationMessage {
                 Id = id,
-                Type = NewMessageType.GQL_COMPLETE,
+                Type = MessageType.GQL_COMPLETE,
             });
         }
     }

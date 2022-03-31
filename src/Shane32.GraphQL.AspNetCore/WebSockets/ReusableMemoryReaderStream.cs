@@ -1,8 +1,7 @@
 namespace Shane32.GraphQL.AspNetCore.WebSockets;
 
 /// <summary>
-/// A readable memory stream based on a buffer, with a resettable
-/// maximum length.
+/// A readable memory stream based on a buffer, with a resettable maximum length.
 /// </summary>
 internal class ReusableMemoryReaderStream : Stream
 {
