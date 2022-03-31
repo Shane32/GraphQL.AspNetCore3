@@ -1,4 +1,4 @@
-using GraphQL.AspNetCore;
+using GraphQL.AspNetCore3;
 using GraphQL.MicrosoftDI;
 using GraphQL.SystemTextJson;
 

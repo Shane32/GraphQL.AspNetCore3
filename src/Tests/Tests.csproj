@@ -28,7 +28,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Samples\ChatSchema\Chat.csproj" />
-    <ProjectReference Include="..\GraphQL.AspNetCore\GraphQL.AspNetCore.csproj" />
+    <ProjectReference Include="..\GraphQL.AspNetCore3\GraphQL.AspNetCore3.csproj" />
     <PackageReference Include="GraphQL.SystemTextJson" Version="$(GraphQLVersion)" />
   </ItemGroup>
 
@@ -46,8 +46,8 @@
     <Using Include="Microsoft.Extensions.DependencyInjection" />
     <Using Include="Moq" />
     <Using Include="Moq.Protected" />
-    <Using Include="GraphQL.AspNetCore" />
-    <Using Include="GraphQL.AspNetCore.WebSockets" />
+    <Using Include="GraphQL.AspNetCore3" />
+    <Using Include="GraphQL.AspNetCore3.WebSockets" />
     <Using Include="Shouldly" />
     <Using Include="System.Text" />
     <Using Include="System.Threading" />

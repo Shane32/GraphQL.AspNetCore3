@@ -1,5 +1,5 @@
 using GraphQL;
-using GraphQL.AspNetCore;
+using GraphQL.AspNetCore3;
 using GraphQL.Transport;
 using GraphQL.Types;
 using GraphQL.Validation;

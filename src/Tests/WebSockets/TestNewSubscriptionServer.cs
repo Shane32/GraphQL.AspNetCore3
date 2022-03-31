@@ -1,4 +1,4 @@
-using GraphQL.AspNetCore.WebSockets.GraphQLWs;
+using GraphQL.AspNetCore3.WebSockets.GraphQLWs;
 
 namespace Tests.WebSockets;
 

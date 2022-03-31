@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\GraphQL.AspNetCore\GraphQL.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\GraphQL.AspNetCore3\GraphQL.AspNetCore3.csproj" />
     <ProjectReference Include="..\ChatSchema\Chat.csproj" />
     <PackageReference Include="GraphQL.Server.Ui.Playground" Version="5.2.1" />
     <PackageReference Include="GraphQL.SystemTextJson" Version="$(GraphQLVersion)" />
