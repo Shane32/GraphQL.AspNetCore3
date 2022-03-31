@@ -473,6 +473,23 @@ public class BaseSubscriptionServerTests : IDisposable
     }
 
     [Fact]
+    public async Task Subscribe_HandlesThrownExcecutionError()
+    {
+        var message = new OperationMessage { Id = "abc" };
+        var ex = new ExecutionError("sample");
+        _mockServer.Protected().Setup<Task<ExecutionResult>>("ExecuteRequestAsync", message)
+            .Returns(Task.FromException<ExecutionResult>(ex))
+            .Verifiable();
+        _mockServer.Protected().Setup<Task>("SendErrorResultAsync", message, ex)
+            .Returns(Task.CompletedTask)
+            .Verifiable();
+        _mockServer.Protected().Setup<Task>("SubscribeAsync", message, false).Verifiable();
+        await _server.Do_SubscribeAsync(message, false);
+        _mockServer.Verify();
+        _mockServer.VerifyNoOtherCalls();
+    }
+
+    [Fact]
     public async Task Subscribe_DoesNotSendWhenDisposed()
     {
         var message = new OperationMessage { Id = "abc" };

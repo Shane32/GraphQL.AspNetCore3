@@ -276,6 +276,10 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
             }
         } catch (OperationCanceledException) when (CancellationToken.IsCancellationRequested) {
             throw;
+        } catch (ExecutionError error) {
+            if (!Subscriptions.Contains(message.Id, dummyDisposer))
+                return;
+            await SendErrorResultAsync(message, error);
         } catch (Exception ex) {
             if (!Subscriptions.Contains(message.Id, dummyDisposer))
                 return;
