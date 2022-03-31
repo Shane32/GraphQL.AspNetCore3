@@ -1,9 +1,9 @@
 using GraphQL;
+using GraphQL.AspNetCore;
 using GraphQL.Transport;
 using GraphQL.Types;
 using GraphQL.Validation;
 using Microsoft.AspNetCore.Mvc;
-using GraphQL.AspNetCore;
 
 namespace ControllerSample.Controllers;
 

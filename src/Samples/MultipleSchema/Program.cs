@@ -1,6 +1,6 @@
+using GraphQL.AspNetCore;
 using GraphQL.MicrosoftDI;
 using GraphQL.SystemTextJson;
-using GraphQL.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
