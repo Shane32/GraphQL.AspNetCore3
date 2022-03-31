@@ -8,8 +8,8 @@ serving GET, POST or WebSocket requests.  GET requests process requests from the
 POST requests can be in the form of JSON requests, form submissions, or raw GraphQL strings.
 WebSocket requests can use the `graphql-ws` or `graphql-transport-ws` WebSocket sub-protocol,
 as defined in the [apollographql/subscriptions-transport-ws](https://github.com/apollographql/subscriptions-transport-ws)
-and [enisdenjo/graphql-ws](https://github.com/enisdenjo/graphql-ws) respoitories, respectively.  The
-`graphql-subscriptions` sub-protocol is not supported.
+and [enisdenjo/graphql-ws](https://github.com/enisdenjo/graphql-ws) respoitories, respectively.
+The `graphql-subscriptions` sub-protocol is not supported.
 
 The middleware can be configured through the `IApplicationBuilder` or `IEndpointRouteBuilder`
 builder interfaces.
@@ -174,6 +174,35 @@ public class MyUserContext : Dictionary<string, object?>
         User = context.User;
     }
 }
+```
+
+### UI configuration
+
+This project does not include user interfaces, such as GraphiQL or Playground,
+but you can include references to the ones provided by the [GraphQL Server](https://github.com/graphql-dotnet/server)
+repository which work well.  Below is a list of the nuget packages offered:
+
+| Package                                              | Downloads                                                                                                                                                                             | NuGet Latest                                                                                                                                                                         |
+|------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| GraphQL.Server.Ui.Altair                             | [![Nuget](https://img.shields.io/nuget/dt/GraphQL.Server.Ui.Altair)](https://www.nuget.org/packages/GraphQL.Server.Ui.Altair)                                                         | [![Nuget](https://img.shields.io/nuget/v/GraphQL.Server.Ui.Altair)](https://www.nuget.org/packages/GraphQL.Server.Ui.Altair)                                                         |
+| GraphQL.Server.Ui.Playground                         | [![Nuget](https://img.shields.io/nuget/dt/GraphQL.Server.Ui.Playground)](https://www.nuget.org/packages/GraphQL.Server.Ui.Playground)                                                 | [![Nuget](https://img.shields.io/nuget/v/GraphQL.Server.Ui.Playground)](https://www.nuget.org/packages/GraphQL.Server.Ui.Playground)                                                 |
+| GraphQL.Server.Ui.GraphiQL                           | [![Nuget](https://img.shields.io/nuget/dt/GraphQL.Server.Ui.GraphiQL)](https://www.nuget.org/packages/GraphQL.Server.Ui.GraphiQL)                                                     | [![Nuget](https://img.shields.io/nuget/v/GraphQL.Server.Ui.GraphiQL)](https://www.nuget.org/packages/GraphQL.Server.Ui.GraphiQL)                                                     |
+| GraphQL.Server.Ui.Voyager                            | [![Nuget](https://img.shields.io/nuget/dt/GraphQL.Server.Ui.Voyager)](https://www.nuget.org/packages/GraphQL.Server.Ui.Voyager)                                                       | [![Nuget](https://img.shields.io/nuget/v/GraphQL.Server.Ui.Voyager)](https://www.nuget.org/packages/GraphQL.Server.Ui.Voyager)                                                       |
+
+Here is a sample of how this would be configured in your `Program.cs` file:
+
+```cs
+app.UseGraphQL("/graphql");
+
+// add this:
+app.UseGraphQLPlayground(
+    new GraphQL.Server.Ui.Playground.PlaygroundOptions {
+        GraphQLEndPoint = new PathString("/graphql"),
+        SubscriptionsEndPoint = new PathString("/graphql"),
+    },
+    "/");   // url to host Playground at
+
+await app.RunAsync();
 ```
 
 ## Advanced configuration
