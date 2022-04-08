@@ -8,6 +8,17 @@ namespace GraphQL.AspNetCore3;
 public static class GraphQLBuilderExtensions
 {
     /// <summary>
+    /// Registers <see cref="AuthorizationValidationRule"/> with the dependency injection framework
+    /// and configures it to be used when executing a request.
+    /// </summary>
+    public static IGraphQLBuilder AddAuthorization(this IGraphQLBuilder builder)
+    {
+        builder.AddValidationRule<AuthorizationValidationRule>(true);
+        builder.Services.TryRegister<IHttpContextAccessor, HttpContextAccessor>(ServiceLifetime.Singleton);
+        return builder;
+    }
+
+    /// <summary>
     /// Registers the default WebSocket handler with the dependency injection framework and
     /// optionally configures it with the specified configuration delegate.
     /// </summary>

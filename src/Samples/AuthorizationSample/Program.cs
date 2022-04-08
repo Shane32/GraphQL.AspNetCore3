@@ -1,0 +1,64 @@
+using AuthorizationSample.Data;
+using GraphQL;
+using GraphQL.AspNetCore3;
+using GraphQL.MicrosoftDI;
+using GraphQL.SystemTextJson;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(connectionString));
+builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+
+builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = false)
+    .AddEntityFrameworkStores<ApplicationDbContext>();
+builder.Services.AddRazorPages();
+
+builder.Services.AddSingleton<Chat.Services.ChatService>();
+builder.Services.AddGraphQL(b => b
+    .AddAutoSchema<Chat.Schema.Query>(s => s
+        .WithMutation<Chat.Schema.Mutation>()
+        .WithSubscription<Chat.Schema.Subscription>())
+    .AddSystemTextJson()
+    .AddAuthorization());
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseMigrationsEndPoint();
+}
+else
+{
+    app.UseExceptionHandler("/Error");
+    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+    app.UseHsts();
+}
+
+app.UseHttpsRedirection();
+app.UseStaticFiles();
+
+app.UseRouting();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.UseWebSockets();
+// configure the graphql endpoint at "/graphql"
+app.UseGraphQL("/graphql");
+// configure Playground at "/ui/graphql"
+app.UseGraphQLPlayground(
+    new GraphQL.Server.Ui.Playground.PlaygroundOptions {
+        GraphQLEndPoint = new PathString("/graphql"),
+        SubscriptionsEndPoint = new PathString("/graphql"),
+    },
+    "/ui/graphql");
+
+app.MapRazorPages();
+
+app.Run();
