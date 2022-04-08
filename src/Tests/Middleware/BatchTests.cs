@@ -100,7 +100,7 @@ public class BatchTests : IDisposable
         _options.ValidationErrorsReturnBadRequest = badRequest;
         using var response = await PostBatchRequestAsync(new GraphQLRequest() { Query = "{count}" });
         // always returns BadRequest here
-        await response.ShouldBeAsync(true, @"{""errors"":[{""message"":""Batched requests are not supported.""}]}");
+        await response.ShouldBeAsync(true, @"{""errors"":[{""message"":""Batched requests are not supported."",""extensions"":{""code"":""BATCHED_REQUESTS_NOT_SUPPORTED"",""codes"":[""BATCHED_REQUESTS_NOT_SUPPORTED""]}}]}");
     }
 
     [Theory]
@@ -196,7 +196,7 @@ public class BatchTests : IDisposable
         _options.ValidationErrorsReturnBadRequest = badRequest;
         using var response = await PostJsonAsync("/graphql2", @"[");
         // always returns BadRequest here
-        await response.ShouldBeAsync(true, @"{""errors"":[{""message"":""JSON body text could not be parsed. Expected depth to be zero at the end of the JSON payload. There is an open JSON object or array that should be closed. Path: $ | LineNumber: 0 | BytePositionInLine: 1.""}]}");
+        await response.ShouldBeAsync(true, @"{""errors"":[{""message"":""JSON body text could not be parsed. Expected depth to be zero at the end of the JSON payload. There is an open JSON object or array that should be closed. Path: $ | LineNumber: 0 | BytePositionInLine: 1."",""extensions"":{""code"":""JSON_INVALID"",""codes"":[""JSON_INVALID""]}}]}");
     }
 
     [Theory]

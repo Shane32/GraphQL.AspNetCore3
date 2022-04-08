@@ -95,7 +95,7 @@ public class GetTests : IDisposable
         _options.ValidationErrorsReturnBadRequest = badRequest;
         var client = _server.CreateClient();
         using var response = await client.GetAsync("/graphql");
-        await response.ShouldBeAsync(badRequest, @"{""errors"":[{""message"":""GraphQL query is missing.""}]}");
+        await response.ShouldBeAsync(badRequest, @"{""errors"":[{""message"":""GraphQL query is missing."",""extensions"":{""code"":""QUERY_MISSING"",""codes"":[""QUERY_MISSING""]}}]}");
     }
 
     [Theory]
@@ -106,7 +106,7 @@ public class GetTests : IDisposable
         _options.ValidationErrorsReturnBadRequest = badRequest;
         var client = _server.CreateClient();
         using var response = await client.GetAsync("/graphql?query=");
-        await response.ShouldBeAsync(badRequest, @"{""errors"":[{""message"":""GraphQL query is missing.""}]}");
+        await response.ShouldBeAsync(badRequest, @"{""errors"":[{""message"":""GraphQL query is missing."",""extensions"":{""code"":""QUERY_MISSING"",""codes"":[""QUERY_MISSING""]}}]}");
     }
 
     [Theory]
@@ -157,7 +157,7 @@ public class GetTests : IDisposable
         var client = _server.CreateClient();
         using var response = await client.GetAsync("/graphql?query=query($from:String!){allMessages(from:$from){id}}&variables={");
         // always returns BadRequest here
-        await response.ShouldBeAsync(true, @"{""errors"":[{""message"":""JSON body text could not be parsed. Expected depth to be zero at the end of the JSON payload. There is an open JSON object or array that should be closed. Path: $ | LineNumber: 0 | BytePositionInLine: 1.""}]}");
+        await response.ShouldBeAsync(true, @"{""errors"":[{""message"":""JSON body text could not be parsed. Expected depth to be zero at the end of the JSON payload. There is an open JSON object or array that should be closed. Path: $ | LineNumber: 0 | BytePositionInLine: 1."",""extensions"":{""code"":""JSON_INVALID"",""codes"":[""JSON_INVALID""]}}]}");
     }
 
     [Theory]
@@ -191,6 +191,6 @@ public class GetTests : IDisposable
         var client = _server.CreateClient();
         using var response = await client.GetAsync("/graphql2?query={ext}&extensions={");
         // always returns BadRequest here
-        await response.ShouldBeAsync(true, @"{""errors"":[{""message"":""JSON body text could not be parsed. Expected depth to be zero at the end of the JSON payload. There is an open JSON object or array that should be closed. Path: $ | LineNumber: 0 | BytePositionInLine: 1.""}]}");
+        await response.ShouldBeAsync(true, @"{""errors"":[{""message"":""JSON body text could not be parsed. Expected depth to be zero at the end of the JSON payload. There is an open JSON object or array that should be closed. Path: $ | LineNumber: 0 | BytePositionInLine: 1."",""extensions"":{""code"":""JSON_INVALID"",""codes"":[""JSON_INVALID""]}}]}");
     }
 }

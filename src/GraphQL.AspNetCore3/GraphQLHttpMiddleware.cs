@@ -418,7 +418,7 @@ public abstract class GraphQLHttpMiddleware
     /// </summary>
     protected virtual async ValueTask<bool> HandleDeserializationErrorAsync(HttpContext context, RequestDelegate next, Exception exception)
     {
-        await WriteErrorResponseAsync(context, HttpStatusCode.BadRequest, $"JSON body text could not be parsed. {exception.Message}");
+        await WriteErrorResponseAsync(context, HttpStatusCode.BadRequest, new JsonInvalidError(exception));
         return true;
     }
 
@@ -426,31 +426,31 @@ public abstract class GraphQLHttpMiddleware
     /// Writes a '400 Batched requests are not supported.' message to the output.
     /// </summary>
     protected virtual Task HandleBatchedRequestsNotSupportedAsync(HttpContext context, RequestDelegate next)
-        => WriteErrorResponseAsync(context, HttpStatusCode.BadRequest, "Batched requests are not supported.");
+        => WriteErrorResponseAsync(context, HttpStatusCode.BadRequest, new BatchedRequestsNotSupportedError());
 
     /// <summary>
     /// Writes a '400 Invalid WebSocket sub-protocol.' message to the output.
     /// </summary>
     protected virtual Task HandleWebSocketSubProtocolNotSupportedAsync(HttpContext context, RequestDelegate next)
-        => WriteErrorResponseAsync(context, HttpStatusCode.BadRequest, $"Invalid WebSocket sub-protocol(s): {string.Join(",", context.WebSockets.WebSocketRequestedProtocols.Select(x => $"'{x}'"))}");
+        => WriteErrorResponseAsync(context, HttpStatusCode.BadRequest, new WebSocketSubProtocolNotSupportedError(context.WebSockets.WebSocketRequestedProtocols));
 
     /// <summary>
     /// Writes a '400 GraphQL query is missing.' message to the output.
     /// </summary>
     protected virtual Task HandleNoQueryErrorAsync(HttpContext context, RequestDelegate next)
-        => WriteErrorResponseAsync(context, Options.ValidationErrorsReturnBadRequest ? HttpStatusCode.BadRequest : HttpStatusCode.OK, "GraphQL query is missing.");
+        => WriteErrorResponseAsync(context, Options.ValidationErrorsReturnBadRequest ? HttpStatusCode.BadRequest : HttpStatusCode.OK, new QueryMissingError());
 
     /// <summary>
     /// Writes a '415 Invalid Content-Type header: could not be parsed.' message to the output.
     /// </summary>
     protected virtual Task HandleContentTypeCouldNotBeParsedErrorAsync(HttpContext context, RequestDelegate next)
-        => WriteErrorResponseAsync(context, HttpStatusCode.UnsupportedMediaType, $"Invalid 'Content-Type' header: value '{context.Request.ContentType}' could not be parsed.");
+        => WriteErrorResponseAsync(context, HttpStatusCode.UnsupportedMediaType, new InvalidContentTypeError($"value '{context.Request.ContentType}' could not be parsed."));
 
     /// <summary>
     /// Writes a '415 Invalid Content-Type header: non-supported type.' message to the output.
     /// </summary>
     protected virtual Task HandleInvalidContentTypeErrorAsync(HttpContext context, RequestDelegate next)
-        => WriteErrorResponseAsync(context, HttpStatusCode.UnsupportedMediaType, $"Invalid 'Content-Type' header: non-supported media type '{context.Request.ContentType}'. Must be '{MEDIATYPE_JSON}', '{MEDIATYPE_GRAPHQL}' or a form body.");
+        => WriteErrorResponseAsync(context, HttpStatusCode.UnsupportedMediaType, new InvalidContentTypeError($"non-supported media type '{context.Request.ContentType}'. Must be '{MEDIATYPE_JSON}', '{MEDIATYPE_GRAPHQL}' or a form body."));
 
     /// <summary>
     /// Indicates that an unsupported HTTP method was requested.
@@ -467,12 +467,17 @@ public abstract class GraphQLHttpMiddleware
     /// Writes the specified error message as a JSON-formatted GraphQL response, with the specified HTTP status code.
     /// </summary>
     protected virtual Task WriteErrorResponseAsync(HttpContext context, HttpStatusCode httpStatusCode, string errorMessage)
+        => WriteErrorResponseAsync(context, httpStatusCode, new ExecutionError(errorMessage));
+
+    /// <summary>
+    /// Writes the specified error as a JSON-formatted GraphQL response, with the specified HTTP status code.
+    /// </summary>
+    protected virtual Task WriteErrorResponseAsync(HttpContext context, HttpStatusCode httpStatusCode, ExecutionError executionError)
     {
         var result = new ExecutionResult {
-            Errors = new ExecutionErrors
-            {
-                new ExecutionError(errorMessage)
-            }
+            Errors = new ExecutionErrors {
+                executionError
+            },
         };
 
         return WriteJsonResponseAsync(context, httpStatusCode, result);
