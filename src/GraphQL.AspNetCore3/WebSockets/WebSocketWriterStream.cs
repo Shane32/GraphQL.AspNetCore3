@@ -34,7 +34,8 @@ internal class WebSocketWriterStream : Stream
 
     public override long Length => throw new NotSupportedException();
 
-    public override long Position {
+    public override long Position
+    {
         get => throw new NotSupportedException();
         set => throw new NotSupportedException();
     }
