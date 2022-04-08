@@ -103,7 +103,7 @@ public class PostTests : IDisposable
         var content = new ByteArrayContent(bytes, 0, bytes.Length);
         content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json") { CharSet = "unknown" };
         using var response = await client.PostAsync("/graphql2", content);
-        await response.ShouldBeAsync(HttpStatusCode.UnsupportedMediaType, @"{""errors"":[{""message"":""Invalid \u0027Content-Type\u0027 header: value \u0027application/json; charset=unknown\u0027 could not be parsed.""}]}");
+        await response.ShouldBeAsync(HttpStatusCode.UnsupportedMediaType, @"{""errors"":[{""message"":""Invalid \u0027Content-Type\u0027 header: value \u0027application/json; charset=unknown\u0027 could not be parsed."",""extensions"":{""code"":""INVALID_CONTENT_TYPE"",""codes"":[""INVALID_CONTENT_TYPE""]}}]}");
     }
 #endif
 
@@ -155,7 +155,7 @@ public class PostTests : IDisposable
         });
         using var response = await client.PostAsync("/graphql2", content);
         // always returns BadRequest here
-        await response.ShouldBeAsync(true, @"{""errors"":[{""message"":""JSON body text could not be parsed. Expected depth to be zero at the end of the JSON payload. There is an open JSON object or array that should be closed. Path: $ | LineNumber: 0 | BytePositionInLine: 1.""}]}");
+        await response.ShouldBeAsync(true, @"{""errors"":[{""message"":""JSON body text could not be parsed. Expected depth to be zero at the end of the JSON payload. There is an open JSON object or array that should be closed. Path: $ | LineNumber: 0 | BytePositionInLine: 1."",""extensions"":{""code"":""JSON_INVALID"",""codes"":[""JSON_INVALID""]}}]}");
     }
 
     [Fact]
@@ -180,7 +180,7 @@ public class PostTests : IDisposable
         using var response = await client.PostAsync("/graphql", content);
         response.StatusCode.ShouldBe(HttpStatusCode.UnsupportedMediaType);
         var actual = await response.Content.ReadAsStringAsync();
-        actual.ShouldBe(@"{""errors"":[{""message"":""Invalid \u0027Content-Type\u0027 header: non-supported media type \u0027application/pdf\u0027. Must be \u0027application/json\u0027, \u0027application/graphql\u0027 or a form body.""}]}");
+        actual.ShouldBe(@"{""errors"":[{""message"":""Invalid \u0027Content-Type\u0027 header: non-supported media type \u0027application/pdf\u0027. Must be \u0027application/json\u0027, \u0027application/graphql\u0027 or a form body."",""extensions"":{""code"":""INVALID_CONTENT_TYPE"",""codes"":[""INVALID_CONTENT_TYPE""]}}]}");
     }
 
     [Theory]
@@ -196,7 +196,7 @@ public class PostTests : IDisposable
         // always returns unsupported media type
         response.StatusCode.ShouldBe(HttpStatusCode.UnsupportedMediaType);
         var ret = await response.Content.ReadAsStringAsync();
-        ret.ShouldBe(@"{""errors"":[{""message"":""Invalid \u0027Content-Type\u0027 header: value \u0027\u0027 could not be parsed.""}]}");
+        ret.ShouldBe(@"{""errors"":[{""message"":""Invalid \u0027Content-Type\u0027 header: value \u0027\u0027 could not be parsed."",""extensions"":{""code"":""INVALID_CONTENT_TYPE"",""codes"":[""INVALID_CONTENT_TYPE""]}}]}");
     }
 
     [Theory]
@@ -234,7 +234,7 @@ public class PostTests : IDisposable
     {
         _options.ValidationErrorsReturnBadRequest = badRequest;
         using var response = await PostJsonAsync("{}");
-        await response.ShouldBeAsync(badRequest, @"{""errors"":[{""message"":""GraphQL query is missing.""}]}");
+        await response.ShouldBeAsync(badRequest, @"{""errors"":[{""message"":""GraphQL query is missing."",""extensions"":{""code"":""QUERY_MISSING"",""codes"":[""QUERY_MISSING""]}}]}");
     }
 
     [Theory]
@@ -244,7 +244,7 @@ public class PostTests : IDisposable
     {
         _options.ValidationErrorsReturnBadRequest = badRequest;
         using var response = await PostJsonAsync("null");
-        await response.ShouldBeAsync(badRequest, @"{""errors"":[{""message"":""GraphQL query is missing.""}]}");
+        await response.ShouldBeAsync(badRequest, @"{""errors"":[{""message"":""GraphQL query is missing."",""extensions"":{""code"":""QUERY_MISSING"",""codes"":[""QUERY_MISSING""]}}]}");
     }
 
     [Fact]
@@ -284,7 +284,7 @@ public class PostTests : IDisposable
         _options.ValidationErrorsReturnBadRequest = badRequest;
         using var response = await PostJsonAsync("/graphql2", @"{");
         // always returns BadRequest here
-        await response.ShouldBeAsync(true, @"{""errors"":[{""message"":""JSON body text could not be parsed. Expected depth to be zero at the end of the JSON payload. There is an open JSON object or array that should be closed. Path: $ | LineNumber: 0 | BytePositionInLine: 1.""}]}");
+        await response.ShouldBeAsync(true, @"{""errors"":[{""message"":""JSON body text could not be parsed. Expected depth to be zero at the end of the JSON payload. There is an open JSON object or array that should be closed. Path: $ | LineNumber: 0 | BytePositionInLine: 1."",""extensions"":{""code"":""JSON_INVALID"",""codes"":[""JSON_INVALID""]}}]}");
     }
 
     [Theory]
