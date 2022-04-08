@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <Using Include="GraphQL" />
+    <Using Include="GraphQL.AspNetCore3.Errors" />
     <Using Include="GraphQL.AspNetCore3.WebSockets" />
     <Using Include="GraphQL.DI" />
     <Using Include="GraphQL.Execution" />
