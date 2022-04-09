@@ -83,7 +83,7 @@ public class AuthorizationValidationRule : IValidationRule
                     Validate(context.TypeInfo.GetLastType(), node, context);
                 } else if (node is GraphQLArgument) {
                     // ignore arguments of directives
-                    if (context.TypeInfo.GetAncestor(0) is GraphQLField) {
+                    if (context.TypeInfo.GetAncestor(2)?.Kind == ASTNodeKind.Field) {
                         // verify field argument
                         Validate(context.TypeInfo.GetArgument(), node, context);
                     }
@@ -197,11 +197,17 @@ public class AuthorizationValidationRule : IValidationRule
         protected virtual string GenerateResourceDescription(IProvideMetadata obj, ASTNode node, ValidationContext context)
         {
             if (obj is IGraphType graphType) {
-                return $"type '{graphType.Name}'";
+                if (node.Kind == ASTNodeKind.Field) {
+                    return $"type '{graphType.Name}' for field '{context.TypeInfo.GetFieldDef(0)?.Name}' on type '{context.TypeInfo.GetLastType(2)?.Name}'";
+                } else if (node is GraphQLOperationDefinition op) {
+                    return $"type '{graphType.Name}' for {op.Operation.ToString().ToLower(System.Globalization.CultureInfo.InvariantCulture)} operation{(!string.IsNullOrEmpty(op.Name?.StringValue) ? $" '{op.Name}'" : null)}";
+                } else {
+                    return $"type '{graphType.Name}'";
+                }
             } else if (obj is FieldType fieldType) {
                 return $"field '{fieldType.Name}' on type '{context.TypeInfo.GetLastType(1)?.Name}'";
             } else if (obj is QueryArgument queryArgument) {
-                return $"argument '{queryArgument.Name}' for field '{context.TypeInfo.GetFieldDef()?.Name}' on type '{context.TypeInfo.GetLastType(2)?.Name}'";
+                return $"argument '{queryArgument.Name}' for field '{context.TypeInfo.GetFieldDef()?.Name}' on type '{context.TypeInfo.GetLastType(1)?.Name}'";
             } else {
                 throw new ArgumentOutOfRangeException(nameof(obj), "Argument 'obj' is not a graph, field or query argument.");
             }

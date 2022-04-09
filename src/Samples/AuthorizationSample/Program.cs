@@ -25,12 +25,13 @@ builder.Services.AddDefaultIdentity<IdentityUser>(
     })
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>();
+builder.Services.AddAuthorization(c => c.AddPolicy("MyPolicy", cp => cp.RequireRole("User")));
 builder.Services.AddRazorPages();
 
 // ---- added code for GraphQL --------
 builder.Services.AddSingleton<Chat.Services.ChatService>();
 builder.Services.AddGraphQL(b => b
-    .AddAutoSchema<AuthorizationSample.Schema.Query>()
+    .AddAutoSchema<AuthorizationSample.Schema.Query>(s => s.WithMutation<AuthorizationSample.Schema.Mutation>())
     .AddSystemTextJson()
     .AddAuthorization());
 // ------------------------------------
