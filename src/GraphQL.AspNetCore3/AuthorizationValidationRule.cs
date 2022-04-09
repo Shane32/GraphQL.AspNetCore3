@@ -26,8 +26,7 @@ public class AuthorizationValidationRule : IValidationRule
         var provider = context.RequestServices ?? NoRequestServices();
         var authService = provider.GetService<IAuthorizationService>() ?? NoAuthServiceError();
         var visitor = new AuthorizationVisitor(context, user, authService);
-        return default;
-        //return new(visitor);
+        return new(visitor);
     }
 
     private static HttpContext NoHttpContext()
@@ -53,10 +52,6 @@ public class AuthorizationValidationRule : IValidationRule
             ClaimsPrincipal = claimsPrincipal ?? throw new ArgumentNullException(nameof(claimsPrincipal));
             AuthorizationService = authorizationService ?? throw new ArgumentNullException(nameof(authorizationService));
             _fragmentDefinitionsToCheck = context.GetRecursivelyReferencedFragments(context.Operation);
-            if (_fragmentDefinitionsToCheck?.Count == 0)
-                _fragmentDefinitionsToCheck = null;
-            else if (_fragmentDefinitionsToCheck != null)
-                _fragmentDefinitionsToCheck = new List<GraphQLFragmentDefinition>(_fragmentDefinitionsToCheck);
         }
 
         /// <summary>
@@ -71,9 +66,9 @@ public class AuthorizationValidationRule : IValidationRule
 
         private bool _checkTree; // used to skip processing fragments that do not apply
         private ASTNode? _checkUntil; // used to pause processing graph decendants that have already failed a role check
-        private bool _processedOperation; // indicates that the operation has been processed
-        private List<GraphQLFragmentDefinition>? _fragmentDefinitionsToCheck; // contains a list of the remaining fragments to process, or null if none
-        private Dictionary<string, List<(IProvideMetadata, ASTNode)>>? _policiesToCheck; // contains a list of policies that have to be checked after all nodes are processed
+        private readonly List<GraphQLFragmentDefinition>? _fragmentDefinitionsToCheck; // contains a list of fragments to process, or null if none
+        private Dictionary<string, AuthorizationResult>? _policyResults; // contains a dictionary of policies that have been checked
+        private Dictionary<string, bool>? _roleResults; // contains a dictionary of roles that have been checked
 
         /// <inheritdoc/>
         public virtual void Enter(ASTNode node, ValidationContext context)
@@ -99,19 +94,9 @@ public class AuthorizationValidationRule : IValidationRule
         /// <inheritdoc/>
         public virtual void Leave(ASTNode node, ValidationContext context)
         {
-            if (node == context.Operation) {
+            if (node == context.Operation || node is GraphQLFragmentDefinition) {
                 _checkTree = false;
                 _checkUntil = null;
-                _processedOperation = true;
-                if (_fragmentDefinitionsToCheck == null)
-                    Finish(context);
-            } else if (node is GraphQLFragmentDefinition fragmentDefinition && _fragmentDefinitionsToCheck != null) {
-                if (_fragmentDefinitionsToCheck.Remove(fragmentDefinition)) {
-                    if (_fragmentDefinitionsToCheck.Count == 0)
-                        _fragmentDefinitionsToCheck = null;
-                    if (_processedOperation && _fragmentDefinitionsToCheck == null)
-                        Finish(context);
-                }
             } else if (node == _checkUntil) {
                 _checkTree = true;
                 _checkUntil = null;
@@ -119,34 +104,45 @@ public class AuthorizationValidationRule : IValidationRule
         }
 
         /// <summary>
-        /// Checks the specified graph/field
+        /// Validates the specified graph, field or query argument.
         /// </summary>
-        /// <param name="obj"></param>
-        /// <param name="node"></param>
-        /// <param name="context"></param>
-        private void Validate(IProvideMetadata? obj, ASTNode node, ValidationContext context)
+        protected virtual void Validate(IProvideMetadata? obj, ASTNode node, ValidationContext context)
         {
             if (obj == null)
                 return;
+
+            var success = true;
             var policies = obj.GetPolicies();
             if (policies?.Count > 0) {
-                _policiesToCheck ??= new Dictionary<string, List<(IProvideMetadata, ASTNode)>>();
+                _policyResults ??= new Dictionary<string, AuthorizationResult>();
                 foreach (var policy in policies) {
-                    if (!_policiesToCheck.TryGetValue(policy, out var nodelist)) {
-                        nodelist = new List<(IProvideMetadata, ASTNode)>();
-                        _policiesToCheck[policy] = nodelist;
+                    if (!_policyResults.TryGetValue(policy, out var result)) {
+                        result = AuthorizePolicy(policy);
+                        _policyResults.Add(policy, result);
                     }
-                    nodelist.Add((obj, node));
+                    if (!result.Succeeded) {
+                        context.ReportError(HandleNodeNotInPolicy(obj, node, policy, result, context));
+                        success = false;
+                    }
                 }
             }
 
             var roles = obj.GetRoles();
             if (roles?.Count > 0) {
+                _roleResults ??= new Dictionary<string, bool>();
                 foreach (var role in roles) {
-                    if (AuthorizeRole(role))
-                        return;
+                    if (!_roleResults.TryGetValue(role, out var result)) {
+                        result = AuthorizeRole(role);
+                        _roleResults.Add(role, result);
+                    }
+                    if (result)
+                        goto PassRoles;
                 }
-                HandleNodeNotInRoles(obj, node, roles, context);
+                context.ReportError(HandleNodeNotInRoles(obj, node, roles, context));
+            }
+        PassRoles:
+
+            if (!success) {
                 _checkUntil = node;
                 _checkTree = false;
             }
@@ -156,6 +152,10 @@ public class AuthorizationValidationRule : IValidationRule
         protected virtual bool AuthorizeRole(string role)
             => ClaimsPrincipal.IsInRole(role);
 
+        /// <inheritdoc cref="IAuthorizationService.AuthorizeAsync(ClaimsPrincipal, object, string)"/>
+        protected virtual AuthorizationResult AuthorizePolicy(string policy)
+            => AuthorizationService.AuthorizeAsync(ClaimsPrincipal, policy).GetAwaiter().GetResult();
+
         /// <summary>
         /// Adds a error to the validation context indicating that the user is not a member of any of
         /// the roles required by this graph, field or query argument.
@@ -164,49 +164,46 @@ public class AuthorizationValidationRule : IValidationRule
         /// <param name="roles">The list of roles of which the user must be a member.</param>
         /// <param name="node">The AST node where the graph, field or query argument was matched.</param>
         /// <param name="context">The validation context.</param>
-        protected virtual void HandleNodeNotInRoles(IProvideMetadata obj, ASTNode node, List<string> roles, ValidationContext context)
+        protected virtual ValidationError HandleNodeNotInRoles(IProvideMetadata obj, ASTNode node, List<string> roles, ValidationContext context)
         {
-            var err = new AccessDeniedError(context.Document.Source, node);
+            var err = new AccessDeniedError(context.Document.Source, GenerateResourceDescription(obj, node, context), node);
             err.RolesRequired = roles;
-            context.ReportError(err);
+            return err;
         }
 
         /// <summary>
         /// Adds a error to the validation context indicating that the user is not a member of any of
         /// the roles required by this graph, field or query argument.
         /// </summary>
-        /// <param name="nodes">A list of graph, field or query arguments being authenticated along with the nodes they were matched from.</param>
+        /// <param name="obj">A graph, field or query argument.</param>
+        /// <param name="node">The AST node where the graph, field or query argument was matched.</param>
         /// <param name="policy">The policy which these nodes are being authenticated against.</param>
         /// <param name="authorizationResult">The result of the authentication request.</param>
         /// <param name="context">The validation context.</param>
-        protected virtual void HandleNodesNotInPolicy(List<(IProvideMetadata Obj, ASTNode Node)> nodes, string policy, AuthorizationResult authorizationResult, ValidationContext context)
+        protected virtual ValidationError HandleNodeNotInPolicy(IProvideMetadata obj, ASTNode node, string policy, AuthorizationResult authorizationResult, ValidationContext context)
         {
-            var err = new AccessDeniedError(context.Document.Source, nodes.Select(x => x.Node).ToArray());
+            var err = new AccessDeniedError(context.Document.Source, GenerateResourceDescription(obj, node, context), node);
             err.PolicyRequired = policy;
             err.PolicyAuthorizationResult = authorizationResult;
-            context.ReportError(err);
+            return err;
         }
 
         /// <summary>
-        /// Executes when all nodes have been processed.
+        /// Generates a friendly name for a specified graph, field or query argument.
         /// </summary>
-        protected virtual void Finish(ValidationContext context)
+        /// <param name="obj">A graph, field or query argument.</param>
+        /// <param name="node">The AST node where the graph, field or query argument was matched.</param>
+        /// <param name="context">The validation context.</param>
+        protected virtual string GenerateResourceDescription(IProvideMetadata obj, ASTNode node, ValidationContext context)
         {
-            // todo: convert INodeVisitor to async
-            FinishAsync(context).GetAwaiter().GetResult();
-        }
-
-        private async Task FinishAsync(ValidationContext context)
-        {
-            if (_policiesToCheck != null) {
-                foreach (var pair in _policiesToCheck) {
-                    var policy = pair.Key;
-                    var nodes = pair.Value;
-                    var result = await AuthorizePolicyAsync(policy).ConfigureAwait(false);
-                    if (!result.Succeeded) {
-                        HandleNodesNotInPolicy(nodes, policy, result, context);
-                    }
-                }
+            if (obj is IGraphType graphType) {
+                return $"type '{graphType.Name}'";
+            } else if (obj is FieldType fieldType) {
+                return $"field '{fieldType.Name}' on type '{context.TypeInfo.GetLastType(1)?.Name}'";
+            } else if (obj is QueryArgument queryArgument) {
+                return $"argument '{queryArgument.Name}' for field '{context.TypeInfo.GetFieldDef()?.Name}' on type '{context.TypeInfo.GetLastType(2)?.Name}'";
+            } else {
+                throw new ArgumentOutOfRangeException(nameof(obj), "Argument 'obj' is not a graph, field or query argument.");
             }
         }
 

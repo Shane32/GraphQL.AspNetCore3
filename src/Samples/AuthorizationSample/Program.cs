@@ -14,17 +14,26 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = false)
+builder.Services.AddDefaultIdentity<IdentityUser>(
+    options => {
+        options.SignIn.RequireConfirmedAccount = false;
+        options.Password.RequireDigit = false;
+        options.Password.RequireNonAlphanumeric = false;
+        options.Password.RequiredLength = 4;
+        options.Password.RequireLowercase = false;
+        options.Password.RequireUppercase = false;
+    })
+    .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>();
 builder.Services.AddRazorPages();
 
+// ---- added code for GraphQL --------
 builder.Services.AddSingleton<Chat.Services.ChatService>();
 builder.Services.AddGraphQL(b => b
-    .AddAutoSchema<Chat.Schema.Query>(s => s
-        .WithMutation<Chat.Schema.Mutation>()
-        .WithSubscription<Chat.Schema.Subscription>())
+    .AddAutoSchema<AuthorizationSample.Schema.Query>()
     .AddSystemTextJson()
     .AddAuthorization());
+// ------------------------------------
 
 var app = builder.Build();
 
@@ -48,6 +57,7 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// ------ added code for GraphQL -------
 app.UseWebSockets();
 // configure the graphql endpoint at "/graphql"
 app.UseGraphQL("/graphql");
@@ -58,6 +68,7 @@ app.UseGraphQLPlayground(
         SubscriptionsEndPoint = new PathString("/graphql"),
     },
     "/ui/graphql");
+// -------------------------------------
 
 app.MapRazorPages();
 
