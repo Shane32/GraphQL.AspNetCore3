@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Security.Principal;
 using GraphQL.AspNetCore3.Errors;
 using Microsoft.AspNetCore.Authorization;
 
@@ -26,8 +27,7 @@ public class AuthorizationValidationRule : IValidationRule
         var provider = context.RequestServices ?? NoRequestServices();
         var authService = provider.GetService<IAuthorizationService>() ?? NoAuthServiceError();
         var visitor = new AuthorizationVisitor(context, user, authService);
-        return default;
-        //return new(visitor);
+        return new(visitor);
     }
 
     private static HttpContext NoHttpContext()
@@ -57,6 +57,7 @@ public class AuthorizationValidationRule : IValidationRule
                 _fragmentDefinitionsToCheck = null;
             else if (_fragmentDefinitionsToCheck != null)
                 _fragmentDefinitionsToCheck = new List<GraphQLFragmentDefinition>(_fragmentDefinitionsToCheck);
+            _userIsAuthenticated = claimsPrincipal.Identity.IsAuthenticated;
         }
 
         /// <summary>
@@ -74,6 +75,8 @@ public class AuthorizationValidationRule : IValidationRule
         private bool _processedOperation; // indicates that the operation has been processed
         private List<GraphQLFragmentDefinition>? _fragmentDefinitionsToCheck; // contains a list of the remaining fragments to process, or null if none
         private Dictionary<string, List<(IProvideMetadata, ASTNode)>>? _policiesToCheck; // contains a list of policies that have to be checked after all nodes are processed
+        private readonly Stack<bool> _onlyAnonymousSelected = new Stack<bool>();
+        private readonly bool _userIsAuthenticated;
 
         /// <inheritdoc/>
         public virtual void Enter(ASTNode node, ValidationContext context)
@@ -128,8 +131,14 @@ public class AuthorizationValidationRule : IValidationRule
         {
             if (obj == null)
                 return;
+
+            bool requiresAuthorization = obj.IsAuthorizationRequired();
+            if (!requiresAuthorization)
+                return;
+
             var policies = obj.GetPolicies();
             if (policies?.Count > 0) {
+                requiresAuthorization = false;
                 _policiesToCheck ??= new Dictionary<string, List<(IProvideMetadata, ASTNode)>>();
                 foreach (var policy in policies) {
                     if (!_policiesToCheck.TryGetValue(policy, out var nodelist)) {
@@ -142,19 +151,44 @@ public class AuthorizationValidationRule : IValidationRule
 
             var roles = obj.GetRoles();
             if (roles?.Count > 0) {
+                requiresAuthorization = false;
                 foreach (var role in roles) {
                     if (AuthorizeRole(role))
-                        return;
+                        goto PassRoleCheck;
                 }
                 HandleNodeNotInRoles(obj, node, roles, context);
                 _checkUntil = node;
                 _checkTree = false;
             }
+        PassRoleCheck:
+
+            if (requiresAuthorization) {
+                if (!Authorize()) {
+                    HandleNodeNotAuthorized(obj, node, context);
+                }
+            }
         }
+
+        /// <inheritdoc cref="IIdentity.IsAuthenticated"/>
+        protected virtual bool Authorize()
+            => _userIsAuthenticated;
 
         /// <inheritdoc cref="ClaimsPrincipal.IsInRole(string)"/>
         protected virtual bool AuthorizeRole(string role)
             => ClaimsPrincipal.IsInRole(role);
+
+        /// <summary>
+        /// Adds a error to the validation context indicating that the user is not authenticated
+        /// as required by this graph, field or query argument.
+        /// </summary>
+        /// <param name="obj">A graph, field or query argument.</param>
+        /// <param name="node">The AST node where the graph, field or query argument was matched.</param>
+        /// <param name="context">The validation context.</param>
+        protected virtual void HandleNodeNotAuthorized(IProvideMetadata obj, ASTNode node, ValidationContext context)
+        {
+            var err = new AccessDeniedError(context.Document.Source, node);
+            context.ReportError(err);
+        }
 
         /// <summary>
         /// Adds a error to the validation context indicating that the user is not a member of any of
