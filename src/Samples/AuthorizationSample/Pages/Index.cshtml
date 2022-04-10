@@ -1,4 +1,4 @@
-﻿@page
+@page
 @model IndexModel
 @{
     ViewData["Title"] = "Home page";
@@ -7,4 +7,21 @@
 <div class="text-center">
     <h1 class="display-4">Welcome</h1>
     <p>Learn about <a href="https://docs.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+</div>
+<p>
+  Note: Please be sure to change the Playground setting "request.credentials" to "include" or the session cookie
+  containing the authentication token will not be sent.
+</p>
+<div>
+  <p>Current identity claims:</p>
+  <ul>
+        @{
+            foreach (var claim in HttpContext.User.Claims) {
+                <li>@claim.Type: @claim.Value</li>
+            }
+        }
+  </ul>
+  <p><form method="post"><button type="submit">Add to User role</button><input type="hidden" name="do" value="add"/></form></p>
+  <p><form method="post"><button type="submit">Remove from User role</button><input type="hidden" name="do" value="remove"/></form></p>
+  <p>Note: Log out and log back in for the role change to be effective</p>
 </div>

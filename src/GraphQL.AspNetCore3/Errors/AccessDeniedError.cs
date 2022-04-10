@@ -8,26 +8,8 @@ namespace GraphQL.AspNetCore3.Errors;
 public class AccessDeniedError : ValidationError
 {
     /// <inheritdoc cref="AccessDeniedError"/>
-    public AccessDeniedError(GraphQLParser.ROM originalQuery, ASTNode node)
-        : base(originalQuery, null!, "Access denied.", node)
-    {
-    }
-
-    /// <inheritdoc cref="AccessDeniedError"/>
-    public AccessDeniedError(GraphQLParser.ROM originalQuery, string message, ASTNode node)
-        : base(originalQuery, null!, "Access denied: " + message, node)
-    {
-    }
-
-    /// <inheritdoc cref="AccessDeniedError"/>
-    public AccessDeniedError(GraphQLParser.ROM originalQuery, params ASTNode[] nodes)
-    : base(originalQuery, null!, "Access denied.", nodes)
-    {
-    }
-
-    /// <inheritdoc cref="AccessDeniedError"/>
-    public AccessDeniedError(GraphQLParser.ROM originalQuery, string message, params ASTNode[] nodes)
-        : base(originalQuery, null!, "Access denied: " + message, nodes)
+    public AccessDeniedError(GraphQLParser.ROM originalQuery, string resource, params ASTNode[] nodes)
+    : base(originalQuery, null!, $"Access denied for {resource}.", nodes)
     {
     }
 
