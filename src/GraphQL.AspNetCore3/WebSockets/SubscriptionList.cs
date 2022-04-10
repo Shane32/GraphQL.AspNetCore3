@@ -63,7 +63,8 @@ public sealed class SubscriptionList : IDisposable
     /// </summary>
     /// <exception cref="ArgumentNullException"/>
     /// <exception cref="OperationCanceledException"/>
-    public IDisposable this[string id] {
+    public IDisposable this[string id]
+    {
         set {
             if (id == null)
                 throw new ArgumentNullException(nameof(id));

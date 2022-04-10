@@ -11,7 +11,8 @@ public class DogsData
     };
     private int _id = 3;
 
-    public IEnumerable<Dog> Dogs {
+    public IEnumerable<Dog> Dogs
+    {
         get {
             IEnumerable<Dog> dogs;
             lock (_dogs)
@@ -20,7 +21,8 @@ public class DogsData
         }
     }
 
-    public Dog? this[int id] {
+    public Dog? this[int id]
+    {
         get {
             Dog? dog = null;
             lock (_dogs)
