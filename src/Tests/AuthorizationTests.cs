@@ -56,7 +56,7 @@ public class AuthorizationTests
             var (coreRulesResult, _) = validator.ValidateAsync(new ValidationOptions {
                 Document = document,
                 Extensions = Inputs.Empty,
-                Operation = (GraphQLOperationDefinition)document.Definitions.Single(x => x.Kind == ASTNodeKind.OperationDefinition),
+                Operation = (GraphQLOperationDefinition)document.Definitions.First(x => x.Kind == ASTNodeKind.OperationDefinition),
                 Schema = _schema,
                 UserContext = new Dictionary<string, object?>(),
                 Variables = Inputs.Empty,
@@ -67,7 +67,7 @@ public class AuthorizationTests
         var (result, variables) = validator.ValidateAsync(new ValidationOptions {
             Document = document,
             Extensions = Inputs.Empty,
-            Operation = (GraphQLOperationDefinition)document.Definitions.Single(x => x.Kind == ASTNodeKind.OperationDefinition),
+            Operation = (GraphQLOperationDefinition)document.Definitions.First(x => x.Kind == ASTNodeKind.OperationDefinition),
             Rules = new IValidationRule[] { new AuthorizationValidationRule(mockContextAccessor.Object) },
             Schema = _schema,
             UserContext = new Dictionary<string, object?>(),
@@ -342,6 +342,30 @@ public class AuthorizationTests
 
         var ret = Validate("{ parent { child } test }");
         ret.IsValid.ShouldBe(authenticated);
+    }
+
+    [Fact]
+    public void UnusedOperationsAreIgnored()
+    {
+        Apply(_field, Mode.Authorize);
+        Apply(_childGraph, Mode.Authorize);
+        _query.AddField(new FieldType { Name = "test", Type = typeof(StringGraphType) });
+        var ret = Validate("query op1 { test } query op2 { parent { child } }");
+        ret.IsValid.ShouldBeTrue();
+        ret = Validate("query op1 { parent { child } } query op2 { test }");
+        ret.IsValid.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void UnusedFragmentsAreIgnored()
+    {
+        Apply(_field, Mode.Authorize);
+        Apply(_childGraph, Mode.Authorize);
+        _query.AddField(new FieldType { Name = "test", Type = typeof(StringGraphType) });
+        var ret = Validate("query op1 { ...frag1 } query op2 { ...frag2 } fragment frag1 on QueryType { test } fragment frag2 on QueryType { parent { child } }");
+        ret.IsValid.ShouldBeTrue();
+        ret = Validate("query op1 { ...frag1 } query op2 { ...frag2 } fragment frag1 on QueryType { parent { child } } fragment frag2 on QueryType { test }");
+        ret.IsValid.ShouldBeFalse();
     }
 
     private void Apply(IProvideMetadata obj, Mode mode)

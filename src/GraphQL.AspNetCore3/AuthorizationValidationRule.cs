@@ -333,7 +333,7 @@ public class AuthorizationValidationRule : IValidationRule
 
         /// <inheritdoc cref="IAuthorizationService.AuthorizeAsync(ClaimsPrincipal, object, string)"/>
         protected virtual AuthorizationResult AuthorizePolicy(string policy)
-            => AuthorizationService.AuthorizeAsync(ClaimsPrincipal, policy).GetAwaiter().GetResult();
+            => AuthorizePolicyAsync(policy).GetAwaiter().GetResult();
 
         /// <summary>
         /// Adds a error to the validation context indicating that the user is not authenticated
@@ -386,16 +386,16 @@ public class AuthorizationValidationRule : IValidationRule
                 return "schema";
             } else if (info.Obj is IGraphType graphType) {
                 if (info.Node is GraphQLField) {
-                    return $"type '{graphType.Name}' for field '{info.ParentFieldType  /* context.TypeInfo.GetFieldDef(0) */ ?.Name}' on type '{info.ParentGraphType /* context.TypeInfo.GetLastType(2) */ ?.Name}'";
+                    return $"type '{graphType.Name}' for field '{info.ParentFieldType?.Name}' on type '{info.ParentGraphType?.Name}'";
                 } else if (info.Node is GraphQLOperationDefinition op) {
                     return $"type '{graphType.Name}' for {op.Operation.ToString().ToLower(System.Globalization.CultureInfo.InvariantCulture)} operation{(!string.IsNullOrEmpty(op.Name?.StringValue) ? $" '{op.Name}'" : null)}";
                 } else {
                     return $"type '{graphType.Name}'";
                 }
             } else if (info.Obj is IFieldType fieldType) {
-                return $"field '{fieldType.Name}' on type '{info.ParentGraphType /* context.TypeInfo.GetLastType(1) */ ?.Name}'";
+                return $"field '{fieldType.Name}' on type '{info.ParentGraphType?.Name}'";
             } else if (info.Obj is QueryArgument queryArgument) {
-                return $"argument '{queryArgument.Name}' for field '{info.ParentFieldType /* context.TypeInfo.GetFieldDef() */ ?.Name}' on type '{info.ParentGraphType /* context.TypeInfo.GetLastType(1) */ ?.Name}'";
+                return $"argument '{queryArgument.Name}' for field '{info.ParentFieldType?.Name}' on type '{info.ParentGraphType?.Name}'";
             } else {
                 return info.Node?.GetType().Name ?? "unknown";
             }
