@@ -202,11 +202,9 @@ public class AuthorizationValidationRule : IValidationRule
             if (_fragments != null) {
                 foreach (var fragment in _fragments) {
                     var ti2 = fragment.Value;
-                    if (ti2.WaitingOnFragments != null) {
-                        if (ti2.WaitingOnFragments.Remove(fragmentName)) {
-                            ti2.AnyAuthenticated |= ti.AnyAuthenticated;
-                            ti2.AnyAnonymous |= ti.AnyAnonymous;
-                        }
+                    if (ti2.WaitingOnFragments != null && ti2.WaitingOnFragments.Remove(fragmentName)) {
+                        ti2.AnyAuthenticated |= ti.AnyAuthenticated;
+                        ti2.AnyAnonymous |= ti.AnyAnonymous;
                         RecursiveResolve(fragment.Key, ti2, context);
                     }
                 }
