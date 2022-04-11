@@ -18,9 +18,11 @@ public class AuthorizationTests
     {
         _childField.Name = "child";
         _childField.Type = typeof(StringGraphType);
+        _childGraph.Name = "ChildType";
         _childGraph.AddField(_childField);
         _field.ResolvedType = _childGraph;
         _field.Name = "parent";
+        _query.Name = "ParentType";
         _query.AddField(_field);
         _schema.Query = _query;
     }

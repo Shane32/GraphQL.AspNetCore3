@@ -77,7 +77,7 @@ public class AuthorizationValidationRule : IValidationRule
         private Dictionary<string, TypeInfo>? _fragments;
         private List<TodoInfo>? _todo;
 
-        private struct TypeInfo
+        private class TypeInfo
         {
             public bool AnyAuthenticated;
             public bool AnyAnonymous;
@@ -86,16 +86,21 @@ public class AuthorizationValidationRule : IValidationRule
 
         private class TodoInfo
         {
-            public IProvideMetadata Obj { get; set; }
-            public ASTNode Node { get; set; }
-            public FieldType? ParentField { get; set; }
-            public IGraphType? ParentGraph { get; set; }
+            public ValidationInfo ValidationInfo { get; }
+            public bool AnyAuthenticated;
+            public bool AnyAnonymous;
+            public List<string> WaitingOnFragments;
 
-            public TodoInfo(IProvideMetadata obj, ASTNode node)
+            public TodoInfo(ValidationInfo vi, TypeInfo ti)
             {
-                Obj = obj;
-                Node = node;
+                ValidationInfo = vi;
+                AnyAuthenticated = ti.AnyAuthenticated;
+                AnyAnonymous = ti.AnyAnonymous;
+                WaitingOnFragments = ti.WaitingOnFragments ?? NoWaitingOnFragments();
             }
+
+            private static List<string> NoWaitingOnFragments()
+                => throw new InvalidOperationException("Waiting on fragments must not be null.");
         }
 
         /// <inheritdoc/>
@@ -115,12 +120,11 @@ public class AuthorizationValidationRule : IValidationRule
                     // and skip processing for __typeName
                     if (field != null && field != context.Schema.TypeNameMetaFieldType) {
                         var fieldAnonymousAllowed = field.IsAnonymousAllowed() || field == context.Schema.TypeMetaFieldType || field == context.Schema.SchemaMetaFieldType;
-                        var ti = _onlyAnonymousSelected.Pop();
+                        var ti = _onlyAnonymousSelected.Peek();
                         if (fieldAnonymousAllowed)
                             ti.AnyAnonymous = true;
                         else
                             ti.AnyAuthenticated = true;
-                        _onlyAnonymousSelected.Push(ti);
 
                         if (!fieldAnonymousAllowed) {
                             Validate(field, node, context);
@@ -129,7 +133,7 @@ public class AuthorizationValidationRule : IValidationRule
                     // prep for descendants, if any
                     _onlyAnonymousSelected.Push(new());
                 } else if (node is GraphQLFragmentSpread fragmentSpread) {
-                    var ti = _onlyAnonymousSelected.Pop();
+                    var ti = _onlyAnonymousSelected.Peek();
                     var fragmentName = fragmentSpread.FragmentName.Name.StringValue;
                     if (_fragments?.TryGetValue(fragmentName, out var fragmentInfo) == true) {
                         ti.AnyAuthenticated |= fragmentInfo.AnyAuthenticated;
@@ -142,7 +146,6 @@ public class AuthorizationValidationRule : IValidationRule
                         ti.WaitingOnFragments ??= new();
                         ti.WaitingOnFragments.Add(fragmentName);
                     }
-                    _onlyAnonymousSelected.Push(ti);
                 } else if (node is GraphQLArgument) {
                     // ignore arguments of directives
                     if (context.TypeInfo.GetAncestor(2)?.Kind == ASTNodeKind.Field) {
@@ -166,8 +169,11 @@ public class AuthorizationValidationRule : IValidationRule
                 PopAndProcess();
             } else if (node is GraphQLFragmentDefinition fragmentDefinition) {
                 _checkTree = false;
+                var fragmentName = fragmentDefinition.FragmentName.Name.StringValue;
                 var ti = _onlyAnonymousSelected.Pop();
-                RecursiveResolve(fragmentDefinition.FragmentName.Name.StringValue, ti);
+                RecursiveResolve(fragmentName, ti, context);
+                _fragments ??= new();
+                _fragments.TryAdd(fragmentName, ti);
             } else if (_checkTree && node is GraphQLField) {
                 PopAndProcess();
             }
@@ -182,20 +188,48 @@ public class AuthorizationValidationRule : IValidationRule
                     Validate(type, node, context);
                 } else if (info.WaitingOnFragments?.Count > 0) {
                     _todo ??= new();
-                    _todo.Add(new(type, node));
+                    _todo.Add(new(BuildValidationInfo(type, node, context), info));
                 }
             }
 
-            void RecursiveResolve(string fragmentName, TypeInfo ti)
-            {
-                if (_fragments == null) {
-                    _fragments = new();
-                } else {
-                    foreach (var fragment in _fragments) {
+        }
 
+        // runs when a fragment is added or updated; the fragment might not be waiting on any
+        // other fragments, or it still might be
+        private void RecursiveResolve(string fragmentName, TypeInfo ti, ValidationContext context)
+        {
+            // first see if any other fragments are waiting on this fragment
+            if (_fragments != null) {
+                foreach (var fragment in _fragments) {
+                    var ti2 = fragment.Value;
+                    if (ti2.WaitingOnFragments != null) {
+                        if (ti2.WaitingOnFragments.Remove(fragmentName)) {
+                            ti2.AnyAuthenticated |= ti.AnyAuthenticated;
+                            ti2.AnyAnonymous |= ti.AnyAnonymous;
+                        }
+                        RecursiveResolve(fragment.Key, ti2, context);
                     }
                 }
-                _fragments.TryAdd(fragmentName, ti);
+            }
+            // then, if this fragment is fully resolved, check to see if any nodes are waiting for this fragment
+            if ((ti.WaitingOnFragments?.Count ?? 0) == 0) {
+                if (_todo != null) {
+                    var count = _todo.Count;
+                    for (var i = 0; i < count; i++) {
+                        var todo = _todo[i];
+                        if (todo.WaitingOnFragments.Remove(fragmentName)) {
+                            todo.AnyAuthenticated |= ti.AnyAuthenticated;
+                            todo.AnyAnonymous |= ti.AnyAnonymous;
+                            if (todo.WaitingOnFragments.Count == 0) {
+                                _todo.RemoveAt(i);
+                                count--;
+                                if (todo.AnyAuthenticated || !todo.AnyAnonymous) {
+                                    Validate(todo.ValidationInfo);
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -207,21 +241,50 @@ public class AuthorizationValidationRule : IValidationRule
             => Validate(context.Schema, null, context);
 
         /// <summary>
+        /// Validate a node that is current within the context.
+        /// </summary>
+        private bool Validate(IProvideMetadata obj, ASTNode? node, ValidationContext context)
+            => Validate(BuildValidationInfo(obj, node, context));
+
+        private static ValidationInfo BuildValidationInfo(IProvideMetadata obj, ASTNode? node, ValidationContext context)
+        {
+            IFieldType? parentFieldType = null;
+            IGraphType? parentGraphType = null;
+            if (node is GraphQLField) {
+                if (obj is IGraphType) {
+                    parentFieldType = context.TypeInfo.GetFieldDef(0);
+                    parentGraphType = context.TypeInfo.GetLastType(1);
+                } else if (obj is IFieldType) {
+                    parentGraphType = context.TypeInfo.GetLastType(1);
+                }
+            } else if (node is GraphQLArgument) {
+                parentFieldType = context.TypeInfo.GetFieldDef();
+                parentGraphType = context.TypeInfo.GetLastType(1);
+            }
+            return new(obj, node, parentFieldType, parentGraphType, context);
+        }
+
+        /// <summary>Provides contextual information to the schema, graph, field, or query argument being validated.</summary>
+        /// <param name="Obj">The schema, graph type, field type, or query argument being validated. May be an interface type if fragments are in use.</param>
+        /// <param name="Node">Null for a schema validation; otherwise the <see cref="GraphQLOperationDefinition"/>, <see cref="GraphQLField"/>, or <see cref="GraphQLArgument"/> being validated.</param>
+        /// <param name="Context">The validaion context; but <see cref="ValidationContext.TypeInfo"/> may not be applicable for node being validated.</param>
+        /// <param name="ParentFieldType">For graph types other than operations, the field where this type was referenced; for query arguments, the field to which this argument belongs.</param>
+        /// <param name="ParentGraphType">For graph types, the graph type for the field where this type was referenced; for field types, the graph type to which this field belongs; for query arguments, the graph type for the field to which this argument belongs.</param>
+        public record struct ValidationInfo(IProvideMetadata Obj, ASTNode? Node, IFieldType? ParentFieldType, IGraphType? ParentGraphType, ValidationContext Context);
+
+        /// <summary>
         /// Validates authorization rules for the specified schema, graph, field or query argument.
         /// Does not consider <see cref="AuthorizationExtensions.IsAnonymousAllowed(IProvideMetadata)"/>.
         /// Returns a value indicating if validation was successful for this node.
         /// </summary>
-        protected virtual bool Validate(IProvideMetadata obj, ASTNode? node, ValidationContext context)
+        protected virtual bool Validate(ValidationInfo info)
         {
-            if (obj == null)
-                throw new ArgumentNullException(nameof(obj));
-
-            bool requiresAuthorization = obj.IsAuthorizationRequired();
+            bool requiresAuthorization = info.Obj.IsAuthorizationRequired();
             if (!requiresAuthorization)
                 return true;
 
             var success = true;
-            var policies = obj.GetPolicies();
+            var policies = info.Obj.GetPolicies();
             if (policies?.Count > 0) {
                 requiresAuthorization = false;
                 _policyResults ??= new Dictionary<string, AuthorizationResult>();
@@ -231,13 +294,13 @@ public class AuthorizationValidationRule : IValidationRule
                         _policyResults.Add(policy, result);
                     }
                     if (!result.Succeeded) {
-                        context.ReportError(HandleNodeNotInPolicy(obj, node, policy, result, context));
+                        HandleNodeNotInPolicy(info, policy, result);
                         success = false;
                     }
                 }
             }
 
-            var roles = obj.GetRoles();
+            var roles = info.Obj.GetRoles();
             if (roles?.Count > 0) {
                 requiresAuthorization = false;
                 _roleResults ??= new Dictionary<string, bool>();
@@ -249,13 +312,13 @@ public class AuthorizationValidationRule : IValidationRule
                     if (result)
                         goto PassRoles;
                 }
-                context.ReportError(HandleNodeNotInRoles(obj, node, roles, context));
+                HandleNodeNotInRoles(info, roles);
             }
         PassRoles:
 
             if (requiresAuthorization) {
                 if (!Authorize()) {
-                    HandleNodeNotAuthorized(obj, node, context);
+                    HandleNodeNotAuthorized(info);
                 }
             }
 
@@ -278,74 +341,65 @@ public class AuthorizationValidationRule : IValidationRule
         /// Adds a error to the validation context indicating that the user is not authenticated
         /// as required by this graph, field or query argument.
         /// </summary>
-        /// <param name="obj">A graph, field or query argument.</param>
-        /// <param name="node">The AST node where the graph, field or query argument was matched, or <see langword="null"/> for the schema.</param>
-        /// <param name="context">The validation context.</param>
-        protected virtual void HandleNodeNotAuthorized(IProvideMetadata obj, ASTNode? node, ValidationContext context)
+        /// <param name="info">Information about the node being validated.</param>
+        protected virtual void HandleNodeNotAuthorized(ValidationInfo info)
         {
-            var resource = GenerateResourceDescription(obj, node, context);
-            var err = node == null ? new AccessDeniedError(context.Document.Source, resource) : new AccessDeniedError(context.Document.Source, resource, node);
-            context.ReportError(err);
+            var resource = GenerateResourceDescription(info);
+            var err = info.Node == null ? new AccessDeniedError(info.Context.Document.Source, resource) : new AccessDeniedError(info.Context.Document.Source, resource, info.Node);
+            info.Context.ReportError(err);
         }
 
         /// <summary>
         /// Adds a error to the validation context indicating that the user is not a member of any of
         /// the roles required by this graph, field or query argument.
         /// </summary>
-        /// <param name="obj">A graph, field or query argument.</param>
+        /// <param name="info">Information about the node being validated.</param>
         /// <param name="roles">The list of roles of which the user must be a member.</param>
-        /// <param name="node">The AST node where the graph, field or query argument was matched, or <see langword="null"/> for the schema.</param>
-        /// <param name="context">The validation context.</param>
-        protected virtual ValidationError HandleNodeNotInRoles(IProvideMetadata obj, ASTNode? node, List<string> roles, ValidationContext context)
+        protected virtual void HandleNodeNotInRoles(ValidationInfo info, List<string> roles)
         {
-            var resource = GenerateResourceDescription(obj, node, context);
-            var err = node == null ? new AccessDeniedError(context.Document.Source, resource) : new AccessDeniedError(context.Document.Source, resource, node);
+            var resource = GenerateResourceDescription(info);
+            var err = info.Node == null ? new AccessDeniedError(info.Context.Document.Source, resource) : new AccessDeniedError(info.Context.Document.Source, resource, info.Node);
             err.RolesRequired = roles;
-            return err;
+            info.Context.ReportError(err);
         }
 
         /// <summary>
         /// Adds a error to the validation context indicating that the user is not a member of any of
         /// the roles required by this graph, field or query argument.
         /// </summary>
-        /// <param name="obj">A graph, field or query argument.</param>
-        /// <param name="node">The AST node where the graph, field or query argument was matched, or <see langword="null"/> for the schema.</param>
+        /// <param name="info">Information about the node being validated.</param>
         /// <param name="policy">The policy which these nodes are being authenticated against.</param>
         /// <param name="authorizationResult">The result of the authentication request.</param>
-        /// <param name="context">The validation context.</param>
-        protected virtual ValidationError HandleNodeNotInPolicy(IProvideMetadata obj, ASTNode? node, string policy, AuthorizationResult authorizationResult, ValidationContext context)
+        protected virtual void HandleNodeNotInPolicy(ValidationInfo info, string policy, AuthorizationResult authorizationResult)
         {
-            var resource = GenerateResourceDescription(obj, node, context);
-            var err = node == null ? new AccessDeniedError(context.Document.Source, resource) : new AccessDeniedError(context.Document.Source, resource, node);
+            var resource = GenerateResourceDescription(info);
+            var err = info.Node == null ? new AccessDeniedError(info.Context.Document.Source, resource) : new AccessDeniedError(info.Context.Document.Source, resource, info.Node);
             err.PolicyRequired = policy;
             err.PolicyAuthorizationResult = authorizationResult;
-            return err;
+            info.Context.ReportError(err);
         }
 
         /// <summary>
         /// Generates a friendly name for a specified graph, field or query argument.
         /// </summary>
-        /// <param name="obj">A graph, field or query argument.</param>
-        /// <param name="node">The AST node where the graph, field or query argument was matched, or <see langword="null"/> for the schema.</param>
-        /// <param name="context">The validation context.</param>
-        protected virtual string GenerateResourceDescription(IProvideMetadata obj, ASTNode? node, ValidationContext context)
+        protected virtual string GenerateResourceDescription(ValidationInfo info)
         {
-            if (obj is ISchema) {
+            if (info.Obj is ISchema) {
                 return "schema";
-            } else if (obj is IGraphType graphType) {
-                if (node is GraphQLField) {
-                    return $"type '{graphType.Name}' for field '{context.TypeInfo.GetFieldDef(0)?.Name}' on type '{context.TypeInfo.GetLastType(2)?.Name}'";
-                } else if (node is GraphQLOperationDefinition op) {
+            } else if (info.Obj is IGraphType graphType) {
+                if (info.Node is GraphQLField) {
+                    return $"type '{graphType.Name}' for field '{info.ParentFieldType  /* context.TypeInfo.GetFieldDef(0) */ ?.Name}' on type '{info.ParentGraphType /* context.TypeInfo.GetLastType(2) */ ?.Name}'";
+                } else if (info.Node is GraphQLOperationDefinition op) {
                     return $"type '{graphType.Name}' for {op.Operation.ToString().ToLower(System.Globalization.CultureInfo.InvariantCulture)} operation{(!string.IsNullOrEmpty(op.Name?.StringValue) ? $" '{op.Name}'" : null)}";
                 } else {
                     return $"type '{graphType.Name}'";
                 }
-            } else if (obj is FieldType fieldType) {
-                return $"field '{fieldType.Name}' on type '{context.TypeInfo.GetLastType(1)?.Name}'";
-            } else if (obj is QueryArgument queryArgument) {
-                return $"argument '{queryArgument.Name}' for field '{context.TypeInfo.GetFieldDef()?.Name}' on type '{context.TypeInfo.GetLastType(1)?.Name}'";
+            } else if (info.Obj is IFieldType fieldType) {
+                return $"field '{fieldType.Name}' on type '{info.ParentGraphType /* context.TypeInfo.GetLastType(1) */ ?.Name}'";
+            } else if (info.Obj is QueryArgument queryArgument) {
+                return $"argument '{queryArgument.Name}' for field '{info.ParentFieldType /* context.TypeInfo.GetFieldDef() */ ?.Name}' on type '{info.ParentGraphType /* context.TypeInfo.GetLastType(1) */ ?.Name}'";
             } else {
-                throw new ArgumentOutOfRangeException(nameof(obj), "Argument 'obj' is not a graph, field or query argument.");
+                return info.Node?.GetType().Name ?? "unknown";
             }
         }
 
