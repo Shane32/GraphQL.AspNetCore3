@@ -51,6 +51,8 @@ public class AuthorizationValidationRule : IValidationRule
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
             ClaimsPrincipal = claimsPrincipal ?? throw new ArgumentNullException(nameof(claimsPrincipal));
+            if (claimsPrincipal.Identity == null)
+                throw new InvalidOperationException($"{nameof(claimsPrincipal)}.Identity cannot be null.");
             AuthorizationService = authorizationService ?? throw new ArgumentNullException(nameof(authorizationService));
             _fragmentDefinitionsToCheck = context.GetRecursivelyReferencedFragments(context.Operation);
             _userIsAuthenticated = claimsPrincipal.Identity.IsAuthenticated;
@@ -73,12 +75,27 @@ public class AuthorizationValidationRule : IValidationRule
         private readonly Stack<TypeInfo> _onlyAnonymousSelected = new();
         private readonly bool _userIsAuthenticated;
         private Dictionary<string, TypeInfo>? _fragments;
+        private List<TodoInfo>? _todo;
 
         private struct TypeInfo
         {
             public bool AnyAuthenticated;
             public bool AnyAnonymous;
             public List<string>? WaitingOnFragments;
+        }
+
+        private class TodoInfo
+        {
+            public IProvideMetadata Obj { get; set; }
+            public ASTNode Node { get; set; }
+            public FieldType? ParentField { get; set; }
+            public IGraphType? ParentGraph { get; set; }
+
+            public TodoInfo(IProvideMetadata obj, ASTNode node)
+            {
+                Obj = obj;
+                Node = node;
+            }
         }
 
         /// <inheritdoc/>
@@ -142,28 +159,43 @@ public class AuthorizationValidationRule : IValidationRule
         /// <inheritdoc/>
         public virtual void Leave(ASTNode node, ValidationContext context)
         {
+            if (!_checkTree)
+                return;
             if (node == context.Operation) {
                 _checkTree = false;
-                var type = context.TypeInfo.GetLastType();
-                if (type != null) {
-                    _onlyAnonymousSelected.Pop();
-                    // todo: validate here if necessary
-                    Validate(type, node, context);
-                }
-            } else if (node is GraphQLFragmentDefinition fragmentDefinition && _checkTree) {
+                PopAndProcess();
+            } else if (node is GraphQLFragmentDefinition fragmentDefinition) {
                 _checkTree = false;
                 var ti = _onlyAnonymousSelected.Pop();
-                _fragments ??= new();
-                _fragments.TryAdd(fragmentDefinition.FragmentName.Name.StringValue, ti);
-                // todo: recursively check if any other fragments require this one and resolve waiting checks
+                RecursiveResolve(fragmentDefinition.FragmentName.Name.StringValue, ti);
             } else if (_checkTree && node is GraphQLField) {
+                PopAndProcess();
+            }
+
+            void PopAndProcess()
+            {
                 var info = _onlyAnonymousSelected.Pop();
-                if (info.AnyAuthenticated || !info.AnyAnonymous) {
-                    var type = context.TypeInfo.GetLastType();
-                    if (type != null) {
-                        Validate(type, node, context);
+                var type = context.TypeInfo.GetLastType();
+                if (type == null)
+                    return;
+                if (info.AnyAuthenticated || (!info.AnyAnonymous && (info.WaitingOnFragments?.Count ?? 0) == 0)) {
+                    Validate(type, node, context);
+                } else if (info.WaitingOnFragments?.Count > 0) {
+                    _todo ??= new();
+                    _todo.Add(new(type, node));
+                }
+            }
+
+            void RecursiveResolve(string fragmentName, TypeInfo ti)
+            {
+                if (_fragments == null) {
+                    _fragments = new();
+                } else {
+                    foreach (var fragment in _fragments) {
+
                     }
                 }
+                _fragments.TryAdd(fragmentName, ti);
             }
         }
 
