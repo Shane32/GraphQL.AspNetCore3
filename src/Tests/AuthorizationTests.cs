@@ -84,6 +84,40 @@ public class AuthorizationTests
         ret.IsValid.ShouldBeTrue();
     }
 
+    [Fact]
+    public void ErrorHasPolicy()
+    {
+        Apply(_query, Mode.PolicyFailure);
+        var ret = Validate(@"{ parent { child } }");
+        var err = ret.Errors.ShouldHaveSingleItem().ShouldBeOfType<AccessDeniedError>();
+        err.PolicyRequired.ShouldBe("FailingPolicy");
+        err.PolicyAuthorizationResult.ShouldNotBeNull();
+        err.PolicyAuthorizationResult.Succeeded.ShouldBeFalse();
+        err.RolesRequired.ShouldBeNull();
+    }
+
+    [Fact]
+    public void ErrorHasRole()
+    {
+        Apply(_query, Mode.RoleFailure);
+        var ret = Validate(@"{ parent { child } }");
+        var err = ret.Errors.ShouldHaveSingleItem().ShouldBeOfType<AccessDeniedError>();
+        err.RolesRequired.ShouldBe(new string[] { "FailingRole" });
+        err.PolicyAuthorizationResult.ShouldBeNull();
+        err.PolicyRequired.ShouldBeNull();
+    }
+
+    [Fact]
+    public void ErrorHasRoles()
+    {
+        _query.AuthorizeWithRoles("Role1,Role2");
+        var ret = Validate(@"{ parent { child } }");
+        var err = ret.Errors.ShouldHaveSingleItem().ShouldBeOfType<AccessDeniedError>();
+        err.RolesRequired.ShouldBe(new string[] { "Role1", "Role2" });
+        err.PolicyAuthorizationResult.ShouldBeNull();
+        err.PolicyRequired.ShouldBeNull();
+    }
+
     [Theory]
     [InlineData(Mode.Authorize, Mode.None, Mode.None, Mode.None, Mode.None, Mode.None, -1, "Access denied for schema.")]
     [InlineData(Mode.None, Mode.Authorize, Mode.None, Mode.None, Mode.None, Mode.None, 1, "Access denied for type 'QueryType' for query operation.")]
