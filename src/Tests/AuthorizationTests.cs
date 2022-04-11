@@ -263,6 +263,14 @@ public class AuthorizationTests
         // nested fragments after query
         ret = Validate(@"{ parent { ...frag } } fragment frag on ChildType { ...nestedFrag } fragment nestedFrag on ChildType { child(arg: null) }");
         ret.IsValid.ShouldBe(isValid);
+
+        // nested fragments around query 1
+        ret = Validate(@"fragment frag on ChildType { ...nestedFrag } { parent { ...frag } } fragment nestedFrag on ChildType { child(arg: null) }");
+        ret.IsValid.ShouldBe(isValid);
+
+        // nested fragments around query 2
+        ret = Validate(@"fragment nestedFrag on ChildType { child(arg: null) } { parent { ...frag } } fragment frag on ChildType { ...nestedFrag }");
+        ret.IsValid.ShouldBe(isValid);
     }
 
     [Theory]
@@ -367,6 +375,63 @@ public class AuthorizationTests
                 obj.AllowAnonymous();
                 break;
         }
+    }
+
+    [Fact]
+    public void Constructors()
+    {
+        Should.Throw<ArgumentNullException>(() => new AuthorizationValidationRule(null!));
+        Should.Throw<ArgumentNullException>(() => new AuthorizationValidationRule.AuthorizationVisitor(null!, _principal, Mock.Of<IAuthorizationService>()));
+        Should.Throw<ArgumentNullException>(() => new AuthorizationValidationRule.AuthorizationVisitor(new ValidationContext(), null!, Mock.Of<IAuthorizationService>()));
+        Should.Throw<ArgumentNullException>(() => new AuthorizationValidationRule.AuthorizationVisitor(new ValidationContext(), _principal, null!));
+        Should.Throw<InvalidOperationException>(() => new AuthorizationValidationRule.AuthorizationVisitor(new ValidationContext(), new ClaimsPrincipal(), Mock.Of<IAuthorizationService>()))
+            .Message.ShouldBe("claimsPrincipal.Identity cannot be null.");
+    }
+
+    [Theory]
+    [InlineData(true, false, false, false)]
+    [InlineData(false, true, false, false)]
+    [InlineData(false, false, true, false)]
+    [InlineData(false, false, false, true)]
+    public void MiscErrors(bool noHttpContext, bool noClaimsPrincipal, bool noRequestServices, bool noAuthenticationService)
+    {
+        var mockAuthorizationService = new Mock<IAuthorizationService>(MockBehavior.Strict);
+        mockAuthorizationService.Setup(x => x.AuthorizeAsync(_principal, null, It.IsAny<string>())).Returns<ClaimsPrincipal, object, string>((_, _, policy) => {
+            if (policy == "MyPolicy" && _policyPasses)
+                return Task.FromResult(AuthorizationResult.Success());
+            return Task.FromResult(AuthorizationResult.Failed());
+        });
+        var mockServices = new Mock<IServiceProvider>(MockBehavior.Strict);
+        mockServices.Setup(x => x.GetService(typeof(IAuthorizationService))).Returns(noAuthenticationService ? null! : mockAuthorizationService.Object);
+        var mockHttpContext = new Mock<HttpContext>(MockBehavior.Strict);
+        mockHttpContext.Setup(x => x.User).Returns(noClaimsPrincipal ? null! : _principal);
+        var mockContextAccessor = new Mock<IHttpContextAccessor>(MockBehavior.Strict);
+        mockContextAccessor.Setup(x => x.HttpContext).Returns(noHttpContext ? null! : mockHttpContext.Object);
+        var document = GraphQLParser.Parser.Parse("{ __typename }");
+        var validator = new DocumentValidator();
+
+        var err = Should.Throw<Exception>(() => validator.ValidateAsync(new ValidationOptions {
+            Document = document,
+            Extensions = Inputs.Empty,
+            Operation = (GraphQLOperationDefinition)document.Definitions.Single(x => x.Kind == ASTNodeKind.OperationDefinition),
+            Rules = new IValidationRule[] { new AuthorizationValidationRule(mockContextAccessor.Object) },
+            Schema = _schema,
+            UserContext = new Dictionary<string, object?>(),
+            Variables = Inputs.Empty,
+            RequestServices = noRequestServices ? null : mockServices.Object,
+        }).GetAwaiter().GetResult()); // there is no async code being tested
+
+        if (noHttpContext)
+            err.ShouldBeOfType<InvalidOperationException>().Message.ShouldBe("HttpContext could not be retrieved from IHttpContextAccessor.");
+
+        if (noClaimsPrincipal)
+            err.ShouldBeOfType<InvalidOperationException>().Message.ShouldBe("ClaimsPrincipal could not be retrieved from HttpContext.User.");
+
+        if (noRequestServices)
+            err.ShouldBeOfType<MissingRequestServicesException>();
+
+        if (noAuthenticationService)
+            err.ShouldBeOfType<InvalidOperationException>().Message.ShouldBe("An instance of IAuthorizationService could not be pulled from the dependency injection framework.");
     }
 
     public enum Mode
