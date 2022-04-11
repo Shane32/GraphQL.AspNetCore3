@@ -219,33 +219,17 @@ app.MapRazorPages();
 
 Both roles and policies are supported for output graph types, fields on output graph types,
 and query arguments.  If multiple policies are specified, all must match; if multiple roles
-are specified, any one role must match.  Note that unlike ASP.NET Core, you must specify at
-least one policy or role in order for the authorization check to be effective; you may not
-use `[GraphQLAuthorize]` to simply validate that the user is not a guest.  The simplest
-alternative would be to create an 'AuthenticatedUser' policy that simply check that the
-current user has been authenticated, such as is demonstrated here:
-
-```csharp
-builder.Services.AddAuthorization(c => c.AddPolicy("IsAuthenticated", cp => cp.RequireAuthenticatedUser()));
-```
-
-Then you may use the policy as needed with the `[GraphQLAuthorize]` attribute for schema-first
-and type-first, or the extension methods for code-first.
-
-```csharp
-// code-first
-field.AuthorizeWithPolicy("IsAuthenticated");
-```
-
-There also is no equivalent to `[AllowAnonymous]` to allow fields to be returned to
+are specified, any one role must match.  You may also use `.Authorize()` or the
+`[Authorize]` attribute to validate that the user has authenticated.  You may also use
+`.AllowAnonymous()` and `[AllowAnonymous]` to allow fields to be returned to
 unauthenticated users within an graph that has an authorization requirement defined.
-Because of this, applying an authorization rule to the Query type will effectively
-disable introspection queries because authentication will fail on the query type.
 
 Please note that authorization rules do not apply to values returned within introspection requests,
 potentially leaking information about protected areas of the schema to unauthenticated users.
 You may use the `ISchemaFilter` to restrict what information is returned from introspection
 requests, but it will apply to both authenticated and unauthenticated users alike.
+
+Introspection requests are allowed unless the schema has an authorization requirement set on it.
 
 ### UI configuration
 
