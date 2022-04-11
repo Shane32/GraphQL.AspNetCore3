@@ -21,13 +21,13 @@ public class AuthorizationValidationRule : IValidationRule
     /// <inheritdoc/>
     public ValueTask<INodeVisitor?> ValidateAsync(ValidationContext context)
     {
-        // if not accessing over HTTP, skip authentication checks
         var httpContext = _contextAccessor.HttpContext ?? NoHttpContext();
         var user = httpContext.User ?? NoUser();
         var provider = context.RequestServices ?? NoRequestServices();
         var authService = provider.GetService<IAuthorizationService>() ?? NoAuthServiceError();
+
         var visitor = new AuthorizationVisitor(context, user, authService);
-        return new(visitor);
+        return visitor.ValidateSchema(context) ? new(visitor) : default;
     }
 
     private static HttpContext NoHttpContext()
@@ -67,29 +67,73 @@ public class AuthorizationValidationRule : IValidationRule
         public IAuthorizationService AuthorizationService { get; }
 
         private bool _checkTree; // used to skip processing fragments that do not apply
-        private ASTNode? _checkUntil; // used to pause processing graph decendants that have already failed a role check
         private readonly List<GraphQLFragmentDefinition>? _fragmentDefinitionsToCheck; // contains a list of fragments to process, or null if none
         private Dictionary<string, AuthorizationResult>? _policyResults; // contains a dictionary of policies that have been checked
         private Dictionary<string, bool>? _roleResults; // contains a dictionary of roles that have been checked
-        private readonly Stack<bool> _onlyAnonymousSelected = new Stack<bool>();
+        private readonly Stack<TypeInfo> _onlyAnonymousSelected = new();
         private readonly bool _userIsAuthenticated;
+        private Dictionary<string, TypeInfo>? _fragments;
+
+        private struct TypeInfo
+        {
+            public bool AnyAuthenticated;
+            public bool AnyAnonymous;
+            public List<string>? WaitingOnFragments;
+        }
 
         /// <inheritdoc/>
         public virtual void Enter(ASTNode node, ValidationContext context)
         {
             if (node == context.Operation || (node is GraphQLFragmentDefinition fragmentDefinition && _fragmentDefinitionsToCheck != null && _fragmentDefinitionsToCheck.Contains(fragmentDefinition))) {
-                _checkTree = true;
-                Validate(context.TypeInfo.GetLastType(), node, context);
+                var type = context.TypeInfo.GetLastType();
+                if (type != null) {
+                    // if type is null that means that no type was configured for this operation in the schema; will produce a separate validation error
+                    _onlyAnonymousSelected.Push(new());
+                    _checkTree = true;
+                }
             } else if (_checkTree) {
                 if (node is GraphQLField) {
-                    // verify field
-                    Validate(context.TypeInfo.GetFieldDef(), node, context);
-                    Validate(context.TypeInfo.GetLastType(), node, context);
+                    var field = context.TypeInfo.GetFieldDef();
+                    // might be null if no match was found in the schema
+                    // and skip processing for __typeName
+                    if (field != null && field != context.Schema.TypeNameMetaFieldType) {
+                        var fieldAnonymousAllowed = field.IsAnonymousAllowed() || field == context.Schema.TypeMetaFieldType || field == context.Schema.SchemaMetaFieldType;
+                        var ti = _onlyAnonymousSelected.Pop();
+                        if (fieldAnonymousAllowed)
+                            ti.AnyAnonymous = true;
+                        else
+                            ti.AnyAuthenticated = true;
+                        _onlyAnonymousSelected.Push(ti);
+
+                        if (!fieldAnonymousAllowed) {
+                            Validate(field, node, context);
+                        }
+                    }
+                    // prep for descendants, if any
+                    _onlyAnonymousSelected.Push(new());
+                } else if (node is GraphQLFragmentSpread fragmentSpread) {
+                    var ti = _onlyAnonymousSelected.Pop();
+                    var fragmentName = fragmentSpread.FragmentName.Name.StringValue;
+                    if (_fragments?.TryGetValue(fragmentName, out var fragmentInfo) == true) {
+                        ti.AnyAuthenticated |= fragmentInfo.AnyAuthenticated;
+                        ti.AnyAnonymous |= fragmentInfo.AnyAnonymous;
+                        if (fragmentInfo.WaitingOnFragments?.Count > 0) {
+                            ti.WaitingOnFragments ??= new();
+                            ti.WaitingOnFragments.AddRange(fragmentInfo.WaitingOnFragments);
+                        }
+                    } else {
+                        ti.WaitingOnFragments ??= new();
+                        ti.WaitingOnFragments.Add(fragmentName);
+                    }
+                    _onlyAnonymousSelected.Push(ti);
                 } else if (node is GraphQLArgument) {
                     // ignore arguments of directives
                     if (context.TypeInfo.GetAncestor(2)?.Kind == ASTNodeKind.Field) {
                         // verify field argument
-                        Validate(context.TypeInfo.GetArgument(), node, context);
+                        var arg = context.TypeInfo.GetArgument();
+                        if (arg != null) {
+                            Validate(arg, node, context);
+                        }
                     }
                 }
             }
@@ -98,26 +142,51 @@ public class AuthorizationValidationRule : IValidationRule
         /// <inheritdoc/>
         public virtual void Leave(ASTNode node, ValidationContext context)
         {
-            if (node == context.Operation || node is GraphQLFragmentDefinition) {
+            if (node == context.Operation) {
                 _checkTree = false;
-                _checkUntil = null;
-            } else if (node == _checkUntil) {
-                _checkTree = true;
-                _checkUntil = null;
+                var type = context.TypeInfo.GetLastType();
+                if (type != null) {
+                    _onlyAnonymousSelected.Pop();
+                    // todo: validate here if necessary
+                    Validate(type, node, context);
+                }
+            } else if (node is GraphQLFragmentDefinition fragmentDefinition && _checkTree) {
+                _checkTree = false;
+                var ti = _onlyAnonymousSelected.Pop();
+                _fragments ??= new();
+                _fragments.TryAdd(fragmentDefinition.FragmentName.Name.StringValue, ti);
+                // todo: recursively check if any other fragments require this one and resolve waiting checks
+            } else if (_checkTree && node is GraphQLField) {
+                var info = _onlyAnonymousSelected.Pop();
+                if (info.AnyAuthenticated || !info.AnyAnonymous) {
+                    var type = context.TypeInfo.GetLastType();
+                    if (type != null) {
+                        Validate(type, node, context);
+                    }
+                }
             }
         }
 
         /// <summary>
-        /// Validates the specified graph, field or query argument.
+        /// Validates authorization rules for the schema.
+        /// Returns a value indicating if validation was successful.
         /// </summary>
-        protected virtual void Validate(IProvideMetadata? obj, ASTNode node, ValidationContext context)
+        public virtual bool ValidateSchema(ValidationContext context)
+            => Validate(context.Schema, null, context);
+
+        /// <summary>
+        /// Validates authorization rules for the specified schema, graph, field or query argument.
+        /// Does not consider <see cref="AuthorizationExtensions.IsAnonymousAllowed(IProvideMetadata)"/>.
+        /// Returns a value indicating if validation was successful for this node.
+        /// </summary>
+        protected virtual bool Validate(IProvideMetadata obj, ASTNode? node, ValidationContext context)
         {
             if (obj == null)
-                return;
+                throw new ArgumentNullException(nameof(obj));
 
             bool requiresAuthorization = obj.IsAuthorizationRequired();
             if (!requiresAuthorization)
-                return;
+                return true;
 
             var success = true;
             var policies = obj.GetPolicies();
@@ -152,16 +221,13 @@ public class AuthorizationValidationRule : IValidationRule
             }
         PassRoles:
 
-            if (!success) {
-                _checkUntil = node;
-                _checkTree = false;
-            }
-
             if (requiresAuthorization) {
                 if (!Authorize()) {
                     HandleNodeNotAuthorized(obj, node, context);
                 }
             }
+
+            return success;
         }
 
         /// <inheritdoc cref="IIdentity.IsAuthenticated"/>
@@ -181,11 +247,12 @@ public class AuthorizationValidationRule : IValidationRule
         /// as required by this graph, field or query argument.
         /// </summary>
         /// <param name="obj">A graph, field or query argument.</param>
-        /// <param name="node">The AST node where the graph, field or query argument was matched.</param>
+        /// <param name="node">The AST node where the graph, field or query argument was matched, or <see langword="null"/> for the schema.</param>
         /// <param name="context">The validation context.</param>
-        protected virtual void HandleNodeNotAuthorized(IProvideMetadata obj, ASTNode node, ValidationContext context)
+        protected virtual void HandleNodeNotAuthorized(IProvideMetadata obj, ASTNode? node, ValidationContext context)
         {
-            var err = new AccessDeniedError(context.Document.Source, node);
+            var resource = GenerateResourceDescription(obj, node, context);
+            var err = node == null ? new AccessDeniedError(context.Document.Source, resource) : new AccessDeniedError(context.Document.Source, resource, node);
             context.ReportError(err);
         }
 
@@ -195,11 +262,12 @@ public class AuthorizationValidationRule : IValidationRule
         /// </summary>
         /// <param name="obj">A graph, field or query argument.</param>
         /// <param name="roles">The list of roles of which the user must be a member.</param>
-        /// <param name="node">The AST node where the graph, field or query argument was matched.</param>
+        /// <param name="node">The AST node where the graph, field or query argument was matched, or <see langword="null"/> for the schema.</param>
         /// <param name="context">The validation context.</param>
-        protected virtual ValidationError HandleNodeNotInRoles(IProvideMetadata obj, ASTNode node, List<string> roles, ValidationContext context)
+        protected virtual ValidationError HandleNodeNotInRoles(IProvideMetadata obj, ASTNode? node, List<string> roles, ValidationContext context)
         {
-            var err = new AccessDeniedError(context.Document.Source, GenerateResourceDescription(obj, node, context), node);
+            var resource = GenerateResourceDescription(obj, node, context);
+            var err = node == null ? new AccessDeniedError(context.Document.Source, resource) : new AccessDeniedError(context.Document.Source, resource, node);
             err.RolesRequired = roles;
             return err;
         }
@@ -209,13 +277,14 @@ public class AuthorizationValidationRule : IValidationRule
         /// the roles required by this graph, field or query argument.
         /// </summary>
         /// <param name="obj">A graph, field or query argument.</param>
-        /// <param name="node">The AST node where the graph, field or query argument was matched.</param>
+        /// <param name="node">The AST node where the graph, field or query argument was matched, or <see langword="null"/> for the schema.</param>
         /// <param name="policy">The policy which these nodes are being authenticated against.</param>
         /// <param name="authorizationResult">The result of the authentication request.</param>
         /// <param name="context">The validation context.</param>
-        protected virtual ValidationError HandleNodeNotInPolicy(IProvideMetadata obj, ASTNode node, string policy, AuthorizationResult authorizationResult, ValidationContext context)
+        protected virtual ValidationError HandleNodeNotInPolicy(IProvideMetadata obj, ASTNode? node, string policy, AuthorizationResult authorizationResult, ValidationContext context)
         {
-            var err = new AccessDeniedError(context.Document.Source, GenerateResourceDescription(obj, node, context), node);
+            var resource = GenerateResourceDescription(obj, node, context);
+            var err = node == null ? new AccessDeniedError(context.Document.Source, resource) : new AccessDeniedError(context.Document.Source, resource, node);
             err.PolicyRequired = policy;
             err.PolicyAuthorizationResult = authorizationResult;
             return err;
@@ -225,12 +294,14 @@ public class AuthorizationValidationRule : IValidationRule
         /// Generates a friendly name for a specified graph, field or query argument.
         /// </summary>
         /// <param name="obj">A graph, field or query argument.</param>
-        /// <param name="node">The AST node where the graph, field or query argument was matched.</param>
+        /// <param name="node">The AST node where the graph, field or query argument was matched, or <see langword="null"/> for the schema.</param>
         /// <param name="context">The validation context.</param>
-        protected virtual string GenerateResourceDescription(IProvideMetadata obj, ASTNode node, ValidationContext context)
+        protected virtual string GenerateResourceDescription(IProvideMetadata obj, ASTNode? node, ValidationContext context)
         {
-            if (obj is IGraphType graphType) {
-                if (node.Kind == ASTNodeKind.Field) {
+            if (obj is ISchema) {
+                return "schema";
+            } else if (obj is IGraphType graphType) {
+                if (node is GraphQLField) {
                     return $"type '{graphType.Name}' for field '{context.TypeInfo.GetFieldDef(0)?.Name}' on type '{context.TypeInfo.GetLastType(2)?.Name}'";
                 } else if (node is GraphQLOperationDefinition op) {
                     return $"type '{graphType.Name}' for {op.Operation.ToString().ToLower(System.Globalization.CultureInfo.InvariantCulture)} operation{(!string.IsNullOrEmpty(op.Name?.StringValue) ? $" '{op.Name}'" : null)}";
