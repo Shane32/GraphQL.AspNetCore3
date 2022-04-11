@@ -22,7 +22,8 @@ scan GraphQL documents and validate that the schema and all referenced output gr
 output graph types, and query arguments meet the specified policy and/or roles held by the
 authenticated user within the ASP.NET Core authorization framework.  It does not validate
 any policies or roles specified for input graph types, fields of input graph types, or
-directives.
+directives.  It does not skip validation for fields that are marked with the `@skip` or
+`@include` directives.
 
 ## Configuration
 
