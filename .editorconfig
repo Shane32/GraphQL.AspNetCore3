@@ -152,7 +152,7 @@ dotnet_separate_import_directive_groups = false
 
 # C# formatting settings - New-line options
 # https://docs.microsoft.com/en-us/visualstudio/ide/editorconfig-formatting-conventions?view=vs-2019#new-line-options
-csharp_new_line_before_open_brace = types, methods
+csharp_new_line_before_open_brace = types, methods, properties
 csharp_new_line_before_else = false
 csharp_new_line_before_catch = false
 csharp_new_line_before_finally = false

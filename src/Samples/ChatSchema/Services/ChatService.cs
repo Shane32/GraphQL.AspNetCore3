@@ -72,7 +72,8 @@ public class ChatService
         return count;
     }
 
-    public int Count {
+    public int Count
+    {
         get {
             lock (_messages)
                 return _messages.Count;

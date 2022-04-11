@@ -30,7 +30,8 @@ internal class ReusableMemoryReaderStream : Stream
     public override long Length => _length;
 
     /// <inheritdoc/>
-    public override long Position {
+    public override long Position
+    {
         get => _position;
         set => _position = Math.Max(Math.Min(checked((int)value), _length), 0);
     }

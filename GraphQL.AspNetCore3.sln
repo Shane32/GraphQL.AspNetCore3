@@ -41,6 +41,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PagesSample", "src\Samples\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GraphQL.AspNetCore3", "src\GraphQL.AspNetCore3\GraphQL.AspNetCore3.csproj", "{8DFDAD38-C530-4A90-B1F3-C26491FFA0A7}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tests.ApiTests", "src\Tests.ApiApprovals\Tests.ApiTests.csproj", "{610E33F5-E136-427C-A501-025E7C54A576}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthorizationSample", "src\Samples\AuthorizationSample\AuthorizationSample.csproj", "{512A40B4-C371-4437-AF85-E28ACAA541EE}"
 EndProject
 Global
@@ -81,6 +83,10 @@ Global
 		{8DFDAD38-C530-4A90-B1F3-C26491FFA0A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8DFDAD38-C530-4A90-B1F3-C26491FFA0A7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8DFDAD38-C530-4A90-B1F3-C26491FFA0A7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{610E33F5-E136-427C-A501-025E7C54A576}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{610E33F5-E136-427C-A501-025E7C54A576}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{610E33F5-E136-427C-A501-025E7C54A576}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{610E33F5-E136-427C-A501-025E7C54A576}.Release|Any CPU.Build.0 = Release|Any CPU
 		{512A40B4-C371-4437-AF85-E28ACAA541EE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{512A40B4-C371-4437-AF85-E28ACAA541EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{512A40B4-C371-4437-AF85-E28ACAA541EE}.Release|Any CPU.ActiveCfg = Release|Any CPU
