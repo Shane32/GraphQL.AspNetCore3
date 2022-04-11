@@ -231,6 +231,27 @@ requests, but it will apply to both authenticated and unauthenticated users alik
 
 Introspection requests are allowed unless the schema has an authorization requirement set on it.
 
+Please note that if you use interfaces, validation might be executed against the graph field
+or the interface field, depending on the structure of the query.  For instance:
+
+```gql
+{
+  cat {
+    # validates against Cat.Name
+    name
+
+    # validates against Animal.Name
+    ... on Animal {
+      name
+    }
+  }
+}
+```
+
+Similarly for unions, validation occurs on the exact type that is queried.  Be sure to carefully
+consider placement of authorization rules when using interfaces and unions, especially when some
+fields are marked with `AllowAnonymous`.
+
 ### UI configuration
 
 This project does not include user interfaces, such as GraphiQL or Playground,

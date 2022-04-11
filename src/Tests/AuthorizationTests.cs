@@ -542,6 +542,42 @@ public class AuthorizationTests
             err.ShouldBeOfType<InvalidOperationException>().Message.ShouldBe("An instance of IAuthorizationService could not be pulled from the dependency injection framework.");
     }
 
+    [Theory]
+    [InlineData(false, false, false, false, true)]
+    [InlineData(false, false, false, true, true)]
+    [InlineData(true, false, false, false, true)]
+    [InlineData(true, false, false, true, true)]
+    [InlineData(false, true, false, false, false)]
+    [InlineData(false, true, false, true, true)]
+
+    [InlineData(false, false, true, false, true)]
+    [InlineData(false, false, true, true, true)]
+    [InlineData(true, false, true, false, false)]
+    [InlineData(true, false, true, true, true)]
+    [InlineData(false, true, true, false, true)]
+    [InlineData(false, true, true, true, true)]
+    public void WithInterface(bool interfaceRequiresAuth, bool queryRequiresAuth, bool testInterface, bool authenticated, bool expectedIsValid)
+    {
+        var interfaceGraphType = new InterfaceGraphType { Name = "TestInterface" };
+        interfaceGraphType.ResolveType = _ => _query;
+        var interfaceField = interfaceGraphType.AddField(new FieldType { Name = "test", Type = typeof(StringGraphType) });
+        if (interfaceRequiresAuth)
+            interfaceField.Authorize();
+
+        var queryField = _query.AddField(new FieldType { Name = "test", Type = typeof(StringGraphType) });
+        _query.AddResolvedInterface(interfaceGraphType);
+        if (queryRequiresAuth)
+            queryField.Authorize();
+
+        if (authenticated)
+            SetAuthorized();
+
+        _schema.RegisterType(interfaceGraphType);
+
+        var ret = Validate(testInterface ? "{ ... on TestInterface { test } }" : "{ test }");
+        ret.IsValid.ShouldBe(expectedIsValid);
+    }
+
     public enum Mode
     {
         None,
