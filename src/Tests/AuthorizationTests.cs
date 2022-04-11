@@ -61,7 +61,7 @@ public class AuthorizationTests
             UserContext = new Dictionary<string, object?>(),
             Variables = Inputs.Empty,
             RequestServices = mockServices.Object,
-        }).GetAwaiter().GetResult();
+        }).GetAwaiter().GetResult(); // there is no async code being tested
         return result;
     }
 
@@ -205,6 +205,18 @@ public class AuthorizationTests
     [InlineData(Mode.None, Mode.None, Mode.None, Mode.None, Mode.None, Mode.PolicyMultiple, true, false)]
     [InlineData(Mode.None, Mode.None, Mode.None, Mode.None, Mode.None, Mode.Anonymous, false, true)]
     [InlineData(Mode.None, Mode.None, Mode.None, Mode.None, Mode.None, Mode.Anonymous, true, true)]
+    [InlineData(Mode.Authorize, Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, false, false)]
+    [InlineData(Mode.Authorize, Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, true, true)]
+    [InlineData(Mode.Anonymous, Mode.Authorize, Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, false, true)] // query is authorize, but field is anonymous
+    [InlineData(Mode.Anonymous, Mode.Authorize, Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, true, true)]
+    [InlineData(Mode.Anonymous, Mode.Anonymous, Mode.Authorize, Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, false, false)]
+    [InlineData(Mode.Anonymous, Mode.Anonymous, Mode.Authorize, Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, true, true)]
+    [InlineData(Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, Mode.Authorize, Mode.Anonymous, Mode.Anonymous, false, true)] // child graph is authorize, but child field is anonymous
+    [InlineData(Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, Mode.Authorize, Mode.Anonymous, Mode.Anonymous, true, true)]
+    [InlineData(Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, Mode.Authorize, Mode.Anonymous, false, false)]
+    [InlineData(Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, Mode.Authorize, Mode.Anonymous, true, true)]
+    [InlineData(Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, Mode.Authorize, false, false)]
+    [InlineData(Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, Mode.Anonymous, Mode.Authorize, true, true)]
     public void Matrix(Mode schemaMode, Mode queryMode, Mode fieldMode, Mode childMode, Mode childFieldMode, Mode argumentMode, bool authenticated, bool isValid)
     {
         Apply(_schema, schemaMode);
