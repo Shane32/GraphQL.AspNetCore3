@@ -41,6 +41,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PagesSample", "src\Samples\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GraphQL.AspNetCore3", "src\GraphQL.AspNetCore3\GraphQL.AspNetCore3.csproj", "{8DFDAD38-C530-4A90-B1F3-C26491FFA0A7}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tests.ApiTests", "src\Tests.ApiApprovals\Tests.ApiTests.csproj", "{610E33F5-E136-427C-A501-025E7C54A576}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -79,6 +81,10 @@ Global
 		{8DFDAD38-C530-4A90-B1F3-C26491FFA0A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8DFDAD38-C530-4A90-B1F3-C26491FFA0A7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8DFDAD38-C530-4A90-B1F3-C26491FFA0A7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{610E33F5-E136-427C-A501-025E7C54A576}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{610E33F5-E136-427C-A501-025E7C54A576}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{610E33F5-E136-427C-A501-025E7C54A576}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{610E33F5-E136-427C-A501-025E7C54A576}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
