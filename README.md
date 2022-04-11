@@ -18,7 +18,7 @@ In addition, an `ExecutionResultActionResult` class is added for returning `Exec
 instances directly from a controller action.
 
 Authorization is also supported with the included `AuthorizationValidationRule`.  It will
-scan GraphQL documents and validate that all referenced output graph types, fields of
+scan GraphQL documents and validate that the schema and all referenced output graph types, fields of
 output graph types, and query arguments meet the specified policy and/or roles held by the
 authenticated user within the ASP.NET Core authorization framework.  It does not validate
 any policies or roles specified for input graph types, fields of input graph types, or
