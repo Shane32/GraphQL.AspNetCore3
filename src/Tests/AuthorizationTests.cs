@@ -36,7 +36,7 @@ public class AuthorizationTests
         _policyPasses = true;
     }
 
-    private IValidationResult Validate(string query)
+    private IValidationResult Validate(string query, bool shouldPassCoreRules = true)
     {
         var mockAuthorizationService = new Mock<IAuthorizationService>(MockBehavior.Strict);
         mockAuthorizationService.Setup(x => x.AuthorizeAsync(_principal, null, It.IsAny<string>())).Returns<ClaimsPrincipal, object, string>((_, _, policy) => {
@@ -52,6 +52,18 @@ public class AuthorizationTests
         mockContextAccessor.Setup(x => x.HttpContext).Returns(mockHttpContext.Object);
         var document = GraphQLParser.Parser.Parse(query);
         var validator = new DocumentValidator();
+        if (shouldPassCoreRules) {
+            var (coreRulesResult, _) = validator.ValidateAsync(new ValidationOptions {
+                Document = document,
+                Extensions = Inputs.Empty,
+                Operation = (GraphQLOperationDefinition)document.Definitions.Single(x => x.Kind == ASTNodeKind.OperationDefinition),
+                Schema = _schema,
+                UserContext = new Dictionary<string, object?>(),
+                Variables = Inputs.Empty,
+                RequestServices = mockServices.Object,
+            }).GetAwaiter().GetResult(); // there is no async code being tested
+            coreRulesResult.IsValid.ShouldBeTrue("Query does not pass core rules");
+        }
         var (result, variables) = validator.ValidateAsync(new ValidationOptions {
             Document = document,
             Extensions = Inputs.Empty,
@@ -227,8 +239,101 @@ public class AuthorizationTests
         Apply(_argument, argumentMode);
         if (authenticated)
             SetAuthorized();
+
+        // simple test
         var ret = Validate(@"{ parent { child(arg: null) } }");
         ret.IsValid.ShouldBe(isValid);
+
+        // inline fragment
+        ret = Validate(@"{ parent { ... on ChildType { child(arg: null) } } }");
+        ret.IsValid.ShouldBe(isValid);
+
+        // fragment prior to query
+        ret = Validate(@"fragment frag on ChildType { child(arg: null) } { parent { ...frag } }");
+        ret.IsValid.ShouldBe(isValid);
+
+        // fragment after query
+        ret = Validate(@"{ parent { ...frag } } fragment frag on ChildType { child(arg: null) }");
+        ret.IsValid.ShouldBe(isValid);
+
+        // nested fragments prior to query
+        ret = Validate(@"fragment nestedFrag on ChildType { child(arg: null) } fragment frag on ChildType { ...nestedFrag } { parent { ...frag } }");
+        ret.IsValid.ShouldBe(isValid);
+
+        // nested fragments after query
+        ret = Validate(@"{ parent { ...frag } } fragment frag on ChildType { ...nestedFrag } fragment nestedFrag on ChildType { child(arg: null) }");
+        ret.IsValid.ShouldBe(isValid);
+    }
+
+    [Theory]
+    [InlineData(Mode.None, Mode.None, false, true)]
+    [InlineData(Mode.None, Mode.None, true, true)]
+    [InlineData(Mode.Authorize, Mode.None, false, false)] // schema requires authentication, so introspection queries fail
+    [InlineData(Mode.Authorize, Mode.None, true, true)]
+    [InlineData(Mode.None, Mode.Authorize, false, true)]  // query type requires authentication, but __schema is an AllowAnonymous type
+    [InlineData(Mode.None, Mode.Authorize, true, true)]
+    public void Introspection(Mode schemaMode, Mode queryMode, bool authenticated, bool isValid)
+    {
+        Apply(_schema, schemaMode);
+        Apply(_query, queryMode);
+        if (authenticated)
+            SetAuthorized();
+
+        var ret = Validate(@"{ __schema { types { name } } __typename }");
+        ret.IsValid.ShouldBe(isValid);
+
+        ret = Validate(@"{ __schema { types { name } } }");
+        ret.IsValid.ShouldBe(isValid);
+
+        ret = Validate(@"{ __type(name: ""QueryType"") { name } }");
+        ret.IsValid.ShouldBe(isValid);
+
+        ret = Validate(@"{ __type(name: ""QueryType"") { name } __typename }");
+        ret.IsValid.ShouldBe(isValid);
+    }
+
+    [Theory]
+    [InlineData(Mode.None, Mode.None, false, false, true)]
+    [InlineData(Mode.None, Mode.None, false, true, true)]
+    [InlineData(Mode.None, Mode.None, true, false, true)]
+    [InlineData(Mode.None, Mode.None, true, true, true)]
+    [InlineData(Mode.Authorize, Mode.None, false, false, false)] // selecting only __typename is not enough to allow QueryType to pass validation
+    [InlineData(Mode.Authorize, Mode.None, false, true, true)]
+    [InlineData(Mode.Authorize, Mode.None, true, false, false)]
+    [InlineData(Mode.Authorize, Mode.None, true, true, true)]
+    [InlineData(Mode.Authorize, Mode.Anonymous, false, false, false)]
+    [InlineData(Mode.Authorize, Mode.Anonymous, false, true, true)]
+    [InlineData(Mode.Authorize, Mode.Anonymous, true, false, true)] // at least only anonymous field, and no authenticated fields, were selected in the query, so validation passes
+    [InlineData(Mode.Authorize, Mode.Anonymous, true, true, true)]
+    public void OnlyTypeName(Mode queryMode, Mode fieldMode, bool includeField, bool authenticated, bool isValid)
+    {
+        Apply(_query, queryMode);
+        Apply(_field, fieldMode);
+        if (authenticated)
+            SetAuthorized();
+
+        IValidationResult ret;
+
+        if (includeField) {
+            ret = Validate("{ __typename parent { child } }");
+        } else {
+            ret = Validate("{ __typename }");
+        }
+        ret.IsValid.ShouldBe(isValid);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void BothAuthorizedAndAnonymousFields(bool authenticated)
+    {
+        Apply(_query, Mode.Authorize);
+        _query.AddField(new FieldType { Name = "test", Type = typeof(StringGraphType) }).AllowAnonymous();
+        if (authenticated)
+            SetAuthorized();
+
+        var ret = Validate("{ parent { child } test }");
+        ret.IsValid.ShouldBe(authenticated);
     }
 
     private void Apply(IProvideMetadata obj, Mode mode)
