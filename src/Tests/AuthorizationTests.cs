@@ -55,18 +55,17 @@ public class AuthorizationTests
         var inputs = new GraphQLSerializer().Deserialize<Inputs>(variables) ?? Inputs.Empty;
 
         var validator = new DocumentValidator();
-        if (shouldPassCoreRules) {
-            var (coreRulesResult, _) = validator.ValidateAsync(new ValidationOptions {
-                Document = document,
-                Extensions = Inputs.Empty,
-                Operation = (GraphQLOperationDefinition)document.Definitions.First(x => x.Kind == ASTNodeKind.OperationDefinition),
-                Schema = _schema,
-                UserContext = new Dictionary<string, object?>(),
-                Variables = inputs,
-                RequestServices = mockServices.Object,
-            }).GetAwaiter().GetResult(); // there is no async code being tested
-            coreRulesResult.IsValid.ShouldBeTrue("Query does not pass core rules");
-        }
+        var (coreRulesResult, _) = validator.ValidateAsync(new ValidationOptions {
+            Document = document,
+            Extensions = Inputs.Empty,
+            Operation = (GraphQLOperationDefinition)document.Definitions.First(x => x.Kind == ASTNodeKind.OperationDefinition),
+            Schema = _schema,
+            UserContext = new Dictionary<string, object?>(),
+            Variables = inputs,
+            RequestServices = mockServices.Object,
+        }).GetAwaiter().GetResult(); // there is no async code being tested
+        coreRulesResult.IsValid.ShouldBe(shouldPassCoreRules);
+
         var (result, _) = validator.ValidateAsync(new ValidationOptions {
             Document = document,
             Extensions = Inputs.Empty,
@@ -576,6 +575,76 @@ public class AuthorizationTests
 
         var ret = Validate(testInterface ? "{ ... on TestInterface { test } }" : "{ test }");
         ret.IsValid.ShouldBe(expectedIsValid);
+    }
+
+    // these tests will fail core rules validation and so it does not really matter
+    // if they pass or fail authorization, but we are testing them to be sure that
+    // they do not cause a fatal exception
+    [Theory]
+    [InlineData(@"{ test @skip }", false)]
+    [InlineData(@"{ test @include }", false)]
+    [InlineData(@"{ test @skip(if: HELLO) }", false)]
+    [InlineData(@"{ test @include(if: HELLO) }", false)]
+    [InlineData(@"{ test @skip(if: $arg) }", false)]
+    [InlineData(@"{ test @include(if: $arg) }", false)]
+    [InlineData(@"query ($arg: String) { test @skip(if: $arg) }", false)]
+    [InlineData(@"query ($arg: String) { test @include(if: $arg) }", false)]
+    [InlineData(@"query ($arg: Boolean = TEST) { test @skip(if: $arg) }", false)]
+    [InlineData(@"query ($arg: Boolean = TEST) { test @include(if: $arg) }", false)]
+    [InlineData(@"{ invalid }", true)]
+    [InlineData(@"{ invalid { child } }", true)]
+    [InlineData(@"{ test { child } }", false)]
+    [InlineData(@"{ parent { invalid } }", true)]
+    [InlineData(@"{ parent { child(invalid: true) } }", true)]
+    public void TestDefective(string query, bool expectedIsValid)
+    {
+        _query.AddField(new FieldType { Name = "test", Type = typeof(StringGraphType) }).Authorize();
+
+        var ret = Validate(query, false);
+        ret.IsValid.ShouldBe(expectedIsValid);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TestPipeline(bool authenticated)
+    {
+        _field.Authorize();
+
+        if (authenticated)
+            SetAuthorized();
+
+        var services = new ServiceCollection();
+        services.AddGraphQL(b => b
+            .AddSchema(_schema)
+            .AddSystemTextJson()
+            .AddAuthorization());
+
+        services.AddSingleton(Mock.Of<IAuthorizationService>(MockBehavior.Strict));
+
+        var mockContext = new Mock<HttpContext>(MockBehavior.Strict);
+        mockContext.Setup(x => x.User).Returns(_principal);
+
+        var mockContextAccessor = new Mock<IHttpContextAccessor>(MockBehavior.Strict);
+        mockContextAccessor.Setup(x => x.HttpContext).Returns(mockContext.Object);
+
+        services.AddSingleton(mockContextAccessor.Object);
+
+        using var provider = services.BuildServiceProvider();
+
+        var executer = provider.GetRequiredService<IDocumentExecuter<ISchema>>();
+        var ret = await executer.ExecuteAsync(new ExecutionOptions {
+            Query = @"{ parent { child } }",
+            RequestServices = provider,
+        });
+
+        var serializer = provider.GetRequiredService<IGraphQLTextSerializer>();
+        var actual = serializer.Serialize(ret);
+
+        if (authenticated)
+            actual.ShouldBe(@"{""data"":{""parent"":null}}");
+        else
+            actual.ShouldBe(@"{""errors"":[{""message"":""Access denied for field \u0027parent\u0027 on type \u0027QueryType\u0027."",""locations"":[{""line"":1,""column"":3}],""extensions"":{""code"":""ACCESS_DENIED"",""codes"":[""ACCESS_DENIED""]}}]}");
     }
 
     public enum Mode
