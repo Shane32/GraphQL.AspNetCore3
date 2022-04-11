@@ -581,26 +581,34 @@ public class AuthorizationTests
     // if they pass or fail authorization, but we are testing them to be sure that
     // they do not cause a fatal exception
     [Theory]
-    [InlineData(@"{ test @skip }", false)]
-    [InlineData(@"{ test @include }", false)]
-    [InlineData(@"{ test @skip(if: HELLO) }", false)]
-    [InlineData(@"{ test @include(if: HELLO) }", false)]
-    [InlineData(@"{ test @skip(if: $arg) }", false)]
-    [InlineData(@"{ test @include(if: $arg) }", false)]
-    [InlineData(@"query ($arg: String) { test @skip(if: $arg) }", false)]
-    [InlineData(@"query ($arg: String) { test @include(if: $arg) }", false)]
-    [InlineData(@"query ($arg: Boolean = TEST) { test @skip(if: $arg) }", false)]
-    [InlineData(@"query ($arg: Boolean = TEST) { test @include(if: $arg) }", false)]
-    [InlineData(@"{ invalid }", true)]
-    [InlineData(@"{ invalid { child } }", true)]
-    [InlineData(@"{ test { child } }", false)]
-    [InlineData(@"{ parent { invalid } }", true)]
-    [InlineData(@"{ parent { child(invalid: true) } }", true)]
-    public void TestDefective(string query, bool expectedIsValid)
+    [InlineData(@"{ test @skip }", null, false)]
+    [InlineData(@"{ test @include }", null, false)]
+    [InlineData(@"{ test @skip(if: HELLO) }", null, false)]
+    [InlineData(@"{ test @include(if: HELLO) }", null, false)]
+    [InlineData(@"{ test @skip(if: $arg) }", null, false)]
+    [InlineData(@"{ test @include(if: $arg) }", null, false)]
+    [InlineData(@"query ($arg2: String) { test @skip(if: $arg) }", null, false)]
+    [InlineData(@"query ($arg2: String) { test @include(if: $arg) }", null, false)]
+    [InlineData(@"query ($arg: String) { test @skip(if: $arg) }", null, false)]
+    [InlineData(@"query ($arg: String) { test @include(if: $arg) }", null, false)]
+    [InlineData(@"query ($arg: Boolean = TEST) { test @skip(if: $arg) }", null, false)]
+    [InlineData(@"query ($arg: Boolean = TEST) { test @include(if: $arg) }", null, false)]
+    [InlineData(@"query ($arg: Boolean) { test @skip(if: $arg) }", null, false)]
+    [InlineData(@"query ($arg: Boolean) { test @include(if: $arg) }", null, false)]
+    [InlineData(@"query ($arg: Boolean!) { test @skip(if: $arg) }", null, false)]
+    [InlineData(@"query ($arg: Boolean!) { test @include(if: $arg) }", null, false)]
+    [InlineData(@"query ($arg: Boolean!) { test @skip(if: $arg) }", @"{ ""arg"":""abc"" }", false)]
+    [InlineData(@"query ($arg: Boolean!) { test @include(if: $arg) }", @"{ ""arg"":""abc"" }", false)]
+    [InlineData(@"{ invalid }", null, true)]
+    [InlineData(@"{ invalid { child } }", null, true)]
+    [InlineData(@"{ test { child } }", null, false)]
+    [InlineData(@"{ parent { invalid } }", null, true)]
+    [InlineData(@"{ parent { child(invalid: true) } }", null, true)]
+    public void TestDefective(string query, string variables, bool expectedIsValid)
     {
         _query.AddField(new FieldType { Name = "test", Type = typeof(StringGraphType) }).Authorize();
 
-        var ret = Validate(query, false);
+        var ret = Validate(query, false, variables);
         ret.IsValid.ShouldBe(expectedIsValid);
     }
 
