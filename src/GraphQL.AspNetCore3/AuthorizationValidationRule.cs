@@ -69,6 +69,7 @@ public class AuthorizationValidationRule : IValidationRule
         public IAuthorizationService AuthorizationService { get; }
 
         private bool _checkTree; // used to skip processing fragments that do not apply
+        private ASTNode? _checkUntil;
         private readonly List<GraphQLFragmentDefinition>? _fragmentDefinitionsToCheck; // contains a list of fragments to process, or null if none
         private Dictionary<string, AuthorizationResult>? _policyResults; // contains a dictionary of policies that have been checked
         private Dictionary<string, bool>? _roleResults; // contains a dictionary of roles that have been checked
@@ -114,24 +115,29 @@ public class AuthorizationValidationRule : IValidationRule
                     _checkTree = true;
                 }
             } else if (_checkTree) {
-                if (node is GraphQLField) {
-                    var field = context.TypeInfo.GetFieldDef();
-                    // might be null if no match was found in the schema
-                    // and skip processing for __typeName
-                    if (field != null && field != context.Schema.TypeNameMetaFieldType) {
-                        var fieldAnonymousAllowed = field.IsAnonymousAllowed() || field == context.Schema.TypeMetaFieldType || field == context.Schema.SchemaMetaFieldType;
-                        var ti = _onlyAnonymousSelected.Peek();
-                        if (fieldAnonymousAllowed)
-                            ti.AnyAnonymous = true;
-                        else
-                            ti.AnyAuthenticated = true;
+                if (node is GraphQLField fieldNode) {
+                    if (SkipField(fieldNode, context)) {
+                        _checkTree = false;
+                        _checkUntil = node;
+                    } else {
+                        var field = context.TypeInfo.GetFieldDef();
+                        // might be null if no match was found in the schema
+                        // and skip processing for __typeName
+                        if (field != null && field != context.Schema.TypeNameMetaFieldType) {
+                            var fieldAnonymousAllowed = field.IsAnonymousAllowed() || field == context.Schema.TypeMetaFieldType || field == context.Schema.SchemaMetaFieldType;
+                            var ti = _onlyAnonymousSelected.Peek();
+                            if (fieldAnonymousAllowed)
+                                ti.AnyAnonymous = true;
+                            else
+                                ti.AnyAuthenticated = true;
 
-                        if (!fieldAnonymousAllowed) {
-                            Validate(field, node, context);
+                            if (!fieldAnonymousAllowed) {
+                                Validate(field, node, context);
+                            }
                         }
+                        // prep for descendants, if any
+                        _onlyAnonymousSelected.Push(new());
                     }
-                    // prep for descendants, if any
-                    _onlyAnonymousSelected.Push(new());
                 } else if (node is GraphQLFragmentSpread fragmentSpread) {
                     var ti = _onlyAnonymousSelected.Peek();
                     var fragmentName = fragmentSpread.FragmentName.Name.StringValue;
@@ -162,8 +168,13 @@ public class AuthorizationValidationRule : IValidationRule
         /// <inheritdoc/>
         public virtual void Leave(ASTNode node, ValidationContext context)
         {
-            if (!_checkTree)
+            if (!_checkTree) {
+                if (_checkUntil == node) {
+                    _checkTree = true;
+                    _checkUntil = null;
+                }
                 return;
+            }
             if (node == context.Operation) {
                 _checkTree = false;
                 PopAndProcess();
@@ -191,7 +202,54 @@ public class AuthorizationValidationRule : IValidationRule
                     _todo.Add(new(BuildValidationInfo(type, node, context), info));
                 }
             }
+        }
 
+        /// <summary>
+        /// Indicates if the specified field should skip authentication processing.
+        /// Default implementation looks at @skip and @include directives only.
+        /// </summary>
+        protected virtual bool SkipField(GraphQLField node, ValidationContext context)
+        {
+            // check 
+            var skipDirective = node.Directives?.FirstOrDefault(x => x.Name == "skip");
+            if (skipDirective != null) {
+                var value = GetDirectiveValue(skipDirective, context, false);
+                if (value)
+                    return true;
+            }
+
+            var includeDirective = node.Directives?.FirstOrDefault(x => x.Name == "include");
+            if (includeDirective != null) {
+                var value = GetDirectiveValue(includeDirective, context, true);
+                if (!value)
+                    return true;
+            }
+
+            return false;
+
+            static bool GetDirectiveValue(GraphQLDirective directive, ValidationContext context, bool defaultValue)
+            {
+                var ifArg = directive.Arguments?.FirstOrDefault(x => x.Name == "if");
+                if (ifArg != null) {
+                    if (ifArg.Value is GraphQLBooleanValue boolValue) {
+                        return boolValue.BoolValue;
+                    } else if (ifArg.Value is GraphQLVariable variable) {
+                        if (context.Operation.Variables != null) {
+                            var varDef = context.Operation.Variables.FirstOrDefault(x => x.Variable.Name == variable.Name);
+                            if (varDef != null && varDef.Type.Name() == "Boolean") {
+                                if (context.Variables.TryGetValue(variable.Name.StringValue, out var value)) {
+                                    if (value is bool boolValue2)
+                                        return boolValue2;
+                                }
+                                if (varDef.DefaultValue is GraphQLBooleanValue boolValue3) {
+                                    return boolValue3.BoolValue;
+                                }
+                            }
+                        }
+                    }
+                }
+                return defaultValue;
+            }
         }
 
         // runs when a fragment is added or updated; the fragment might not be waiting on any

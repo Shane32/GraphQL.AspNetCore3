@@ -36,7 +36,7 @@ public class AuthorizationTests
         _policyPasses = true;
     }
 
-    private IValidationResult Validate(string query, bool shouldPassCoreRules = true)
+    private IValidationResult Validate(string query, bool shouldPassCoreRules = true, string? variables = null)
     {
         var mockAuthorizationService = new Mock<IAuthorizationService>(MockBehavior.Strict);
         mockAuthorizationService.Setup(x => x.AuthorizeAsync(_principal, null, It.IsAny<string>())).Returns<ClaimsPrincipal, object, string>((_, _, policy) => {
@@ -51,6 +51,9 @@ public class AuthorizationTests
         var mockContextAccessor = new Mock<IHttpContextAccessor>(MockBehavior.Strict);
         mockContextAccessor.Setup(x => x.HttpContext).Returns(mockHttpContext.Object);
         var document = GraphQLParser.Parser.Parse(query);
+
+        var inputs = new GraphQLSerializer().Deserialize<Inputs>(variables) ?? Inputs.Empty;
+
         var validator = new DocumentValidator();
         if (shouldPassCoreRules) {
             var (coreRulesResult, _) = validator.ValidateAsync(new ValidationOptions {
@@ -59,19 +62,19 @@ public class AuthorizationTests
                 Operation = (GraphQLOperationDefinition)document.Definitions.First(x => x.Kind == ASTNodeKind.OperationDefinition),
                 Schema = _schema,
                 UserContext = new Dictionary<string, object?>(),
-                Variables = Inputs.Empty,
+                Variables = inputs,
                 RequestServices = mockServices.Object,
             }).GetAwaiter().GetResult(); // there is no async code being tested
             coreRulesResult.IsValid.ShouldBeTrue("Query does not pass core rules");
         }
-        var (result, variables) = validator.ValidateAsync(new ValidationOptions {
+        var (result, _) = validator.ValidateAsync(new ValidationOptions {
             Document = document,
             Extensions = Inputs.Empty,
             Operation = (GraphQLOperationDefinition)document.Definitions.First(x => x.Kind == ASTNodeKind.OperationDefinition),
             Rules = new IValidationRule[] { new AuthorizationValidationRule(mockContextAccessor.Object) },
             Schema = _schema,
             UserContext = new Dictionary<string, object?>(),
-            Variables = Inputs.Empty,
+            Variables = inputs,
             RequestServices = mockServices.Object,
         }).GetAwaiter().GetResult(); // there is no async code being tested
         return result;
@@ -116,6 +119,53 @@ public class AuthorizationTests
         err.RolesRequired.ShouldBe(new string[] { "Role1", "Role2" });
         err.PolicyAuthorizationResult.ShouldBeNull();
         err.PolicyRequired.ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData("{ parent @skip(if: true) { child } test }", null, false, true)]
+    [InlineData("{ parent @skip(if: false) { child } test }", null, false, false)]
+    [InlineData("{ parent @skip(if: true) { child } test }", null, true, true)]
+    [InlineData("{ parent @skip(if: false) { child } test }", null, true, true)]
+    [InlineData("{ parent @include(if: true) { child } test }", null, false, false)]
+    [InlineData("{ parent @include(if: false) { child } test }", null, false, true)]
+    [InlineData("{ parent @include(if: true) { child } test }", null, true, true)]
+    [InlineData("{ parent @include(if: false) { child } test }", null, true, true)]
+
+    [InlineData("query ($arg: Boolean = true) { parent @skip(if: $arg) { child } test }", null, false, true)]
+    [InlineData("query ($arg: Boolean = false) { parent @skip(if: $arg) { child } test }", null, false, false)]
+    [InlineData("query ($arg: Boolean = true) { parent @skip(if: $arg) { child } test }", null, true, true)]
+    [InlineData("query ($arg: Boolean = false) { parent @skip(if: $arg) { child } test }", null, true, true)]
+    [InlineData("query ($arg: Boolean = true) { parent @include(if: $arg) { child } test }", null, false, false)]
+    [InlineData("query ($arg: Boolean = false) { parent @include(if: $arg) { child } test }", null, false, true)]
+    [InlineData("query ($arg: Boolean = true) { parent @include(if: $arg) { child } test }", null, true, true)]
+    [InlineData("query ($arg: Boolean = false) { parent @include(if: $arg) { child } test }", null, true, true)]
+
+    [InlineData("query ($arg: Boolean = false) { parent @skip(if: $arg) { child } test }", @"{ ""arg"": true }", false, true)]
+    [InlineData("query ($arg: Boolean = true) { parent @skip(if: $arg) { child } test }", @"{ ""arg"": false }", false, false)]
+    [InlineData("query ($arg: Boolean = false) { parent @skip(if: $arg) { child } test }", @"{ ""arg"": true }", true, true)]
+    [InlineData("query ($arg: Boolean = true) { parent @skip(if: $arg) { child } test }", @"{ ""arg"": false }", true, true)]
+    [InlineData("query ($arg: Boolean = false) { parent @include(if: $arg) { child } test }", @"{ ""arg"": true }", false, false)]
+    [InlineData("query ($arg: Boolean = true) { parent @include(if: $arg) { child } test }", @"{ ""arg"": false }", false, true)]
+    [InlineData("query ($arg: Boolean = false) { parent @include(if: $arg) { child } test }", @"{ ""arg"": true }", true, true)]
+    [InlineData("query ($arg: Boolean = true) { parent @include(if: $arg) { child } test }", @"{ ""arg"": false }", true, true)]
+
+    [InlineData("query ($arg: Boolean!) { parent @skip(if: $arg) { child } test }", @"{ ""arg"": true }", false, true)]
+    [InlineData("query ($arg: Boolean!) { parent @skip(if: $arg) { child } test }", @"{ ""arg"": false }", false, false)]
+    [InlineData("query ($arg: Boolean!) { parent @skip(if: $arg) { child } test }", @"{ ""arg"": true }", true, true)]
+    [InlineData("query ($arg: Boolean!) { parent @skip(if: $arg) { child } test }", @"{ ""arg"": false }", true, true)]
+    [InlineData("query ($arg: Boolean!) { parent @include(if: $arg) { child } test }", @"{ ""arg"": true }", false, false)]
+    [InlineData("query ($arg: Boolean!) { parent @include(if: $arg) { child } test }", @"{ ""arg"": false }", false, true)]
+    [InlineData("query ($arg: Boolean!) { parent @include(if: $arg) { child } test }", @"{ ""arg"": true }", true, true)]
+    [InlineData("query ($arg: Boolean!) { parent @include(if: $arg) { child } test }", @"{ ""arg"": false }", true, true)]
+    public void SkipInclude(string query, string? variables, bool authenticated, bool expectedIsValid)
+    {
+        _field.Authorize();
+        _query.AddField(new FieldType { Name = "test", Type = typeof(StringGraphType) });
+        if (authenticated)
+            SetAuthorized();
+
+        var ret = Validate(query, variables: variables);
+        ret.IsValid.ShouldBe(expectedIsValid);
     }
 
     [Theory]
