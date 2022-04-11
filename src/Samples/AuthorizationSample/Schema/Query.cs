@@ -7,18 +7,18 @@ public class Query
 {
     public static string Hello => "Hello anybody.";
 
-    [GraphQLAuthorize(Roles = "User")]
+    [Authorize(Roles = "User")]
     public static string HelloUser => "Hello, User!";
 
     public static string HelloPerson([MyAuthorize(Roles = "User")] string? name) => name ?? "Unknown";
 
     public static Person GetPerson => new Person { Name = "User" };
 
-    [GraphQLAuthorize("MyPolicy")]
+    [Authorize("MyPolicy")]
     public static string HelloByPolicy => "Policy Passed!";
 }
 
-[GraphQLAuthorize(Roles = "User")]
+[Authorize(Roles = "User")]
 public class Person
 {
     public string Name { get; set; } = null!;
@@ -36,9 +36,9 @@ public class MyAuthorizeAttribute : GraphQLAttribute
     }
 }
 
-[GraphQLAuthorize("MyPolicy")]
+[Authorize("MyPolicy")]
 public class Mutation
 {
-    [GraphQLAuthorize(Roles = "User")]
+    [Authorize(Roles = "User")]
     public static string Hello => "Hello authenticated user.";
 }
