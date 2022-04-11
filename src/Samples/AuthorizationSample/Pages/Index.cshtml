@@ -1,0 +1,26 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<div class="text-center">
+    <h1 class="display-4">GraphQL authentication sample</h1>
+</div>
+<h3>
+  Note: Please be sure to change the Playground setting "request.credentials" to "include"; otherwise the session cookie
+  containing the authentication token will not be sent.
+</h3>
+<div>
+  <p>Current identity claims:</p>
+  <ul>
+        @{
+            foreach (var claim in HttpContext.User.Claims) {
+                <li>@claim.Type: @claim.Value</li>
+            }
+        }
+  </ul>
+  <p><form method="post"><button type="submit">Add to User role</button><input type="hidden" name="do" value="add"/></form></p>
+  <p><form method="post"><button type="submit">Remove from User role</button><input type="hidden" name="do" value="remove"/></form></p>
+  <h3>Note: Log out and log back in for the role change to be effective</h3>
+</div>

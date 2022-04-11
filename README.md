@@ -17,8 +17,13 @@ builder interfaces.
 In addition, an `ExecutionResultActionResult` class is added for returning `ExecutionResult`
 instances directly from a controller action.
 
-You will need to register the middleware and the WebSockets handler in the dependency injection
-framework in order to use them.
+Authorization is also supported with the included `AuthorizationValidationRule`.  It will
+scan GraphQL documents and validate that the schema and all referenced output graph types, fields of
+output graph types, and query arguments meet the specified policy and/or roles held by the
+authenticated user within the ASP.NET Core authorization framework.  It does not validate
+any policies or roles specified for input graph types, fields of input graph types, or
+directives.  It does not skip validation for fields that are marked with the `@skip` or
+`@include` directives.
 
 ## Configuration
 
@@ -176,6 +181,79 @@ public class MyUserContext : Dictionary<string, object?>
 }
 ```
 
+### Authorization configuration
+
+To configure ASP.NET Core authorization for GraphQL, add the corresponding
+validation rule during GraphQL configuration, typically by calling `.AddAuthorization()`
+as shown below:
+
+```csharp
+builder.Services.AddGraphQL(b => b
+    .AddAutoSchema<Query>()
+    .AddSystemTextJson()
+    .AddAuthorization());
+```
+
+You will also need to be sure that the call to `.UseGraphQL()` occurs after the call
+to `.UseAuthentication()` and/or `.UseAuthorization()`.  For instance:
+
+```csharp
+app.UseRouting();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.UseWebSockets();
+// configure the graphql endpoint at "/graphql"
+app.UseGraphQL("/graphql");
+// configure Playground at "/ui/graphql"
+app.UseGraphQLPlayground(
+    new GraphQL.Server.Ui.Playground.PlaygroundOptions {
+        GraphQLEndPoint = new PathString("/graphql"),
+        SubscriptionsEndPoint = new PathString("/graphql"),
+    },
+    "/ui/graphql");
+
+app.MapRazorPages();
+```
+
+Both roles and policies are supported for output graph types, fields on output graph types,
+and query arguments.  If multiple policies are specified, all must match; if multiple roles
+are specified, any one role must match.  You may also use `.Authorize()` or the
+`[Authorize]` attribute to validate that the user has authenticated.  You may also use
+`.AllowAnonymous()` and `[AllowAnonymous]` to allow fields to be returned to
+unauthenticated users within an graph that has an authorization requirement defined.
+
+Please note that authorization rules do not apply to values returned within introspection requests,
+potentially leaking information about protected areas of the schema to unauthenticated users.
+You may use the `ISchemaFilter` to restrict what information is returned from introspection
+requests, but it will apply to both authenticated and unauthenticated users alike.
+
+Introspection requests are allowed unless the schema has an authorization requirement set on it.
+The `@skip` and `@include` directives are honored, skipping authorization checks for fields
+skipped by `@skip` or `@include`.
+
+Please note that if you use interfaces, validation might be executed against the graph field
+or the interface field, depending on the structure of the query.  For instance:
+
+```gql
+{
+  cat {
+    # validates against Cat.Name
+    name
+
+    # validates against Animal.Name
+    ... on Animal {
+      name
+    }
+  }
+}
+```
+
+Similarly for unions, validation occurs on the exact type that is queried.  Be sure to carefully
+consider placement of authorization rules when using interfaces and unions, especially when some
+fields are marked with `AllowAnonymous`.
+
 ### UI configuration
 
 This project does not include user interfaces, such as GraphiQL or Playground,
@@ -191,7 +269,7 @@ repository which work well.  Below is a list of the nuget packages offered:
 
 Here is a sample of how this would be configured in your `Program.cs` file:
 
-```cs
+```csharp
 app.UseGraphQL("/graphql");
 
 // add this:
@@ -415,9 +493,10 @@ typical ASP.Net Core scenarios.
 
 | Sample project          | Description |
 |-------------------------|-------------|
+| `AuthorizationSample`   | Demonstrates a GraphQL server added to an ASP.NET Core web authentication-enabled template. |
 | `BasicSample`           | Demonstrates the minimum required setup for a HTTP GraphQL server. |
 | `Chat`                  | A basic schema common to all samples; demonstrates queries, mutations and subscriptions. |
 | `ControllerSample`      | Demonstrates using a controller action to serve GraphQL requests; does not support subscriptions. |
 | `EndpointRoutingSample` | Demonstrates configuring GraphQL endpoints through endpoint routing. |
 | `MultipleSchema`        | Demonstrates multiple GraphQL endpoints served through a single project. |
-| `PagesSample`           | Demonstrates configuring GraphQL within a ASP.Net Core Pages project. |
+| `PagesSample`           | Demonstrates configuring GraphQL within a ASP.NET Core Pages project. |

@@ -20,7 +20,7 @@
     <ImplicitUsings>true</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
-    <GraphQLVersion>5.1.0</GraphQLVersion>
+    <GraphQLVersion>5.1.1</GraphQLVersion>
     <NoWarn>$(NoWarn)</NoWarn>
   </PropertyGroup>
 

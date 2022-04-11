@@ -1,35 +1,45 @@
-namespace GraphQL.AspNetCore3.Errors
-{
-    public class BatchedRequestsNotSupportedError : GraphQL.AspNetCore3.Errors.RequestError
-    {
-        public BatchedRequestsNotSupportedError() { }
-    }
-    public class InvalidContentTypeError : GraphQL.AspNetCore3.Errors.RequestError
-    {
-        public InvalidContentTypeError() { }
-        public InvalidContentTypeError(string message) { }
-    }
-    public class JsonInvalidError : GraphQL.AspNetCore3.Errors.RequestError
-    {
-        public JsonInvalidError() { }
-        public JsonInvalidError(System.Exception innerException) { }
-    }
-    public class QueryMissingError : GraphQL.AspNetCore3.Errors.RequestError
-    {
-        public QueryMissingError() { }
-    }
-    public class RequestError : GraphQL.ExecutionError
-    {
-        public RequestError(string message) { }
-        public RequestError(string message, System.Exception? innerException) { }
-    }
-    public class WebSocketSubProtocolNotSupportedError : GraphQL.AspNetCore3.Errors.RequestError
-    {
-        public WebSocketSubProtocolNotSupportedError(System.Collections.Generic.IEnumerable<string> requestedSubProtocols) { }
-    }
-}
 namespace GraphQL.AspNetCore3
 {
+    public class AuthorizationValidationRule : GraphQL.Validation.IValidationRule
+    {
+        public AuthorizationValidationRule(Microsoft.AspNetCore.Http.IHttpContextAccessor httpContextAccessor) { }
+        public System.Threading.Tasks.ValueTask<GraphQL.Validation.INodeVisitor?> ValidateAsync(GraphQL.Validation.ValidationContext context) { }
+        public class AuthorizationVisitor : GraphQL.Validation.INodeVisitor
+        {
+            public AuthorizationVisitor(GraphQL.Validation.ValidationContext context, System.Security.Claims.ClaimsPrincipal claimsPrincipal, Microsoft.AspNetCore.Authorization.IAuthorizationService authorizationService) { }
+            public Microsoft.AspNetCore.Authorization.IAuthorizationService AuthorizationService { get; }
+            public System.Security.Claims.ClaimsPrincipal ClaimsPrincipal { get; }
+            protected virtual bool Authorize() { }
+            protected virtual Microsoft.AspNetCore.Authorization.AuthorizationResult AuthorizePolicy(string policy) { }
+            protected virtual System.Threading.Tasks.Task<Microsoft.AspNetCore.Authorization.AuthorizationResult> AuthorizePolicyAsync(string policy) { }
+            protected virtual bool AuthorizeRole(string role) { }
+            public virtual void Enter(GraphQLParser.AST.ASTNode node, GraphQL.Validation.ValidationContext context) { }
+            protected virtual string GenerateResourceDescription(GraphQL.AspNetCore3.AuthorizationValidationRule.AuthorizationVisitor.ValidationInfo info) { }
+            protected virtual void HandleNodeNotAuthorized(GraphQL.AspNetCore3.AuthorizationValidationRule.AuthorizationVisitor.ValidationInfo info) { }
+            protected virtual void HandleNodeNotInPolicy(GraphQL.AspNetCore3.AuthorizationValidationRule.AuthorizationVisitor.ValidationInfo info, string policy, Microsoft.AspNetCore.Authorization.AuthorizationResult authorizationResult) { }
+            protected virtual void HandleNodeNotInRoles(GraphQL.AspNetCore3.AuthorizationValidationRule.AuthorizationVisitor.ValidationInfo info, System.Collections.Generic.List<string> roles) { }
+            public virtual void Leave(GraphQLParser.AST.ASTNode node, GraphQL.Validation.ValidationContext context) { }
+            protected virtual bool SkipField(GraphQLParser.AST.GraphQLField node, GraphQL.Validation.ValidationContext context) { }
+            protected virtual bool Validate(GraphQL.AspNetCore3.AuthorizationValidationRule.AuthorizationVisitor.ValidationInfo info) { }
+            public virtual bool ValidateSchema(GraphQL.Validation.ValidationContext context) { }
+            public struct ValidationInfo : System.IEquatable<GraphQL.AspNetCore3.AuthorizationValidationRule.AuthorizationVisitor.ValidationInfo>
+            {
+                public ValidationInfo(GraphQL.Types.IProvideMetadata Obj, GraphQLParser.AST.ASTNode? Node, GraphQL.Types.IFieldType? ParentFieldType, GraphQL.Types.IGraphType? ParentGraphType, GraphQL.Validation.ValidationContext Context) { }
+                public GraphQL.Validation.ValidationContext Context { get; set; }
+                public GraphQLParser.AST.ASTNode? Node { get; set; }
+                public GraphQL.Types.IProvideMetadata Obj { get; set; }
+                public GraphQL.Types.IFieldType? ParentFieldType { get; set; }
+                public GraphQL.Types.IGraphType? ParentGraphType { get; set; }
+                public void Deconstruct(out GraphQL.Types.IProvideMetadata Obj, out GraphQLParser.AST.ASTNode? Node, out GraphQL.Types.IFieldType? ParentFieldType, out GraphQL.Types.IGraphType? ParentGraphType, out GraphQL.Validation.ValidationContext Context) { }
+                public bool Equals(GraphQL.AspNetCore3.AuthorizationValidationRule.AuthorizationVisitor.ValidationInfo other) { }
+                public override bool Equals(object obj) { }
+                public override int GetHashCode() { }
+                public override string ToString() { }
+                public static bool operator !=(GraphQL.AspNetCore3.AuthorizationValidationRule.AuthorizationVisitor.ValidationInfo left, GraphQL.AspNetCore3.AuthorizationValidationRule.AuthorizationVisitor.ValidationInfo right) { }
+                public static bool operator ==(GraphQL.AspNetCore3.AuthorizationValidationRule.AuthorizationVisitor.ValidationInfo left, GraphQL.AspNetCore3.AuthorizationValidationRule.AuthorizationVisitor.ValidationInfo right) { }
+            }
+        }
+    }
     public class ExecutionResultActionResult : Microsoft.AspNetCore.Mvc.IActionResult
     {
         public ExecutionResultActionResult(GraphQL.ExecutionResult executionResult, System.Net.HttpStatusCode statusCode = 200) { }
@@ -37,6 +47,7 @@ namespace GraphQL.AspNetCore3
     }
     public static class GraphQLBuilderExtensions
     {
+        public static GraphQL.DI.IGraphQLBuilder AddAuthorization(this GraphQL.DI.IGraphQLBuilder builder) { }
         public static GraphQL.DI.IGraphQLBuilder AddUserContextBuilder<TUserContextBuilder>(this GraphQL.DI.IGraphQLBuilder builder, GraphQL.DI.ServiceLifetime serviceLifetime = 0)
             where TUserContextBuilder :  class, GraphQL.AspNetCore3.IUserContextBuilder { }
         public static GraphQL.DI.IGraphQLBuilder AddUserContextBuilder<TUserContext>(this GraphQL.DI.IGraphQLBuilder builder, System.Func<Microsoft.AspNetCore.Http.HttpContext, System.Threading.Tasks.Task<TUserContext>> creator)
@@ -147,6 +158,43 @@ namespace GraphQL.AspNetCore3
         public UserContextBuilder(System.Func<Microsoft.AspNetCore.Http.HttpContext, System.Threading.Tasks.ValueTask<TUserContext>> func) { }
         public UserContextBuilder(System.Func<Microsoft.AspNetCore.Http.HttpContext, TUserContext> func) { }
         public System.Threading.Tasks.ValueTask<System.Collections.Generic.IDictionary<string, object?>> BuildUserContextAsync(Microsoft.AspNetCore.Http.HttpContext context) { }
+    }
+}
+namespace GraphQL.AspNetCore3.Errors
+{
+    public class AccessDeniedError : GraphQL.Validation.ValidationError
+    {
+        public AccessDeniedError(GraphQLParser.ROM originalQuery, string resource, params GraphQLParser.AST.ASTNode[] nodes) { }
+        public Microsoft.AspNetCore.Authorization.AuthorizationResult? PolicyAuthorizationResult { get; set; }
+        public string? PolicyRequired { get; set; }
+        public System.Collections.Generic.List<string>? RolesRequired { get; set; }
+    }
+    public class BatchedRequestsNotSupportedError : GraphQL.AspNetCore3.Errors.RequestError
+    {
+        public BatchedRequestsNotSupportedError() { }
+    }
+    public class InvalidContentTypeError : GraphQL.AspNetCore3.Errors.RequestError
+    {
+        public InvalidContentTypeError() { }
+        public InvalidContentTypeError(string message) { }
+    }
+    public class JsonInvalidError : GraphQL.AspNetCore3.Errors.RequestError
+    {
+        public JsonInvalidError() { }
+        public JsonInvalidError(System.Exception innerException) { }
+    }
+    public class QueryMissingError : GraphQL.AspNetCore3.Errors.RequestError
+    {
+        public QueryMissingError() { }
+    }
+    public class RequestError : GraphQL.ExecutionError
+    {
+        public RequestError(string message) { }
+        public RequestError(string message, System.Exception? innerException) { }
+    }
+    public class WebSocketSubProtocolNotSupportedError : GraphQL.AspNetCore3.Errors.RequestError
+    {
+        public WebSocketSubProtocolNotSupportedError(System.Collections.Generic.IEnumerable<string> requestedSubProtocols) { }
     }
 }
 namespace GraphQL.AspNetCore3.WebSockets
