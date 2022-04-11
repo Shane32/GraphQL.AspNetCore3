@@ -1,44 +1,45 @@
+using System.ComponentModel;
 using GraphQL;
-using GraphQL.Types;
 
 namespace AuthorizationSample.Schema;
 
 public class Query
 {
+    [Description("Does not require authentication.")]
     public static string Hello => "Hello anybody.";
 
+    [Authorize]
+    [Description("Requires authentication, but no role membership or specific policy is enforced.")]
+    public static string HelloRegisteredUser => "Hello, Registered User!";
+
     [Authorize(Roles = "User")]
+    [Description("Requires membership to the 'User' role.")]
     public static string HelloUser => "Hello, User!";
 
-    public static string HelloPerson([MyAuthorize(Roles = "User")] string? name) => name ?? "Unknown";
+    [Description("This field does not require authorization, but the argument 'name' does.")]
+    public static string HelloPerson([Authorize] string? name) => name ?? "Unknown";
 
+    [Description("This field does not require authorization, but the type it return does")]
     public static Person GetPerson => new Person { Name = "User" };
 
     [Authorize("MyPolicy")]
+    [Description("This field requires the 'MyPolicy' policy (which requires the User role) to pass authorization.")]
     public static string HelloByPolicy => "Policy Passed!";
 }
 
-[Authorize(Roles = "User")]
+[Authorize]
 public class Person
 {
     public string Name { get; set; } = null!;
 }
 
-// due to an oversight in GraphQL 5.1.0, GraphQLAttribute does not work on query arguments.
-// this class is a temporary replacement for [GraphQLAttribute(Roles = "User")]
-public class MyAuthorizeAttribute : GraphQLAttribute
-{
-    public string? Roles { get; set; }
-    public override void Modify(QueryArgument queryArgument)
-    {
-        if (Roles != null)
-            queryArgument.AuthorizeWithRoles(Roles);
-    }
-}
-
-[Authorize("MyPolicy")]
+[Authorize("MyPolicy")] // this policy requires the User role
 public class Mutation
 {
-    [Authorize(Roles = "User")]
+    [Description("No requirement is defined on this field, but the Mutation type requires the 'MyPolicy' policy (which requires the User role) to pass authorization.")]
     public static string Hello => "Hello authenticated user.";
+
+    [AllowAnonymous]
+    [Description("Although the mutation type requires authentication, this field does not, so as long as only this field is selected, authorization will pass.")]
+    public static string Unprotected => "Hello anybody.";
 }
