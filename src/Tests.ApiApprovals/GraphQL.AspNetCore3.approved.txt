@@ -126,6 +126,7 @@ namespace GraphQL.AspNetCore3
         public bool ReadQueryStringOnPost { get; set; }
         public bool ReadVariablesFromQueryString { get; set; }
         public bool ValidationErrorsReturnBadRequest { get; set; }
+        public bool WebSocketsRequireAuthorization { get; set; }
     }
     public class GraphQLHttpMiddleware<TSchema> : GraphQL.AspNetCore3.GraphQLHttpMiddleware
         where TSchema : GraphQL.Types.ISchema
