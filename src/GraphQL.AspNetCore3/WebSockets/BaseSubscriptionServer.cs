@@ -195,8 +195,14 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
 
     /// <summary>
     /// Executes when the client is attempting to initalize the connection.
-    /// By default this acknowledges the connection via <see cref="OnConnectionAcknowledgeAsync(OperationMessage)"/>
-    /// and then starts sending keep-alive messages via <see cref="OnSendKeepAliveAsync"/> if configured to do so.
+    /// <br/><br/>
+    /// By default, this first checks <see cref="AuthorizeAsync(OperationMessage)"/> to validate that the
+    /// request has passed authentication.  If validation fails, the connection is closed with an Access
+    /// Denied message.
+    /// <br/><br/>
+    /// Otherwise, the connection is acknowledged via <see cref="OnConnectionAcknowledgeAsync(OperationMessage)"/>,
+    /// <see cref="TryInitialize"/> is called to indicate that this WebSocket connection is ready to accept requests, 
+    /// and keep-alive messages are sent via <see cref="OnSendKeepAliveAsync"/> if configured to do so.
     /// Keep-alive messages are only sent if no messages have been sent over the WebSockets connection for the
     /// length of time configured in <see cref="WebSocketHandlerOptions.KeepAliveTimeout"/>.
     /// </summary>

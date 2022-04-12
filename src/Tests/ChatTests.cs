@@ -292,4 +292,42 @@ public class ChatTests : IDisposable
         // wait for websocket closure
         (await webSocket.ReceiveCloseAsync()).ShouldBe(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure);
     }
+
+    [Theory]
+    [InlineData("graphql-ws")]
+    [InlineData("graphql-transport-ws")]
+    public async Task Subscription_AuthorizationFailed(string subProtocol)
+    {
+        var builder = ConfigureBuilder();
+        var mockAuthorizationService = new Mock<IWebSocketAuthorizationService>(MockBehavior.Strict);
+        mockAuthorizationService.Setup(x => x.AuthorizeAsync(It.IsAny<IWebSocketConnection>(), It.IsAny<OperationMessage>())).Returns(new ValueTask<bool>(false)).Verifiable();
+        builder.ConfigureServices(s => s.AddSingleton(mockAuthorizationService.Object));
+        using var app = new TestServer(builder);
+
+        // create websocket connection
+        var webSocketClient = app.CreateWebSocketClient();
+        webSocketClient.ConfigureRequest = request => {
+            request.Headers["Sec-WebSocket-Protocol"] = subProtocol;
+        };
+        webSocketClient.SubProtocols.Add(subProtocol);
+        using var webSocket = await webSocketClient.ConnectAsync(new Uri(_app.BaseAddress, "/graphql"), default);
+
+        // send CONNECTION_INIT
+        await webSocket.SendMessageAsync(new OperationMessage {
+            Type = "connection_init"
+        });
+
+        if (subProtocol == "graphql-ws") {
+            // wait for CONNECTION_ERROR
+            var message = await webSocket.ReceiveMessageAsync();
+            message.Type.ShouldBe("connection_error");
+            message.Payload.ShouldBeOfType<string>().ShouldBe("\"Access denied\""); // for the purposes of testing, this contains the raw JSON received for this JSON element.
+        }
+
+        // wait for websocket closure
+        (await webSocket.ReceiveCloseAsync()).ShouldBe((System.Net.WebSockets.WebSocketCloseStatus)4401);
+
+        mockAuthorizationService.Verify();
+    }
+
 }

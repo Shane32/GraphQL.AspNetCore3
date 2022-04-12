@@ -32,9 +32,10 @@ public class GraphQLHttpMiddleware<TSchema> : GraphQLHttpMiddleware
         IDocumentExecuter<TSchema> documentExecuter,
         IServiceScopeFactory serviceScopeFactory,
         GraphQLHttpMiddlewareOptions options,
+        IServiceProvider provider,
         IHostApplicationLifetime hostApplicationLifetime,
         IEnumerable<IWebSocketHandler<TSchema>>? webSocketHandlers)
-        : base(next, serializer, options, GetWebSocketHandlers(serializer, documentExecuter, serviceScopeFactory, hostApplicationLifetime, webSocketHandlers))
+        : base(next, serializer, options, GetWebSocketHandlers(serializer, documentExecuter, serviceScopeFactory, provider, hostApplicationLifetime, webSocketHandlers))
     {
         _documentExecuter = documentExecuter ?? throw new ArgumentNullException(nameof(documentExecuter));
         _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
@@ -50,13 +51,15 @@ public class GraphQLHttpMiddleware<TSchema> : GraphQLHttpMiddleware
         IGraphQLSerializer serializer,
         IDocumentExecuter<TSchema> documentExecuter,
         IServiceScopeFactory serviceScopeFactory,
+        IServiceProvider provider,
         IHostApplicationLifetime hostApplicationLifetime,
         IEnumerable<IWebSocketHandler<TSchema>>? webSocketHandlers)
     {
         if (webSocketHandlers == null || !webSocketHandlers.Any()) {
             return new IWebSocketHandler[] {
                 new WebSocketHandler(serializer, documentExecuter, serviceScopeFactory, new WebSocketHandlerOptions(),
-                    hostApplicationLifetime ?? throw new ArgumentNullException(nameof(hostApplicationLifetime))),
+                    hostApplicationLifetime ?? throw new ArgumentNullException(nameof(hostApplicationLifetime)),
+                    (provider ?? throw new ArgumentNullException(nameof(provider))).GetService<IWebSocketAuthorizationService>()),
             };
         }
         return webSocketHandlers;

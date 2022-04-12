@@ -157,4 +157,14 @@ public class SubscriptionServer : BaseSubscriptionServer
             CancellationToken = CancellationToken,
         });
     }
+
+    /// <inheritdoc/>
+    protected override async Task ErrorAccessDeniedAsync()
+    {
+        await Client.SendMessageAsync(new OperationMessage {
+            Type = MessageType.GQL_CONNECTION_ERROR,
+            Payload = "Access denied",
+        });
+        await base.ErrorAccessDeniedAsync();
+    }
 }
