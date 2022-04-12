@@ -14,10 +14,11 @@ public class WebSocketConnectionTests : IDisposable
     private readonly Mock<TestWebSocketConnection> _mockConnection;
     private TestWebSocketConnection _connection => _mockConnection.Object;
     private readonly Queue<(byte[], ValueWebSocketReceiveResult)> _webSocketResponses = new();
+    private readonly Mock<HttpContext> _mockHttpContext = new Mock<HttpContext>(MockBehavior.Strict);
 
     public WebSocketConnectionTests()
     {
-        _mockConnection = new Mock<TestWebSocketConnection>(_webSocket, _serializer, _options, _token);
+        _mockConnection = new Mock<TestWebSocketConnection>(_mockHttpContext.Object, _webSocket, _serializer, _options, _token);
     }
 
     public void Dispose()
@@ -49,9 +50,11 @@ public class WebSocketConnectionTests : IDisposable
     [Fact]
     public void Constructor()
     {
-        Should.Throw<ArgumentNullException>(() => new WebSocketConnection(null!, _serializer, _options, default));
-        Should.Throw<ArgumentNullException>(() => new WebSocketConnection(_webSocket, null!, _options, default));
-        Should.Throw<ArgumentNullException>(() => new WebSocketConnection(_webSocket, _serializer, null!, default));
+        var context = Mock.Of<HttpContext>(MockBehavior.Strict);
+        Should.Throw<ArgumentNullException>(() => new WebSocketConnection(null!, _webSocket, _serializer, _options, default));
+        Should.Throw<ArgumentNullException>(() => new WebSocketConnection(context, null!, _serializer, _options, default));
+        Should.Throw<ArgumentNullException>(() => new WebSocketConnection(context, _webSocket, null!, _options, default));
+        Should.Throw<ArgumentNullException>(() => new WebSocketConnection(context, _webSocket, _serializer, null!, default));
     }
 
     [Theory]
@@ -61,7 +64,7 @@ public class WebSocketConnectionTests : IDisposable
     public void Constructor_InvalidTimeout(double ms)
     {
         _options.DisconnectionTimeout = TimeSpan.FromMilliseconds(ms);
-        Should.Throw<ArgumentOutOfRangeException>(() => new WebSocketConnection(_webSocket, _serializer, _options, default));
+        Should.Throw<ArgumentOutOfRangeException>(() => new WebSocketConnection(Mock.Of<HttpContext>(MockBehavior.Strict), _webSocket, _serializer, _options, default));
     }
 
     [Theory]
@@ -71,7 +74,7 @@ public class WebSocketConnectionTests : IDisposable
     public void Constructor_ValidTimeout(double ms)
     {
         _options.DisconnectionTimeout = TimeSpan.FromMilliseconds(ms);
-        _ = new WebSocketConnection(_webSocket, _serializer, _options, default);
+        _ = new WebSocketConnection(Mock.Of<HttpContext>(MockBehavior.Strict), _webSocket, _serializer, _options, default);
     }
 
     [Fact]

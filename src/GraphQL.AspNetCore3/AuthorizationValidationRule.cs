@@ -400,7 +400,7 @@ public class AuthorizationValidationRule : IValidationRule
         protected virtual void HandleNodeNotAuthorized(ValidationInfo info)
         {
             var resource = GenerateResourceDescription(info);
-            var err = info.Node == null ? new AccessDeniedError(info.Context.Document.Source, resource) : new AccessDeniedError(info.Context.Document.Source, resource, info.Node);
+            var err = info.Node == null ? new AccessDeniedError(resource) : new AccessDeniedError(resource, info.Context.Document.Source, info.Node);
             info.Context.ReportError(err);
         }
 
@@ -413,7 +413,7 @@ public class AuthorizationValidationRule : IValidationRule
         protected virtual void HandleNodeNotInRoles(ValidationInfo info, List<string> roles)
         {
             var resource = GenerateResourceDescription(info);
-            var err = info.Node == null ? new AccessDeniedError(info.Context.Document.Source, resource) : new AccessDeniedError(info.Context.Document.Source, resource, info.Node);
+            var err = info.Node == null ? new AccessDeniedError(resource) : new AccessDeniedError(resource, info.Context.Document.Source, info.Node);
             err.RolesRequired = roles;
             info.Context.ReportError(err);
         }
@@ -428,7 +428,7 @@ public class AuthorizationValidationRule : IValidationRule
         protected virtual void HandleNodeNotInPolicy(ValidationInfo info, string policy, AuthorizationResult authorizationResult)
         {
             var resource = GenerateResourceDescription(info);
-            var err = info.Node == null ? new AccessDeniedError(info.Context.Document.Source, resource) : new AccessDeniedError(info.Context.Document.Source, resource, info.Node);
+            var err = info.Node == null ? new AccessDeniedError(resource) : new AccessDeniedError(resource, info.Context.Document.Source, info.Node);
             err.PolicyRequired = policy;
             err.PolicyAuthorizationResult = authorizationResult;
             info.Context.ReportError(err);

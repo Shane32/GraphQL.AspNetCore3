@@ -93,4 +93,12 @@ public class GraphQLHttpMiddlewareOptions
     /// request or accepting the WebSocket connection.
     /// </summary>
     public string? AuthorizedPolicy { get; set; }
+
+    /// <summary>
+    /// Requires that WebSocket connections also require authorization, based on the
+    /// <see cref="AuthorizationRequired"/>, <see cref="AuthorizedRoles"/> and
+    /// <see cref="AuthorizedPolicy"/> properties.  Disable to authorize handle
+    /// WebSocket authentication via <see cref="IWebSocketAuthorizationService"/>.
+    /// </summary>
+    public bool WebSocketsRequireAuthorization { get; set; } = true;
 }

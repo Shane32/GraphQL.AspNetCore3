@@ -5,11 +5,12 @@ namespace Tests.WebSockets;
 public class TestWebSocketConnection : WebSocketConnection
 {
     public TestWebSocketConnection(
+        HttpContext httpContext,
         WebSocket webSocket,
         IGraphQLSerializer serializer,
         WebSocketHandlerOptions options,
         CancellationToken cancellationToken)
-        : base(webSocket, serializer, options, cancellationToken)
+        : base(httpContext, webSocket, serializer, options, cancellationToken)
     {
     }
 

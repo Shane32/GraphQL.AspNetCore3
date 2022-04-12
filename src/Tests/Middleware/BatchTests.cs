@@ -122,7 +122,7 @@ public class BatchTests : IDisposable
         _options.ValidationErrorsReturnBadRequest = badRequest;
         using var response = await PostJsonAsync("[{}]");
         // validation errors do not return 400 within a batch request
-        await response.ShouldBeAsync(false, @"[{""errors"":[{""message"":""GraphQL query is missing.""}]}]");
+        await response.ShouldBeAsync(false, @"[{""errors"":[{""message"":""GraphQL query is missing."",""extensions"":{""code"":""QUERY_MISSING"",""codes"":[""QUERY_MISSING""]}}]}]");
     }
 
     [Theory]
@@ -133,7 +133,7 @@ public class BatchTests : IDisposable
         _options.ValidationErrorsReturnBadRequest = badRequest;
         using var response = await PostJsonAsync("[{},{}]");
         // validation errors do not return 400 within a batch request
-        await response.ShouldBeAsync(false, @"[{""errors"":[{""message"":""GraphQL query is missing.""}]},{""errors"":[{""message"":""GraphQL query is missing.""}]}]");
+        await response.ShouldBeAsync(false, @"[{""errors"":[{""message"":""GraphQL query is missing."",""extensions"":{""code"":""QUERY_MISSING"",""codes"":[""QUERY_MISSING""]}}]},{""errors"":[{""message"":""GraphQL query is missing."",""extensions"":{""code"":""QUERY_MISSING"",""codes"":[""QUERY_MISSING""]}}]}]");
     }
 
     [Theory]
@@ -144,7 +144,7 @@ public class BatchTests : IDisposable
         _options.ValidationErrorsReturnBadRequest = badRequest;
         using var response = await PostJsonAsync("[null]");
         // validation errors do not return 400 within a batch request
-        await response.ShouldBeAsync(false, @"[{""errors"":[{""message"":""GraphQL query is missing.""}]}]");
+        await response.ShouldBeAsync(false, @"[{""errors"":[{""message"":""GraphQL query is missing."",""extensions"":{""code"":""QUERY_MISSING"",""codes"":[""QUERY_MISSING""]}}]}]");
     }
 
     [Theory]
@@ -155,7 +155,7 @@ public class BatchTests : IDisposable
         _options.ValidationErrorsReturnBadRequest = badRequest;
         using var response = await PostJsonAsync("[null,null]");
         // validation errors do not return 400 within a batch request
-        await response.ShouldBeAsync(false, @"[{""errors"":[{""message"":""GraphQL query is missing.""}]},{""errors"":[{""message"":""GraphQL query is missing.""}]}]");
+        await response.ShouldBeAsync(false, @"[{""errors"":[{""message"":""GraphQL query is missing."",""extensions"":{""code"":""QUERY_MISSING"",""codes"":[""QUERY_MISSING""]}}]},{""errors"":[{""message"":""GraphQL query is missing."",""extensions"":{""code"":""QUERY_MISSING"",""codes"":[""QUERY_MISSING""]}}]}]");
     }
 
     [Fact]

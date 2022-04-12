@@ -4,14 +4,26 @@ namespace GraphQL.AspNetCore3.WebSockets;
 public class WebSocketHandler<TSchema> : WebSocketHandler, IWebSocketHandler<TSchema>
     where TSchema : ISchema
 {
-    /// <inheritdoc cref="WebSocketHandler(IGraphQLSerializer, IDocumentExecuter, IServiceScopeFactory, WebSocketHandlerOptions, IHostApplicationLifetime)"/>
+    /// <inheritdoc cref="WebSocketHandler(IGraphQLSerializer, IDocumentExecuter, IServiceScopeFactory, WebSocketHandlerOptions, IHostApplicationLifetime, IWebSocketAuthorizationService)"/>
+    public WebSocketHandler(
+        IGraphQLSerializer serializer,
+        IDocumentExecuter<TSchema> executer,
+        IServiceScopeFactory serviceScopeFactory,
+        WebSocketHandlerOptions options,
+        IHostApplicationLifetime hostApplicationLifetime,
+        IWebSocketAuthorizationService? authorizationService)
+        : base(serializer, executer, serviceScopeFactory, options, hostApplicationLifetime, authorizationService)
+    {
+    }
+
+    /// <inheritdoc cref="WebSocketHandler(IGraphQLSerializer, IDocumentExecuter, IServiceScopeFactory, WebSocketHandlerOptions, IHostApplicationLifetime, IWebSocketAuthorizationService)"/>
     public WebSocketHandler(
         IGraphQLSerializer serializer,
         IDocumentExecuter<TSchema> executer,
         IServiceScopeFactory serviceScopeFactory,
         WebSocketHandlerOptions options,
         IHostApplicationLifetime hostApplicationLifetime)
-        : base(serializer, executer, serviceScopeFactory, options, hostApplicationLifetime)
+        : base(serializer, executer, serviceScopeFactory, options, hostApplicationLifetime, null)
     {
     }
 }
@@ -23,6 +35,7 @@ public class WebSocketHandler : IWebSocketHandler
     private readonly IDocumentExecuter _executer;
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly IHostApplicationLifetime _hostApplicationLifetime;
+    private readonly IWebSocketAuthorizationService? _authorizationService;
 
     /// <summary>
     /// Gets the configuration options for this instance.
@@ -33,6 +46,7 @@ public class WebSocketHandler : IWebSocketHandler
         GraphQLWs.SubscriptionServer.SubProtocol,
         SubscriptionsTransportWs.SubscriptionServer.SubProtocol,
     }).AsReadOnly();
+
     /// <inheritdoc/>
     public virtual IEnumerable<string> SupportedSubProtocols => _supportedSubProtocols;
 
@@ -44,18 +58,21 @@ public class WebSocketHandler : IWebSocketHandler
     /// <param name="serviceScopeFactory">The service scope factory used to create a dependency injection service scope for each request.</param>
     /// <param name="webSocketHandlerOptions">Configuration options for the WebSocket connections.</param>
     /// <param name="hostApplicationLifetime">The <see cref="IHostApplicationLifetime"/> instance that signals when the application is shutting down.</param>
+    /// <param name="authorizationService">An optional service to authorize connections.</param>
     public WebSocketHandler(
         IGraphQLSerializer serializer,
         IDocumentExecuter executer,
         IServiceScopeFactory serviceScopeFactory,
         WebSocketHandlerOptions webSocketHandlerOptions,
-        IHostApplicationLifetime hostApplicationLifetime)
+        IHostApplicationLifetime hostApplicationLifetime,
+        IWebSocketAuthorizationService? authorizationService = null)
     {
         _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
         _executer = executer ?? throw new ArgumentNullException(nameof(executer));
         _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
         Options = webSocketHandlerOptions ?? throw new ArgumentNullException(nameof(webSocketHandlerOptions));
         _hostApplicationLifetime = hostApplicationLifetime ?? throw new ArgumentNullException(nameof(hostApplicationLifetime));
+        _authorizationService = authorizationService;
     }
 
     /// <inheritdoc/>
@@ -74,7 +91,7 @@ public class WebSocketHandler : IWebSocketHandler
         if (cts.Token.IsCancellationRequested)
             return;
         try {
-            var webSocketConnection = CreateWebSocketConnection(webSocket, cts.Token);
+            var webSocketConnection = CreateWebSocketConnection(httpContext, webSocket, cts.Token);
             using var operationMessageReceiveStream = CreateReceiveStream(webSocketConnection, subProtocol, userContext);
             await webSocketConnection.ExecuteAsync(operationMessageReceiveStream);
         } catch (OperationCanceledException) when (appStoppingToken.IsCancellationRequested) {
@@ -85,8 +102,8 @@ public class WebSocketHandler : IWebSocketHandler
     /// <summary>
     /// Creates an <see cref="IWebSocketConnection"/>, a WebSocket message pump.
     /// </summary>
-    protected virtual IWebSocketConnection CreateWebSocketConnection(WebSocket webSocket, CancellationToken cancellationToken)
-        => new WebSocketConnection(webSocket, _serializer, Options, cancellationToken);
+    protected virtual IWebSocketConnection CreateWebSocketConnection(HttpContext httpContext, WebSocket webSocket, CancellationToken cancellationToken)
+        => new WebSocketConnection(httpContext, webSocket, _serializer, Options, cancellationToken);
 
     /// <summary>
     /// Builds an <see cref="IOperationMessageProcessor"/> for the specified sub-protocol.
@@ -101,7 +118,8 @@ public class WebSocketHandler : IWebSocketHandler
                     _executer,
                     _serializer,
                     _serviceScopeFactory,
-                    userContext);
+                    userContext,
+                    _authorizationService);
                 return server;
             }
             case SubscriptionsTransportWs.SubscriptionServer.SubProtocol: {
@@ -111,7 +129,8 @@ public class WebSocketHandler : IWebSocketHandler
                     _executer,
                     _serializer,
                     _serviceScopeFactory,
-                    userContext);
+                    userContext,
+                    _authorizationService);
                 return server;
             }
         }

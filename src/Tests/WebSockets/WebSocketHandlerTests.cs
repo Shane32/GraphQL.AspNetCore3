@@ -91,7 +91,7 @@ public class WebSocketHandlerTests : IDisposable
         _mockHttpContext.Setup(x => x.RequestAborted).Returns(default(CancellationToken)).Verifiable();
         var mockWebSocketConnection = new Mock<IWebSocketConnection>(MockBehavior.Strict);
         var webSocketConnection = mockWebSocketConnection.Object;
-        _mockHandler.Protected().Setup<IWebSocketConnection>("CreateWebSocketConnection", _webSocket, ItExpr.IsAny<CancellationToken>())
+        _mockHandler.Protected().Setup<IWebSocketConnection>("CreateWebSocketConnection", _httpContext, _webSocket, ItExpr.IsAny<CancellationToken>())
             .Returns(webSocketConnection).Verifiable();
         var mockSubServer = new Mock<IOperationMessageProcessor>(MockBehavior.Strict);
         var subServer = mockSubServer.Object;
@@ -115,8 +115,8 @@ public class WebSocketHandlerTests : IDisposable
         var mockWebSocketConnection = new Mock<IWebSocketConnection>(MockBehavior.Strict);
         var webSocketConnection = mockWebSocketConnection.Object;
         CancellationToken token2 = default;
-        _mockHandler.Protected().Setup<IWebSocketConnection>("CreateWebSocketConnection", _webSocket, ItExpr.IsAny<CancellationToken>())
-            .Returns<WebSocket, CancellationToken>((_, token3) => {
+        _mockHandler.Protected().Setup<IWebSocketConnection>("CreateWebSocketConnection", _httpContext, _webSocket, ItExpr.IsAny<CancellationToken>())
+            .Returns<HttpContext, WebSocket, CancellationToken>((_, _, token3) => {
                 token2 = token3;
                 return webSocketConnection;
             }).Verifiable();
@@ -146,8 +146,8 @@ public class WebSocketHandlerTests : IDisposable
         var mockWebSocketConnection = new Mock<IWebSocketConnection>(MockBehavior.Strict);
         var webSocketConnection = mockWebSocketConnection.Object;
         CancellationToken token2 = default;
-        _mockHandler.Protected().Setup<IWebSocketConnection>("CreateWebSocketConnection", _webSocket, ItExpr.IsAny<CancellationToken>())
-            .Returns<WebSocket, CancellationToken>((_, token3) => {
+        _mockHandler.Protected().Setup<IWebSocketConnection>("CreateWebSocketConnection", _httpContext, _webSocket, ItExpr.IsAny<CancellationToken>())
+            .Returns<HttpContext, WebSocket, CancellationToken>((_, _, token3) => {
                 token2 = token3;
                 return webSocketConnection;
             }).Verifiable();
@@ -169,7 +169,7 @@ public class WebSocketHandlerTests : IDisposable
     [Fact]
     public void CreateWebSocketConnection()
     {
-        var connection = _handler.Do_CreateWebSocketConnection(_webSocket, default);
+        var connection = _handler.Do_CreateWebSocketConnection(Mock.Of<HttpContext>(MockBehavior.Strict), _webSocket, default);
         connection.ShouldBeOfType<WebSocketConnection>();
     }
 
