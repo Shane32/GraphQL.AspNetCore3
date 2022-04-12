@@ -3,13 +3,19 @@ using Microsoft.AspNetCore.Authorization;
 namespace GraphQL.AspNetCore3.Errors;
 
 /// <summary>
-/// Represents an error indicating that the user is not allowed access to the specified node(s).
+/// Represents an error indicating that the user is not allowed access to the specified resource.
 /// </summary>
 public class AccessDeniedError : ValidationError
 {
     /// <inheritdoc cref="AccessDeniedError"/>
-    public AccessDeniedError(GraphQLParser.ROM originalQuery, string resource, params ASTNode[] nodes)
-    : base(originalQuery, null!, $"Access denied for {resource}.", nodes)
+    public AccessDeniedError(string resource)
+        : base($"Access denied for {resource}.")
+    {
+    }
+
+    /// <inheritdoc cref="AccessDeniedError"/>
+    public AccessDeniedError(string resource, GraphQLParser.ROM originalQuery, params ASTNode[] nodes)
+        : base(originalQuery, null!, $"Access denied for {resource}.", nodes)
     {
     }
 

@@ -37,14 +37,16 @@ public class SubscriptionServer : BaseSubscriptionServer
     /// <param name="serializer">The <see cref="IGraphQLSerializer"/> to use to deserialize payloads stored within <see cref="OperationMessage.Payload"/>.</param>
     /// <param name="serviceScopeFactory">A <see cref="IServiceScopeFactory"/> to create service scopes for execution of GraphQL requests.</param>
     /// <param name="userContext">The user context to pass to the <see cref="IDocumentExecuter"/>.</param>
+    /// <param name="authorizationService">An optional service to authorize connections.</param>
     public SubscriptionServer(
         IWebSocketConnection sendStream,
         WebSocketHandlerOptions options,
         IDocumentExecuter executer,
         IGraphQLSerializer serializer,
         IServiceScopeFactory serviceScopeFactory,
-        IDictionary<string, object?> userContext)
-        : base(sendStream, options)
+        IDictionary<string, object?> userContext,
+        IWebSocketAuthorizationService? authorizationService = null)
+        : base(sendStream, options, authorizationService)
     {
         DocumentExecuter = executer ?? throw new ArgumentNullException(nameof(executer));
         ServiceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
@@ -59,7 +61,7 @@ public class SubscriptionServer : BaseSubscriptionServer
             await OnCloseConnectionAsync();
             return;
         } else if (message.Type == MessageType.GQL_CONNECTION_INIT) {
-            if (!TryInitialize()) {
+            if (Initialized) {
                 await ErrorTooManyInitializationRequestsAsync(message);
             } else {
                 await OnConnectionInitAsync(message, false);
@@ -154,5 +156,15 @@ public class SubscriptionServer : BaseSubscriptionServer
             RequestServices = scope.ServiceProvider,
             CancellationToken = CancellationToken,
         });
+    }
+
+    /// <inheritdoc/>
+    protected override async Task ErrorAccessDeniedAsync()
+    {
+        await Client.SendMessageAsync(new OperationMessage {
+            Type = MessageType.GQL_CONNECTION_ERROR,
+            Payload = "Access denied",
+        });
+        await base.ErrorAccessDeniedAsync();
     }
 }

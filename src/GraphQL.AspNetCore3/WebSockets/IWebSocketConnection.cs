@@ -39,4 +39,9 @@ public interface IWebSocketConnection
 
     /// <inheritdoc cref="HttpContext.RequestAborted"/>
     CancellationToken RequestAborted { get; }
+
+    /// <summary>
+    /// Returns the <see cref="Microsoft.AspNetCore.Http.HttpContext"/> associated with this request.
+    /// </summary>
+    HttpContext HttpContext { get; }
 }

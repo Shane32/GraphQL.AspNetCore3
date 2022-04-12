@@ -8,6 +8,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     private volatile int _initialized;
     private CancellationTokenSource? _cancellationTokenSource;
     private readonly WebSocketHandlerOptions _options;
+    private readonly IWebSocketAuthorizationService? _authorizationService;
 
     /// <summary>
     /// Returns a <see cref="IWebSocketConnection"/> instance that can be used
@@ -41,10 +42,13 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     /// </summary>
     /// <param name="sendStream">The WebSockets stream used to send data packets or close the connection.</param>
     /// <param name="options">Configuration options for this instance</param>
+    /// <param name="authorizationService">A optional service to authorize connections</param>
     public BaseSubscriptionServer(
         IWebSocketConnection sendStream,
-        WebSocketHandlerOptions options)
+        WebSocketHandlerOptions options,
+        IWebSocketAuthorizationService? authorizationService = null)
     {
+        _authorizationService = authorizationService;
         _options = options ?? throw new ArgumentNullException(nameof(options));
         if (options.ConnectionInitWaitTimeout.HasValue) {
             if (options.ConnectionInitWaitTimeout.Value != Timeout.InfiniteTimeSpan && options.ConnectionInitWaitTimeout.Value <= TimeSpan.Zero || options.ConnectionInitWaitTimeout.Value > TimeSpan.FromMilliseconds(int.MaxValue))
@@ -126,6 +130,12 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
         => Client.CloseConnectionAsync();
 
     /// <summary>
+    /// Executes upon a request that has failed authorization.
+    /// </summary>
+    protected virtual Task ErrorAccessDeniedAsync()
+        => Client.CloseConnectionAsync(4401, "Access denied");
+
+    /// <summary>
     /// Sends a fatal error message indicating that the initialization timeout has expired
     /// without the connection being initialized.
     /// </summary>
@@ -168,15 +178,42 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
         => Client.CloseConnectionAsync(4409, $"Subscriber for {message.Id} already exists");
 
     /// <summary>
+    /// Authorizes an incoming GraphQL over WebSockets request with the
+    /// connection initialization message.  A typical implementation will
+    /// set the <see cref="HttpContext.User"/> property after reading the
+    /// authorization token.
+    /// <br/><br/>
+    /// Return <see langword="true"/> if authorization is successful, or
+    /// return <see langword="false"/> if not.  You may choose to call
+    /// <see cref="Client">Client</see>.<see cref="IWebSocketConnection.CloseConnectionAsync(int, string?)">CloseConnectionAsync()</see>
+    /// with an appropriate error number and message.
+    /// <br/><br/>
+    /// Default implementation calls <see cref="IWebSocketAuthorizationService.AuthorizeAsync(IWebSocketConnection, OperationMessage)"/>.
+    /// </summary>
+    protected virtual ValueTask<bool> AuthorizeAsync(OperationMessage message)
+        => _authorizationService?.AuthorizeAsync(Client, message) ?? new(true);
+
+    /// <summary>
     /// Executes when the client is attempting to initalize the connection.
-    /// By default this acknowledges the connection via <see cref="OnConnectionAcknowledgeAsync(OperationMessage)"/>
-    /// and then starts sending keep-alive messages via <see cref="OnSendKeepAliveAsync"/> if configured to do so.
+    /// <br/><br/>
+    /// By default, this first checks <see cref="AuthorizeAsync(OperationMessage)"/> to validate that the
+    /// request has passed authentication.  If validation fails, the connection is closed with an Access
+    /// Denied message.
+    /// <br/><br/>
+    /// Otherwise, the connection is acknowledged via <see cref="OnConnectionAcknowledgeAsync(OperationMessage)"/>,
+    /// <see cref="TryInitialize"/> is called to indicate that this WebSocket connection is ready to accept requests, 
+    /// and keep-alive messages are sent via <see cref="OnSendKeepAliveAsync"/> if configured to do so.
     /// Keep-alive messages are only sent if no messages have been sent over the WebSockets connection for the
     /// length of time configured in <see cref="WebSocketHandlerOptions.KeepAliveTimeout"/>.
     /// </summary>
     protected virtual async Task OnConnectionInitAsync(OperationMessage message, bool smartKeepAlive)
     {
+        if (!await AuthorizeAsync(message)) {
+            await ErrorAccessDeniedAsync();
+            return;
+        }
         await OnConnectionAcknowledgeAsync(message);
+        TryInitialize();
 
         var keepAliveTimeout = _options.KeepAliveTimeout ?? DefaultKeepAliveTimeout;
         if (keepAliveTimeout > TimeSpan.Zero) {

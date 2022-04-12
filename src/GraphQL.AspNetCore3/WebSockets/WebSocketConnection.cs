@@ -37,11 +37,15 @@ public class WebSocketConnection : IWebSocketConnection
     /// <inheritdoc/>
     public DateTime LastMessageSentAt { get; private set; } = DateTime.UtcNow;
 
+    /// <inheritdoc/>
+    public HttpContext HttpContext { get; }
+
     /// <summary>
     /// Initializes an instance with the specified parameters.
     /// </summary>
-    public WebSocketConnection(WebSocket webSocket, IGraphQLSerializer serializer, WebSocketHandlerOptions options, CancellationToken cancellationToken)
+    public WebSocketConnection(HttpContext httpContext, WebSocket webSocket, IGraphQLSerializer serializer, WebSocketHandlerOptions options, CancellationToken cancellationToken)
     {
+        HttpContext = httpContext ?? throw new ArgumentNullException(nameof(httpContext));
         if (options == null)
             throw new ArgumentNullException(nameof(options));
         if (options.DisconnectionTimeout.HasValue) {

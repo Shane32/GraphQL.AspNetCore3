@@ -10,11 +10,12 @@ public class BaseSubscriptionServerTests : IDisposable
     private readonly IWebSocketConnection _stream;
     private readonly Mock<TestBaseSubscriptionServer> _mockServer;
     private TestBaseSubscriptionServer _server => _mockServer.Object;
+    private readonly Mock<IWebSocketAuthorizationService> _mockAuthorizationService = new(MockBehavior.Strict);
 
     public BaseSubscriptionServerTests()
     {
         _stream = _mockStream.Object;
-        _mockServer = new(_stream, _options);
+        _mockServer = new(_stream, _options, _mockAuthorizationService.Object);
         _mockServer.CallBase = true;
     }
 
@@ -124,17 +125,28 @@ public class BaseSubscriptionServerTests : IDisposable
         _mockStream.Verify();
     }
 
+    [Fact]
+    public async Task ErrorAccessDeniedAsync()
+    {
+        _mockStream.Setup(x => x.CloseConnectionAsync(4401, "Access denied")).Returns(Task.CompletedTask).Verifiable();
+        await _server.Do_ErrorAccessDeniedAsync();
+        _mockStream.Verify();
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task OnConnectionInitAsync_Infinite(bool smart)
     {
+        _server.Get_Initialized.ShouldBeFalse();
+        var msg = new OperationMessage();
+        _mockServer.Protected().Setup<ValueTask<bool>>("AuthorizeAsync", msg).Returns(new ValueTask<bool>(true));
         _mockServer.Protected().SetupGet<TimeSpan>("DefaultKeepAliveTimeout").Returns(Timeout.InfiniteTimeSpan).Verifiable();
         _server.Get_DefaultKeepAliveTimeout.ShouldBe(Timeout.InfiniteTimeSpan);
-        var msg = new OperationMessage();
         _mockServer.Protected().Setup<Task>("OnConnectionAcknowledgeAsync", msg).Returns(Task.CompletedTask).Verifiable();
         await _server.Do_OnConnectionInitAsync(msg, smart);
         _mockServer.Verify();
+        _server.Get_Initialized.ShouldBeTrue();
     }
 
     [Theory]
@@ -142,8 +154,10 @@ public class BaseSubscriptionServerTests : IDisposable
     [InlineData(true)]
     public async Task OnConnectionInitAsync_Short(bool smart)
     {
-        var tcs = new TaskCompletionSource<bool>();
+        _server.Get_Initialized.ShouldBeFalse();
         var msg = new OperationMessage();
+        _mockServer.Protected().Setup<ValueTask<bool>>("AuthorizeAsync", msg).Returns(new ValueTask<bool>(true));
+        var tcs = new TaskCompletionSource<bool>();
         _mockStream.Setup(x => x.LastMessageSentAt).Returns(DateTime.UtcNow);
         _mockServer.Protected().Setup<Task>("OnConnectionAcknowledgeAsync", msg).Returns(Task.CompletedTask).Verifiable();
         _mockServer.Protected().Setup<Task>("OnSendKeepAliveAsync").Returns(() => {
@@ -154,6 +168,41 @@ public class BaseSubscriptionServerTests : IDisposable
         await _server.Do_OnConnectionInitAsync(msg, smart);
         await tcs.Task;
         _mockServer.Verify();
+        _server.Get_Initialized.ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task OnConnectionInitAsync_FailValidation(bool smart)
+    {
+        _server.Get_Initialized.ShouldBeFalse();
+        var msg = new OperationMessage();
+        _mockServer.Protected().Setup<Task>("OnConnectionInitAsync", msg, smart).CallBase().Verifiable();
+        _mockServer.Protected().Setup<ValueTask<bool>>("AuthorizeAsync", msg).Returns(new ValueTask<bool>(false)).Verifiable();
+        _mockServer.Protected().Setup<Task>("ErrorAccessDeniedAsync").Returns(Task.CompletedTask).Verifiable();
+        await _server.Do_OnConnectionInitAsync(msg, smart);
+        _mockServer.Verify();
+        _mockServer.VerifyNoOtherCalls();
+        _server.Get_Initialized.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task AuthorizeAsync_Null()
+    {
+        var mockServer = new Mock<TestBaseSubscriptionServer>(_stream, _options, null);
+        mockServer.CallBase = true;
+        (await mockServer.Object.Do_AuthorizeAsync(new OperationMessage())).ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AuthorizeAsync_PassThrough(bool expected)
+    {
+        var msg = new OperationMessage();
+        _mockAuthorizationService.Setup(x => x.AuthorizeAsync(_mockStream.Object, msg)).Returns(new ValueTask<bool>(expected));
+        (await _mockServer.Object.Do_AuthorizeAsync(msg)).ShouldBe(expected);
     }
 
     [Fact]

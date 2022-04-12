@@ -18,6 +18,6 @@ public class TestWebSocketHandler : WebSocketHandler
     public IOperationMessageProcessor Do_CreateReceiveStream(IWebSocketConnection sendStream, string subProtocol, IDictionary<string, object?> userContext)
         => CreateReceiveStream(sendStream, subProtocol, userContext);
 
-    public IWebSocketConnection Do_CreateWebSocketConnection(WebSocket webSocket, CancellationToken cancellationToken)
-        => CreateWebSocketConnection(webSocket, cancellationToken);
+    public IWebSocketConnection Do_CreateWebSocketConnection(HttpContext httpContext, WebSocket webSocket, CancellationToken cancellationToken)
+        => CreateWebSocketConnection(httpContext, webSocket, cancellationToken);
 }

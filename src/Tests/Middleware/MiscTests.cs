@@ -16,13 +16,15 @@ public class MiscTests
         var executer = Mock.Of<IDocumentExecuter<ISchema>>();
         var scopeFactory = Mock.Of<IServiceScopeFactory>();
         var appLifetime = Mock.Of<IHostApplicationLifetime>();
-        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(null!, serializer, executer, scopeFactory, options, appLifetime, handlers));
-        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, null!, executer, scopeFactory, options, appLifetime, handlers));
-        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, serializer, null!, scopeFactory, options, appLifetime, handlers));
-        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, serializer, executer, null!, options, appLifetime, handlers));
-        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, serializer, executer, scopeFactory, null!, appLifetime, handlers));
-        _ = new GraphQLHttpMiddleware<ISchema>(next, serializer, executer, scopeFactory, options, null!, handlers);
-        _ = new GraphQLHttpMiddleware<ISchema>(next, serializer, executer, scopeFactory, options, appLifetime, null!);
+        var provider = Mock.Of<IServiceProvider>();
+        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(null!, serializer, executer, scopeFactory, options, provider, appLifetime, handlers));
+        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, null!, executer, scopeFactory, options, provider, appLifetime, handlers));
+        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, serializer, null!, scopeFactory, options, provider, appLifetime, handlers));
+        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, serializer, executer, null!, options, provider, appLifetime, handlers));
+        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, serializer, executer, scopeFactory, null!, provider, appLifetime, handlers));
+        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, serializer, executer, scopeFactory, options, provider, null!, null!));
+        _ = new GraphQLHttpMiddleware<ISchema>(next, serializer, executer, scopeFactory, options, provider, null!, handlers);
+        _ = new GraphQLHttpMiddleware<ISchema>(next, serializer, executer, scopeFactory, options, provider, appLifetime, null!);
     }
 
     [Fact]
@@ -78,6 +80,7 @@ public class MiscTests
             Mock.Of<IDocumentExecuter<ISchema>>(),
             Mock.Of<IServiceScopeFactory>(),
             new GraphQLHttpMiddlewareOptions(),
+            Mock.Of<IServiceProvider>(),
             Mock.Of<IHostApplicationLifetime>(),
             null)
         {

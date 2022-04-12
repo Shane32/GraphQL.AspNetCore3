@@ -54,7 +54,7 @@ Below is a complete sample of a .NET 6 console app that hosts a GraphQL endpoint
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="GraphQL.AspNetCore3" Version="1.1.0" />
+    <PackageReference Include="GraphQL.AspNetCore3" Version="2.0.0" />
     <PackageReference Include="GraphQL.SystemTextJson" Version="5.1.1" />
   </ItemGroup>
 
@@ -182,6 +182,82 @@ public class MyUserContext : Dictionary<string, object?>
 
 ### Authorization configuration
 
+You can configure authorization for all GraphQL requests, or for individual
+graphs, fields and query arguments within your schema.  Both can be used
+if desired.
+
+Be sure to call `app.UseAuthentication()` and `app.UseAuthorization()` prior
+to the call to `app.UseGraphQL()`.  For example:
+
+```csharp
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseWebSockets();
+app.UseGraphQL("/graphql");
+```
+
+#### For all GraphQL requests (including introspection requests)
+
+When calling UseGraphQL, specify options as necessary to enable authorization as required.
+
+```csharp
+app.UseGraphQL("/graphql", config => {
+    // require that the user be authenticated
+    config.AuthorizationRequired = true;
+
+    // require that the user be a member of at least one role listed
+    config.AuthorizedRoles.Add("MyRole");
+    config.AuthorizedRoles.Add("MyAlternateRole");
+
+    // require that the user pass a specific authorization policy
+    config.AuthorizedPolicy = "MyPolicy";
+});
+```
+
+Once configured, the request is authorized prior to parsing of the document or accepting
+the WebSocket request.  Since WebSocket requests from browsers cannot typically carry a HTTP
+Authorization header, for JWT Bearer authentication you may need to disable authorization
+requirements for WebSocket connections and instead install an authentication handler for
+connection requests.  To do so, use set the `WebSocketsRequireAuthorization` property to
+`false` and register an `IWebSocketAuthorizationService` as a singleton within your
+dependency injection framework.  Below is an example:
+
+```cs
+services.AddSingleton<IWebSocketAuthorizationService, MyAuthService>();
+
+app.UseGraphQL("/graphql", config => {
+    config.WebSocketsRequireAuthorization = false;
+});
+
+class MyAuthService : IWebSocketAuthorizationService
+{
+    private readonly IGraphQLSerializer _serializer;
+
+    public MyWSAuthService(IGraphQLSerializer serializer)
+    {
+        _serializer = serializer;
+    }
+
+    public async ValueTask<bool> AuthorizeAsync(IWebSocketConnection connection, OperationMessage operationMessage)
+    {
+        var payload = _serializer.ReadNode<Inputs>(operationMessage.Payload);
+        if (payload?.TryGetValue("Authorization", out var value) ?? false) {
+            ClaimsPrincipal user;
+            // validate token here and set user
+            connection.HttpContext.User = user;
+            return true; // allow request
+        }
+        // refuse request
+        return false;
+    }
+}
+```
+
+You may also wish to use `IWebSocketAuthorizationService` to set the `HttpContext.User` property, even
+if you allow anonymous requests.
+
+#### For individual graphs, fields and query arguments
+
 To configure ASP.NET Core authorization for GraphQL, add the corresponding
 validation rule during GraphQL configuration, typically by calling `.AddAuthorization()`
 as shown below:
@@ -191,29 +267,6 @@ builder.Services.AddGraphQL(b => b
     .AddAutoSchema<Query>()
     .AddSystemTextJson()
     .AddAuthorization());
-```
-
-You will also need to be sure that the call to `.UseGraphQL()` occurs after the call
-to `.UseAuthentication()` and/or `.UseAuthorization()`.  For instance:
-
-```csharp
-app.UseRouting();
-
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.UseWebSockets();
-// configure the graphql endpoint at "/graphql"
-app.UseGraphQL("/graphql");
-// configure Playground at "/ui/graphql"
-app.UseGraphQLPlayground(
-    new GraphQL.Server.Ui.Playground.PlaygroundOptions {
-        GraphQLEndPoint = new PathString("/graphql"),
-        SubscriptionsEndPoint = new PathString("/graphql"),
-    },
-    "/ui/graphql");
-
-app.MapRazorPages();
 ```
 
 Both roles and policies are supported for output graph types, fields on output graph types,
@@ -311,6 +364,9 @@ endpoint; the WebSocket handler options are configured globally via `AddWebSocke
 
 | Property                           | Description     | Default value |
 |------------------------------------|-----------------|---------------|
+| `AuthorizationRequired`            | Requires `HttpContext.User` to represent an authenticated user. | False |
+| `AuthorizedPolicy`                 | If set, requires `HttpContext.User` to pass authorization of the specified policy. | |
+| `AuthorizedRoles`                  | If set, requires `HttpContext.User` to be a member of any one of a list of roles. | |
 | `BatchedRequestsExecuteInParallel` | Enables parallel execution of batched GraphQL requests. | True |
 | `EnableBatchedRequests`            | Enables handling of batched GraphQL requests for POST requests when formatted as JSON. | True |
 | `HandleGet`                        | Enables handling of GET requests. | True |
@@ -320,6 +376,7 @@ endpoint; the WebSocket handler options are configured globally via `AddWebSocke
 | `ReadQueryStringOnPost`            | Enables parsing the query string on POST requests. | True |
 | `ReadVariablesFromQueryString`     | Enables reading variables from the query string. | True |
 | `ValidationErrorsReturnBadRequest` | When enabled, GraphQL requests with validation errors have the HTTP status code set to 400 Bad Request. | True |
+| `WebSocketsRequireAuthorization`   | Applies the three authorization properties listed above to WebSocket connections | True |
 
 #### WebSocketHandlerOptions
 
@@ -403,6 +460,7 @@ The WebSocket handling code is organized as follows:
 | `BaseSubscriptionServer`         | Abstract implementation of `IOperationMessageReceiveStream`, a message handler for `OperationMessage` messages.  Provides base functionality for managing subscriptions and requests. |
 | `OldSubscriptionServer`          | Implementation of `IOperationMessageReceiveStream` for the `graphql-ws` sub-protocol. |
 | `NewSubscriptionServer`          | Implementation of `IOperationMessageReceiveStream` for the `graphql-transport-ws` sub-protocol. |
+| `IWebSocketAuthorizationService` | Allows authorization of GraphQL requests for WebSocket connections |
 
 Typically if you wish to change functionality or support another sub-protocol
 you will need to perform the following:

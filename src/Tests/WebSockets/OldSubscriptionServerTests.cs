@@ -325,4 +325,17 @@ public class OldSubscriptionServerTests : IDisposable
         mockServiceProvider.Verify();
         mockScope.Verify();
     }
+
+    [Fact]
+    public async Task ErrorAccessDeniedAsync()
+    {
+        _mockStream.Setup(x => x.SendMessageAsync(It.IsAny<OperationMessage>())).Returns<OperationMessage>(msg => {
+            msg.Type.ShouldBe("connection_error");
+            msg.Payload.ShouldBe("Access denied");
+            return Task.CompletedTask;
+        }).Verifiable();
+        _mockStream.Setup(x => x.CloseConnectionAsync(4401, "Access denied")).Returns(Task.CompletedTask).Verifiable();
+        await _server.Do_ErrorAccessDeniedAsync();
+        _mockStream.Verify();
+    }
 }

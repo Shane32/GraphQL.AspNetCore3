@@ -36,6 +36,9 @@ public class TestOldSubscriptionServer : SubscriptionServer
     public Task<ExecutionResult> Do_ExecuteRequestAsync(OperationMessage message)
         => ExecuteRequestAsync(message);
 
+    public Task Do_ErrorAccessDeniedAsync()
+        => ErrorAccessDeniedAsync();
+
     public SubscriptionList Get_Subscriptions
         => Subscriptions;
 
