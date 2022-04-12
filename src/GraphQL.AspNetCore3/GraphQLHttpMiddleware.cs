@@ -1,5 +1,9 @@
 #pragma warning disable CA1716 // Identifiers should not match keywords
 
+using System.Security.Claims;
+using System.Security.Principal;
+using Microsoft.AspNetCore.Authorization;
+
 namespace GraphQL.AspNetCore3;
 
 /// <inheritdoc/>
@@ -138,9 +142,13 @@ public abstract class GraphQLHttpMiddleware
     public virtual async Task InvokeAsync(HttpContext context)
     {
         if (context.WebSockets.IsWebSocketRequest) {
-            if (Options.HandleWebSockets)
+            if (Options.HandleWebSockets) {
+                // Authenticate request if necessary
+                if (await HandleAuthorizeAsync(context, _next))
+                    return;
+                // Process WebSocket request
                 await HandleWebSocketAsync(context, _next);
-            else
+            } else
                 await HandleInvalidHttpMethodErrorAsync(context, _next);
             return;
         }
@@ -157,6 +165,10 @@ public abstract class GraphQLHttpMiddleware
             await HandleInvalidHttpMethodErrorAsync(context, _next);
             return;
         }
+
+        // Authenticate request if necessary
+        if (await HandleAuthorizeAsync(context, _next))
+            return;
 
         // Parse POST body
         GraphQLRequest? bodyGQLRequest = null;
@@ -254,6 +266,64 @@ public abstract class GraphQLHttpMiddleware
             await HandleBatchedRequestsNotSupportedAsync(context, _next);
         }
     }
+
+    /// <summary>
+    /// Perform authentication, if required, and return <see langword="true"/> if the
+    /// request was handled (typically by returning an error message).  If <see langword="false"/>
+    /// is returned, the request is processed normally.
+    /// </summary>
+    protected virtual async ValueTask<bool> HandleAuthorizeAsync(HttpContext context, RequestDelegate next)
+    {
+        if (Options.AuthorizationRequired) {
+            if (!((context.User ?? NoUser()).Identity ?? NoIdentity()).IsAuthenticated) {
+                await HandleNotAuthenticatedAsync(context, next);
+                return true;
+            }
+        }
+
+        if (Options.AuthorizedRoles.Count > 0) {
+            var user = context.User ?? NoUser();
+            foreach (var role in Options.AuthorizedRoles) {
+                if (user.IsInRole(role))
+                    goto PassRoleCheck;
+            }
+            await HandleNotAuthorizedRoleAsync(context, next);
+            return true;
+        }
+    PassRoleCheck:
+
+        if (Options.AuthorizedPolicy != null) {
+            var authorizationService = context.RequestServices.GetRequiredService<IAuthorizationService>();
+            var authResult = await authorizationService.AuthorizeAsync(context.User ?? NoUser(), null, Options.AuthorizedPolicy);
+            if (!authResult.Succeeded) {
+                await HandleNotAuthorizedPolicyAsync(context, next);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected virtual async Task HandleNotAuthenticatedAsync(HttpContext context, RequestDelegate next)
+    {
+
+    }
+
+    protected virtual async Task HandleNotAuthorizedRoleAsync(HttpContext context, RequestDelegate next)
+    {
+
+    }
+
+    protected virtual async Task HandleNotAuthorizedPolicyAsync(HttpContext context, RequestDelegate next)
+    {
+
+    }
+
+    private static IIdentity NoIdentity()
+        => throw new InvalidOperationException($"IIdentity could not be retrieved from HttpContext.User.Identity.");
+
+    private static ClaimsPrincipal NoUser()
+        => throw new InvalidOperationException("ClaimsPrincipal could not be retrieved from HttpContext.User.");
 
     /// <summary>
     /// Handles a single GraphQL request.

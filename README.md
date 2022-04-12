@@ -311,6 +311,9 @@ endpoint; the WebSocket handler options are configured globally via `AddWebSocke
 
 | Property                           | Description     | Default value |
 |------------------------------------|-----------------|---------------|
+| `AuthorizationRequired`            | Requires `HttpContext.User` to represent an authenticated user. | False |
+| `AuthorizedPolicy`                 | If set, requires `HttpContext.User` to pass authorization of the specified policy. | |
+| `AuthorizedRoles`                  | If set, requires `HttpContext.User` to be a member of any one of a list of roles. | |
 | `BatchedRequestsExecuteInParallel` | Enables parallel execution of batched GraphQL requests. | True |
 | `EnableBatchedRequests`            | Enables handling of batched GraphQL requests for POST requests when formatted as JSON. | True |
 | `HandleGet`                        | Enables handling of GET requests. | True |

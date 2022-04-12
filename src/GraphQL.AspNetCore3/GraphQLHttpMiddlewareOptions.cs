@@ -1,3 +1,7 @@
+using System.Security.Claims;
+using System.Security.Principal;
+using Microsoft.AspNetCore.Authorization;
+
 namespace GraphQL.AspNetCore3;
 
 /// <summary>
@@ -66,4 +70,27 @@ public class GraphQLHttpMiddlewareOptions
     /// provided to the <see cref="IDocumentExecuter"/>.
     /// </summary>
     public bool ReadExtensionsFromQueryString { get; set; } = true;
+
+    /// <summary>
+    /// If set, requires that <see cref="IIdentity.IsAuthenticated"/> return <see langword="true"/>
+    /// for the user within <see cref="HttpContext.User"/>
+    /// prior to executing the GraphQL request or accepting the WebSocket connection.
+    /// </summary>
+    public bool AuthorizationRequired { get; set; }
+
+    /// <summary>
+    /// Requires that <see cref="ClaimsPrincipal.IsInRole(string)"/> return <see langword="true"/>
+    /// for the user within <see cref="HttpContext.User"/>
+    /// for at least one role in the list prior to executing the GraphQL request or accepting
+    /// the WebSocket connection.  If no roles are specified, authorization is not checked.
+    /// </summary>
+    public List<string> AuthorizedRoles { get; } = new();
+
+    /// <summary>
+    /// If set, requires that <see cref="IAuthorizationService.AuthorizeAsync(ClaimsPrincipal, object, string)"/>
+    /// return a successful result for the user within <see cref="HttpContext.User"/>
+    /// for the specified policy before executing the GraphQL
+    /// request or accepting the WebSocket connection.
+    /// </summary>
+    public string? AuthorizedPolicy { get; set; }
 }
