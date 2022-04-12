@@ -216,7 +216,45 @@ app.UseGraphQL("/graphql", config => {
 
 Once configured, the request is authorized prior to parsing of the document or accepting
 the WebSocket request.  Since WebSocket requests from browsers cannot typically carry a HTTP
-Authorization header, this may present a problem.
+Authorization header, for JWT Bearer authentication you may need to disable authorization
+requirements for WebSocket connections and instead install an authentication handler for
+connection requests.  To do so, use set the `WebSocketsRequireAuthorization` property to
+`false` and register an `IWebSocketAuthorizationService` as a singleton within your
+dependency injection framework.  Below is an example:
+
+```cs
+services.AddSingleton<IWebSocketAuthorizationService, MyAuthService>();
+
+app.UseGraphQL("/graphql", config => {
+    config.WebSocketsRequireAuthorization = false;
+});
+
+class MyAuthService : IWebSocketAuthorizationService
+{
+    private readonly IGraphQLSerializer _serializer;
+
+    public MyWSAuthService(IGraphQLSerializer serializer)
+    {
+        _serializer = serializer;
+    }
+
+    public async ValueTask<bool> AuthorizeAsync(IWebSocketConnection connection, OperationMessage operationMessage)
+    {
+        var payload = _serializer.ReadNode<Inputs>(operationMessage.Payload);
+        if (payload?.TryGetValue("Authorization", out var value) ?? false) {
+            ClaimsPrincipal user;
+            // validate token here and set user
+            connection.HttpContext.User = user;
+            return true; // allow request
+        }
+        // refuse request
+        return false;
+    }
+}
+```
+
+You may also wish to use `IWebSocketAuthorizationService` to set the `HttpContext.User` property, even
+if you allow anonymous requests.
 
 #### For individual graphs, fields and query arguments
 
