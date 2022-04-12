@@ -131,7 +131,7 @@ namespace GraphQL.AspNetCore3
     public class GraphQLHttpMiddleware<TSchema> : GraphQL.AspNetCore3.GraphQLHttpMiddleware
         where TSchema : GraphQL.Types.ISchema
     {
-        public GraphQLHttpMiddleware(Microsoft.AspNetCore.Http.RequestDelegate next, GraphQL.IGraphQLTextSerializer serializer, GraphQL.IDocumentExecuter<TSchema> documentExecuter, Microsoft.Extensions.DependencyInjection.IServiceScopeFactory serviceScopeFactory, GraphQL.AspNetCore3.GraphQLHttpMiddlewareOptions options, Microsoft.Extensions.Hosting.IHostApplicationLifetime hostApplicationLifetime, System.Collections.Generic.IEnumerable<GraphQL.AspNetCore3.IWebSocketHandler<TSchema>>? webSocketHandlers) { }
+        public GraphQLHttpMiddleware(Microsoft.AspNetCore.Http.RequestDelegate next, GraphQL.IGraphQLTextSerializer serializer, GraphQL.IDocumentExecuter<TSchema> documentExecuter, Microsoft.Extensions.DependencyInjection.IServiceScopeFactory serviceScopeFactory, GraphQL.AspNetCore3.GraphQLHttpMiddlewareOptions options, System.IServiceProvider provider, Microsoft.Extensions.Hosting.IHostApplicationLifetime hostApplicationLifetime, System.Collections.Generic.IEnumerable<GraphQL.AspNetCore3.IWebSocketHandler<TSchema>>? webSocketHandlers) { }
         protected override System.Threading.Tasks.Task<GraphQL.ExecutionResult> ExecuteRequestAsync(Microsoft.AspNetCore.Http.HttpContext context, GraphQL.Transport.GraphQLRequest request, System.IServiceProvider serviceProvider, System.Collections.Generic.IDictionary<string, object?> userContext) { }
         protected override System.Threading.Tasks.Task<GraphQL.ExecutionResult> ExecuteScopedRequestAsync(Microsoft.AspNetCore.Http.HttpContext context, GraphQL.Transport.GraphQLRequest request, System.Collections.Generic.IDictionary<string, object?> userContext) { }
     }
@@ -375,6 +375,7 @@ namespace GraphQL.AspNetCore3.WebSockets.SubscriptionsTransportWs
         protected GraphQL.IGraphQLSerializer Serializer { get; }
         protected Microsoft.Extensions.DependencyInjection.IServiceScopeFactory ServiceScopeFactory { get; }
         protected System.Collections.Generic.IDictionary<string, object?> UserContext { get; }
+        protected override System.Threading.Tasks.Task ErrorAccessDeniedAsync() { }
         protected override System.Threading.Tasks.Task<GraphQL.ExecutionResult> ExecuteRequestAsync(GraphQL.Transport.OperationMessage message) { }
         protected override System.Threading.Tasks.Task OnConnectionAcknowledgeAsync(GraphQL.Transport.OperationMessage message) { }
         public override System.Threading.Tasks.Task OnMessageReceivedAsync(GraphQL.Transport.OperationMessage message) { }
