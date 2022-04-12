@@ -89,7 +89,7 @@ public class AuthorizationTests
     }
 
     [Fact]
-    public async Task NotAuthorized_WebSocket()
+    public async Task WebSocket_NotAuthorized()
     {
         _options.AuthorizationRequired = true;
         var webSocketClient = _server.CreateWebSocketClient();
@@ -99,6 +99,19 @@ public class AuthorizationTests
         webSocketClient.SubProtocols.Add("graphql-ws");
         var error = await Should.ThrowAsync<InvalidOperationException>(() => webSocketClient.ConnectAsync(new Uri(_server.BaseAddress, "/graphql"), default));
         error.Message.ShouldBe("Incomplete handshake, status code: 401");
+    }
+
+    [Fact]
+    public async Task WebSocket_IgnoreAuthentication()
+    {
+        _options.AuthorizationRequired = true;
+        _options.WebSocketsRequireAuthorization = false;
+        var webSocketClient = _server.CreateWebSocketClient();
+        webSocketClient.ConfigureRequest = request => {
+            request.Headers["Sec-WebSocket-Protocol"] = "graphql-ws";
+        };
+        webSocketClient.SubProtocols.Add("graphql-ws");
+        using var webSocket = await webSocketClient.ConnectAsync(new Uri(_server.BaseAddress, "/graphql"), default);
     }
 
     [Fact]
