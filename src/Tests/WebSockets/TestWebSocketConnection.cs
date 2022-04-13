@@ -8,7 +8,7 @@ public class TestWebSocketConnection : WebSocketConnection
         HttpContext httpContext,
         WebSocket webSocket,
         IGraphQLSerializer serializer,
-        WebSocketHandlerOptions options,
+        GraphQLHttpMiddlewareOptions options,
         CancellationToken cancellationToken)
         : base(httpContext, webSocket, serializer, options, cancellationToken)
     {

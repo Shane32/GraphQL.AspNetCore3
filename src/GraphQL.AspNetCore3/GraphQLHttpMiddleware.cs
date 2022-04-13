@@ -33,9 +33,23 @@ public class GraphQLHttpMiddleware<TSchema> : GraphQLHttpMiddleware
         IServiceScopeFactory serviceScopeFactory,
         GraphQLHttpMiddlewareOptions options,
         IServiceProvider provider,
-        IHostApplicationLifetime hostApplicationLifetime,
-        IEnumerable<IWebSocketHandler<TSchema>>? webSocketHandlers)
-        : base(next, serializer, options, GetWebSocketHandlers(serializer, documentExecuter, serviceScopeFactory, provider, hostApplicationLifetime, webSocketHandlers))
+        IHostApplicationLifetime hostApplicationLifetime)
+        : this(next, serializer, documentExecuter, serviceScopeFactory, options,
+              CreateWebSocketHandlers(serializer, documentExecuter, serviceScopeFactory, provider, hostApplicationLifetime, options))
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance.
+    /// </summary>
+    protected GraphQLHttpMiddleware(
+        RequestDelegate next,
+        IGraphQLTextSerializer serializer,
+        IDocumentExecuter<TSchema> documentExecuter,
+        IServiceScopeFactory serviceScopeFactory,
+        GraphQLHttpMiddlewareOptions options,
+        IEnumerable<IWebSocketHandler<TSchema>>? webSocketHandlers = null)
+        : base(next, serializer, options, webSocketHandlers)
     {
         _documentExecuter = documentExecuter ?? throw new ArgumentNullException(nameof(documentExecuter));
         _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
@@ -47,22 +61,23 @@ public class GraphQLHttpMiddleware<TSchema> : GraphQLHttpMiddleware
         _postCachedDocumentValidationRules = new[] { postRule };
     }
 
-    private static IEnumerable<IWebSocketHandler> GetWebSocketHandlers(
+    private static IEnumerable<IWebSocketHandler<TSchema>> CreateWebSocketHandlers(
         IGraphQLSerializer serializer,
         IDocumentExecuter<TSchema> documentExecuter,
         IServiceScopeFactory serviceScopeFactory,
         IServiceProvider provider,
         IHostApplicationLifetime hostApplicationLifetime,
-        IEnumerable<IWebSocketHandler<TSchema>>? webSocketHandlers)
+        GraphQLHttpMiddlewareOptions options)
     {
-        if (webSocketHandlers == null || !webSocketHandlers.Any()) {
-            return new IWebSocketHandler[] {
-                new WebSocketHandler(serializer, documentExecuter, serviceScopeFactory, new WebSocketHandlerOptions(),
-                    hostApplicationLifetime ?? throw new ArgumentNullException(nameof(hostApplicationLifetime)),
-                    (provider ?? throw new ArgumentNullException(nameof(provider))).GetService<IWebSocketAuthorizationService>()),
-            };
-        }
-        return webSocketHandlers;
+        if (hostApplicationLifetime == null)
+            throw new ArgumentNullException(nameof(hostApplicationLifetime));
+        if (provider == null)
+            throw new ArgumentNullException(nameof(provider));
+
+        return new IWebSocketHandler<TSchema>[] {
+            new WebSocketHandler<TSchema>(serializer, documentExecuter, serviceScopeFactory, options,
+                hostApplicationLifetime, provider.GetService<IWebSocketAuthorizationService>()),
+        };
     }
 
     /// <inheritdoc/>
@@ -146,11 +161,8 @@ public abstract class GraphQLHttpMiddleware
     {
         if (context.WebSockets.IsWebSocketRequest) {
             if (Options.HandleWebSockets) {
-                // Authenticate request if necessary
-                if (Options.WebSocketsRequireAuthorization) {
-                    if (await HandleAuthorizeAsync(context, _next))
-                        return;
-                }
+                if (await HandleAuthorizeWebSocketConnectionAsync(context, _next))
+                    return;
                 // Process WebSocket request
                 await HandleWebSocketAsync(context, _next);
             } else
@@ -308,6 +320,18 @@ public abstract class GraphQLHttpMiddleware
 
         return false;
     }
+
+    /// <summary>
+    /// Perform authentication, if required, and return <see langword="true"/> if the
+    /// request was handled (typically by returning an error message).  If <see langword="false"/>
+    /// is returned, the request is processed normally.
+    /// <br/><br/>
+    /// By default this does not check authorization rules becuase authentication may take place within
+    /// the WebSocket connection during the ConnectionInit message.  Authorization checks for
+    /// WebSocket connections occur then, after authorization has taken place.
+    /// </summary>
+    protected virtual ValueTask<bool> HandleAuthorizeWebSocketConnectionAsync(HttpContext context, RequestDelegate next)
+        => new(false);
 
     /// <summary>
     /// Handles a single GraphQL request.

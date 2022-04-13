@@ -4,24 +4,24 @@ namespace GraphQL.AspNetCore3.WebSockets;
 public class WebSocketHandler<TSchema> : WebSocketHandler, IWebSocketHandler<TSchema>
     where TSchema : ISchema
 {
-    /// <inheritdoc cref="WebSocketHandler(IGraphQLSerializer, IDocumentExecuter, IServiceScopeFactory, WebSocketHandlerOptions, IHostApplicationLifetime, IWebSocketAuthorizationService)"/>
+    /// <inheritdoc cref="WebSocketHandler(IGraphQLSerializer, IDocumentExecuter, IServiceScopeFactory, GraphQLHttpMiddlewareOptions, IHostApplicationLifetime, IWebSocketAuthorizationService)"/>
     public WebSocketHandler(
         IGraphQLSerializer serializer,
         IDocumentExecuter<TSchema> executer,
         IServiceScopeFactory serviceScopeFactory,
-        WebSocketHandlerOptions options,
+        GraphQLHttpMiddlewareOptions options,
         IHostApplicationLifetime hostApplicationLifetime,
         IWebSocketAuthorizationService? authorizationService)
         : base(serializer, executer, serviceScopeFactory, options, hostApplicationLifetime, authorizationService)
     {
     }
 
-    /// <inheritdoc cref="WebSocketHandler(IGraphQLSerializer, IDocumentExecuter, IServiceScopeFactory, WebSocketHandlerOptions, IHostApplicationLifetime, IWebSocketAuthorizationService)"/>
+    /// <inheritdoc cref="WebSocketHandler(IGraphQLSerializer, IDocumentExecuter, IServiceScopeFactory, GraphQLHttpMiddlewareOptions, IHostApplicationLifetime, IWebSocketAuthorizationService)"/>
     public WebSocketHandler(
         IGraphQLSerializer serializer,
         IDocumentExecuter<TSchema> executer,
         IServiceScopeFactory serviceScopeFactory,
-        WebSocketHandlerOptions options,
+        GraphQLHttpMiddlewareOptions options,
         IHostApplicationLifetime hostApplicationLifetime)
         : base(serializer, executer, serviceScopeFactory, options, hostApplicationLifetime, null)
     {
@@ -40,7 +40,7 @@ public class WebSocketHandler : IWebSocketHandler
     /// <summary>
     /// Gets the configuration options for this instance.
     /// </summary>
-    protected WebSocketHandlerOptions Options { get; }
+    protected GraphQLHttpMiddlewareOptions Options { get; }
 
     private static readonly IEnumerable<string> _supportedSubProtocols = new List<string>(new[] {
         GraphQLWs.SubscriptionServer.SubProtocol,
@@ -56,21 +56,21 @@ public class WebSocketHandler : IWebSocketHandler
     /// <param name="serializer">The <see cref="IGraphQLSerializer"/> instance used to serialize and deserialize <see cref="OperationMessage"/> messages.</param>
     /// <param name="executer">The <see cref="IDocumentExecuter"/> instance used to execute GraphQL requests.</param>
     /// <param name="serviceScopeFactory">The service scope factory used to create a dependency injection service scope for each request.</param>
-    /// <param name="webSocketHandlerOptions">Configuration options for the WebSocket connections.</param>
+    /// <param name="options">Configuration options for the GraphQL HTTP middleware.</param>
     /// <param name="hostApplicationLifetime">The <see cref="IHostApplicationLifetime"/> instance that signals when the application is shutting down.</param>
     /// <param name="authorizationService">An optional service to authorize connections.</param>
     public WebSocketHandler(
         IGraphQLSerializer serializer,
         IDocumentExecuter executer,
         IServiceScopeFactory serviceScopeFactory,
-        WebSocketHandlerOptions webSocketHandlerOptions,
+        GraphQLHttpMiddlewareOptions options,
         IHostApplicationLifetime hostApplicationLifetime,
         IWebSocketAuthorizationService? authorizationService = null)
     {
         _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
         _executer = executer ?? throw new ArgumentNullException(nameof(executer));
         _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
-        Options = webSocketHandlerOptions ?? throw new ArgumentNullException(nameof(webSocketHandlerOptions));
+        Options = options ?? throw new ArgumentNullException(nameof(options));
         _hostApplicationLifetime = hostApplicationLifetime ?? throw new ArgumentNullException(nameof(hostApplicationLifetime));
         _authorizationService = authorizationService;
     }

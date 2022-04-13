@@ -142,46 +142,6 @@ public class BuilderMethodTests
     }
 
     [Fact]
-    public async Task WebSocketHandler_Configure()
-    {
-        _hostBuilder.ConfigureServices(services => {
-            services.AddGraphQL(b => b.AddWebSocketHandler(c => { }));
-        });
-        _hostBuilder.Configure(app => {
-            app.UseWebSockets();
-            app.UseGraphQL();
-        });
-        await VerifyAsync();
-    }
-
-    [Fact]
-    public async Task WebSocketHandler_Configure2()
-    {
-        _hostBuilder.ConfigureServices(services => {
-            services.AddGraphQL(b => b.AddWebSocketHandler((c, p) => { }));
-        });
-        _hostBuilder.Configure(app => {
-            app.UseWebSockets();
-            app.UseGraphQL();
-        });
-        await VerifyAsync();
-    }
-
-    [Fact]
-    public async Task WebSocketHandler_Configure3()
-    {
-        _hostBuilder.ConfigureServices(services => {
-            services.AddSingleton<WebSocketHandlerOptions>();
-            services.AddGraphQL(b => b.AddWebSocketHandler<WebSocketHandler<ISchema>>());
-        });
-        _hostBuilder.Configure(app => {
-            app.UseWebSockets();
-            app.UseGraphQL();
-        });
-        await VerifyAsync();
-    }
-
-    [Fact]
     public async Task UserContextBuilder_Configure1()
     {
         _hostBuilder.ConfigureServices(services => {

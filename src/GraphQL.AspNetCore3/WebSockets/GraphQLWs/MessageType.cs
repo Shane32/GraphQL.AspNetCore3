@@ -16,7 +16,7 @@ public static class MessageType
     /// </para>
     /// <para>
     /// The server must receive the connection initialization message within the allowed waiting
-    /// time specified in the <see cref="WebSocketHandlerOptions.ConnectionInitWaitTimeout"/>
+    /// time specified in the <see cref="GraphQLWebSocketOptions.ConnectionInitWaitTimeout"/>
     /// parameter during the server setup.  If the client does not request a connection within
     /// the allowed timeout, the server will close the socket with the event:
     /// <i>4408: Connection initialization timeout</i>.

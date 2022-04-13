@@ -3,7 +3,7 @@ namespace GraphQL.AspNetCore3.WebSockets;
 /// <summary>
 /// Configuration options for a WebSocket connection.
 /// </summary>
-public class WebSocketHandlerOptions
+public class GraphQLWebSocketOptions
 {
     /// <summary>
     /// The amount of time to wait for a GraphQL initialization packet before the connection is closed.

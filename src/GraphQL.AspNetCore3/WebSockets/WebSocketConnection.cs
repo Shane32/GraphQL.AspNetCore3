@@ -30,7 +30,7 @@ public class WebSocketConnection : IWebSocketConnection
 
     /// <summary>
     /// Returns the default disconnection timeout value.
-    /// See <see cref="WebSocketHandlerOptions.DisconnectionTimeout"/>.
+    /// See <see cref="GraphQLWebSocketOptions.DisconnectionTimeout"/>.
     /// </summary>
     protected virtual TimeSpan DefaultDisconnectionTimeout { get; } = TimeSpan.FromSeconds(10);
 
@@ -43,18 +43,18 @@ public class WebSocketConnection : IWebSocketConnection
     /// <summary>
     /// Initializes an instance with the specified parameters.
     /// </summary>
-    public WebSocketConnection(HttpContext httpContext, WebSocket webSocket, IGraphQLSerializer serializer, WebSocketHandlerOptions options, CancellationToken cancellationToken)
+    public WebSocketConnection(HttpContext httpContext, WebSocket webSocket, IGraphQLSerializer serializer, GraphQLHttpMiddlewareOptions options, CancellationToken cancellationToken)
     {
         HttpContext = httpContext ?? throw new ArgumentNullException(nameof(httpContext));
         if (options == null)
             throw new ArgumentNullException(nameof(options));
-        if (options.DisconnectionTimeout.HasValue) {
-            if ((options.DisconnectionTimeout.Value != Timeout.InfiniteTimeSpan && options.DisconnectionTimeout.Value.TotalMilliseconds < 0) || options.DisconnectionTimeout.Value.TotalMilliseconds > int.MaxValue)
+        if (options.WebSockets.DisconnectionTimeout.HasValue) {
+            if ((options.WebSockets.DisconnectionTimeout.Value != Timeout.InfiniteTimeSpan && options.WebSockets.DisconnectionTimeout.Value.TotalMilliseconds < 0) || options.WebSockets.DisconnectionTimeout.Value.TotalMilliseconds > int.MaxValue)
 #pragma warning disable CA2208 // Instantiate argument exceptions correctly
-                throw new ArgumentOutOfRangeException(nameof(options) + "." + nameof(WebSocketHandlerOptions.DisconnectionTimeout));
+                throw new ArgumentOutOfRangeException(nameof(options) + "." + nameof(GraphQLWebSocketOptions.DisconnectionTimeout));
 #pragma warning restore CA2208 // Instantiate argument exceptions correctly
         }
-        _closeTimeoutMs = (int)(options.DisconnectionTimeout ?? DefaultDisconnectionTimeout).TotalMilliseconds;
+        _closeTimeoutMs = (int)(options.WebSockets.DisconnectionTimeout ?? DefaultDisconnectionTimeout).TotalMilliseconds;
         _webSocket = webSocket ?? throw new ArgumentNullException(nameof(webSocket));
         _stream = new(webSocket);
         _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));

@@ -2,7 +2,7 @@ namespace Tests.WebSockets;
 
 public class TestBaseSubscriptionServer : BaseSubscriptionServer
 {
-    public TestBaseSubscriptionServer(IWebSocketConnection sendStream, WebSocketHandlerOptions options, IWebSocketAuthorizationService? authorizationService = null)
+    public TestBaseSubscriptionServer(IWebSocketConnection sendStream, GraphQLHttpMiddlewareOptions options, IWebSocketAuthorizationService? authorizationService = null)
         : base(sendStream, options, authorizationService) { }
 
     public override Task OnMessageReceivedAsync(OperationMessage message) => throw new NotImplementedException();

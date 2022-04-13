@@ -22,13 +22,8 @@ public class GraphQLHttpMiddlewareOptions
     /// <summary>
     /// Enables handling of WebSockets requests.
     /// <br/><br/>
-    /// Requires registering one or more <see cref="IWebSocketHandler"/>
-    /// interfaces with the dependency injection framework, typically by
-    /// calling <see cref="GraphQLBuilderExtensions.AddWebSocketHandler{TWebSocketHandler}(IGraphQLBuilder)"/>
-    /// during the dependency injection framework configuration.
-    /// <br/><br/>
-    /// If no <see cref="IWebSocketHandler"/> instances are registered,
-    /// this property will effectively be <see langword="false"/>.
+    /// Requires calling <see cref="WebSocketMiddlewareExtensions.UseWebSockets(IApplicationBuilder)"/>
+    /// to initialize the WebSocket pipeline within the ASP.NET Core framework.
     /// </summary>
     public bool HandleWebSockets { get; set; } = true;
 
@@ -84,7 +79,7 @@ public class GraphQLHttpMiddlewareOptions
     /// for at least one role in the list prior to executing the GraphQL request or accepting
     /// the WebSocket connection.  If no roles are specified, authorization is not checked.
     /// </summary>
-    public List<string> AuthorizedRoles { get; } = new();
+    public List<string> AuthorizedRoles { get; set; } = new();
 
     /// <summary>
     /// If set, requires that <see cref="IAuthorizationService.AuthorizeAsync(ClaimsPrincipal, object, string)"/>
@@ -95,10 +90,7 @@ public class GraphQLHttpMiddlewareOptions
     public string? AuthorizedPolicy { get; set; }
 
     /// <summary>
-    /// Requires that WebSocket connections also require authorization, based on the
-    /// <see cref="AuthorizationRequired"/>, <see cref="AuthorizedRoles"/> and
-    /// <see cref="AuthorizedPolicy"/> properties.  Disable to authorize handle
-    /// WebSocket authentication via <see cref="IWebSocketAuthorizationService"/>.
+    /// Returns an options class for WebSocket connections.
     /// </summary>
-    public bool WebSocketsRequireAuthorization { get; set; } = true;
+    public GraphQLWebSocketOptions WebSockets { get; set; } = new();
 }

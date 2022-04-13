@@ -9,9 +9,9 @@ public class TestWebSocketHandler : WebSocketHandler
         IGraphQLSerializer serializer,
         IDocumentExecuter executer,
         IServiceScopeFactory serviceScopeFactory,
-        WebSocketHandlerOptions webSocketHandlerOptions,
+        GraphQLHttpMiddlewareOptions options,
         IHostApplicationLifetime hostApplicationLifetime)
-        : base(serializer, executer, serviceScopeFactory, webSocketHandlerOptions, hostApplicationLifetime)
+        : base(serializer, executer, serviceScopeFactory, options, hostApplicationLifetime)
     {
     }
 

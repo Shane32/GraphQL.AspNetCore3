@@ -2,7 +2,7 @@ namespace Tests.WebSockets;
 
 public class NewSubscriptionServerTests : IDisposable
 {
-    private readonly WebSocketHandlerOptions _options = new();
+    private readonly GraphQLHttpMiddlewareOptions _options = new();
     private readonly Mock<IWebSocketConnection> _mockStream = new(MockBehavior.Strict);
     private readonly IWebSocketConnection _stream;
     private readonly Mock<TestNewSubscriptionServer> _mockServer;

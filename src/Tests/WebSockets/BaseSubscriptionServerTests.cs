@@ -5,7 +5,7 @@ namespace Tests.WebSockets;
 
 public class BaseSubscriptionServerTests : IDisposable
 {
-    private readonly WebSocketHandlerOptions _options = new();
+    private readonly GraphQL.AspNetCore3.WebSockets.GraphQLWebSocketOptions _options = new();
     private readonly Mock<IWebSocketConnection> _mockStream = new(MockBehavior.Strict);
     private readonly IWebSocketConnection _stream;
     private readonly Mock<TestBaseSubscriptionServer> _mockServer;
@@ -24,38 +24,49 @@ public class BaseSubscriptionServerTests : IDisposable
     [Fact]
     public void InvalidConstructorArgumentsThrows()
     {
-        Should.Throw<ArgumentNullException>(() => new TestBaseSubscriptionServer(null!, new WebSocketHandlerOptions()));
+        var options = new GraphQLHttpMiddlewareOptions();
+        Should.Throw<ArgumentNullException>(() => new TestBaseSubscriptionServer(null!, new GraphQLHttpMiddlewareOptions()));
         Should.Throw<ArgumentNullException>(() => new TestBaseSubscriptionServer(_stream, null!));
-        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, new WebSocketHandlerOptions {
-            ConnectionInitWaitTimeout = TimeSpan.FromSeconds(-1),
-        }));
-        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, new WebSocketHandlerOptions {
-            ConnectionInitWaitTimeout = TimeSpan.FromMilliseconds(int.MaxValue + 100d),
-        }));
-        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, new WebSocketHandlerOptions {
-            KeepAliveTimeout = TimeSpan.FromSeconds(-1),
-        }));
-        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, new WebSocketHandlerOptions {
-            KeepAliveTimeout = TimeSpan.FromMilliseconds(int.MaxValue + 100d),
-        }));
-        _ = new TestBaseSubscriptionServer(_stream, new WebSocketHandlerOptions {
-            ConnectionInitWaitTimeout = Timeout.InfiniteTimeSpan,
-        });
-        _ = new TestBaseSubscriptionServer(_stream, new WebSocketHandlerOptions {
-            KeepAliveTimeout = Timeout.InfiniteTimeSpan,
-        });
-        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, new WebSocketHandlerOptions {
-            ConnectionInitWaitTimeout = TimeSpan.Zero,
-        }));
-        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, new WebSocketHandlerOptions {
-            KeepAliveTimeout = TimeSpan.Zero,
-        }));
-        _ = new TestBaseSubscriptionServer(_stream, new WebSocketHandlerOptions {
-            ConnectionInitWaitTimeout = TimeSpan.FromSeconds(1),
-        });
-        _ = new TestBaseSubscriptionServer(_stream, new WebSocketHandlerOptions {
-            KeepAliveTimeout = TimeSpan.FromSeconds(1),
-        });
+
+        options = new();
+        options.WebSockets.ConnectionInitWaitTimeout = TimeSpan.FromSeconds(-1);
+        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, options));
+
+        options = new();
+        options.WebSockets.ConnectionInitWaitTimeout = TimeSpan.FromMilliseconds(int.MaxValue + 100d);
+        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, options));
+
+        options = new();
+        options.WebSockets.ConnectionInitWaitTimeout = TimeSpan.Zero;
+        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, options));
+
+        options = new();
+        options.WebSockets.ConnectionInitWaitTimeout = Timeout.InfiniteTimeSpan;
+        _ = new TestBaseSubscriptionServer(_stream, options);
+
+        options = new();
+        options.WebSockets.ConnectionInitWaitTimeout = TimeSpan.FromSeconds(1);
+        _ = new TestBaseSubscriptionServer(_stream, options);
+
+        options = new();
+        options.WebSockets.KeepAliveTimeout = TimeSpan.FromSeconds(-1);
+        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, options));
+
+        options = new();
+        options.WebSockets.KeepAliveTimeout = TimeSpan.FromMilliseconds(int.MaxValue + 100d);
+        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, options));
+
+        options = new();
+        options.WebSockets.KeepAliveTimeout = TimeSpan.Zero;
+        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, options));
+
+        options = new();
+        options.WebSockets.KeepAliveTimeout = Timeout.InfiniteTimeSpan;
+        _ = new TestBaseSubscriptionServer(_stream, options);
+
+        options = new();
+        options.WebSockets.KeepAliveTimeout = TimeSpan.FromSeconds(1);
+        _ = new TestBaseSubscriptionServer(_stream, options);
     }
 
     [Fact]

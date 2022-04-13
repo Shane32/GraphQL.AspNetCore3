@@ -4,7 +4,7 @@ namespace Tests.WebSockets;
 
 public class TestNewSubscriptionServer : SubscriptionServer
 {
-    public TestNewSubscriptionServer(IWebSocketConnection sendStream, WebSocketHandlerOptions options,
+    public TestNewSubscriptionServer(IWebSocketConnection sendStream, GraphQLHttpMiddlewareOptions options,
         IDocumentExecuter executer, IGraphQLSerializer serializer, IServiceScopeFactory serviceScopeFactory,
         IDictionary<string, object?> userContext)
         : base(sendStream, options, executer, serializer, serviceScopeFactory, userContext) { }

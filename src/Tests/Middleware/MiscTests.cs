@@ -17,20 +17,19 @@ public class MiscTests
         var scopeFactory = Mock.Of<IServiceScopeFactory>();
         var appLifetime = Mock.Of<IHostApplicationLifetime>();
         var provider = Mock.Of<IServiceProvider>();
-        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(null!, serializer, executer, scopeFactory, options, provider, appLifetime, handlers));
-        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, null!, executer, scopeFactory, options, provider, appLifetime, handlers));
-        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, serializer, null!, scopeFactory, options, provider, appLifetime, handlers));
-        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, serializer, executer, null!, options, provider, appLifetime, handlers));
-        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, serializer, executer, scopeFactory, null!, provider, appLifetime, handlers));
-        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, serializer, executer, scopeFactory, options, provider, null!, null!));
-        _ = new GraphQLHttpMiddleware<ISchema>(next, serializer, executer, scopeFactory, options, provider, null!, handlers);
-        _ = new GraphQLHttpMiddleware<ISchema>(next, serializer, executer, scopeFactory, options, provider, appLifetime, null!);
+        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(null!, serializer, executer, scopeFactory, options, provider, appLifetime));
+        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, null!, executer, scopeFactory, options, provider, appLifetime));
+        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, serializer, null!, scopeFactory, options, provider, appLifetime));
+        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, serializer, executer, null!, options, provider, appLifetime));
+        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, serializer, executer, scopeFactory, null!, provider, appLifetime));
+        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, serializer, executer, scopeFactory, options, null!, appLifetime));
+        Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, serializer, executer, scopeFactory, options, provider, null!));
     }
 
     [Fact]
     public async Task WriteErrorResponseString()
     {
-        var mockMiddleware = new Mock<MyMiddlware>(MockBehavior.Strict);
+        var mockMiddleware = new Mock<MyMiddleware>(MockBehavior.Strict);
         var mockContext = Mock.Of<HttpContext>();
         mockMiddleware.Protected().Setup<Task>("WriteErrorResponseAsync", mockContext, HttpStatusCode.OK, ItExpr.IsAny<ExecutionError>())
             .Returns<HttpContext, HttpStatusCode, ExecutionError>((_, _, error) => {
@@ -72,17 +71,16 @@ public class MiscTests
         str.ShouldBe(@"{""message"":""Invalid WebSocket sub-protocol(s): \u0027test1\u0027,\u0027test2\u0027"",""extensions"":{""code"":""WEB_SOCKET_SUB_PROTOCOL_NOT_SUPPORTED"",""codes"":[""WEB_SOCKET_SUB_PROTOCOL_NOT_SUPPORTED""]}}");
     }
 
-    public class MyMiddlware : GraphQLHttpMiddleware<ISchema>
+    public class MyMiddleware : GraphQLHttpMiddleware<ISchema>
     {
-        public MyMiddlware() : base(
+        public MyMiddleware() : base(
             _ => Task.CompletedTask,
             Mock.Of<IGraphQLTextSerializer>(),
             Mock.Of<IDocumentExecuter<ISchema>>(),
             Mock.Of<IServiceScopeFactory>(),
             new GraphQLHttpMiddlewareOptions(),
             Mock.Of<IServiceProvider>(),
-            Mock.Of<IHostApplicationLifetime>(),
-            null)
+            Mock.Of<IHostApplicationLifetime>())
         {
         }
 

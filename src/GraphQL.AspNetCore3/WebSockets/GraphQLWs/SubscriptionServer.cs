@@ -40,7 +40,7 @@ public class SubscriptionServer : BaseSubscriptionServer
     /// <param name="authorizationService">An optional service to authorize connections.</param>
     public SubscriptionServer(
         IWebSocketConnection sendStream,
-        WebSocketHandlerOptions options,
+        GraphQLHttpMiddlewareOptions options,
         IDocumentExecuter executer,
         IGraphQLSerializer serializer,
         IServiceScopeFactory serviceScopeFactory,

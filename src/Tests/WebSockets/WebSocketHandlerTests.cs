@@ -8,7 +8,7 @@ public class WebSocketHandlerTests : IDisposable
     private readonly Mock<IGraphQLSerializer> _mockSerializer = new(MockBehavior.Strict);
     private readonly Mock<IDocumentExecuter> _mockExecuter = new(MockBehavior.Strict);
     private readonly Mock<IServiceScopeFactory> _mockScopeFactory = new(MockBehavior.Strict);
-    private readonly WebSocketHandlerOptions _options = new();
+    private readonly GraphQLHttpMiddlewareOptions _options = new();
     private readonly Mock<IHostApplicationLifetime> _mockAppLifetime = new(MockBehavior.Strict);
     private readonly Mock<HttpContext> _mockHttpContext = new(MockBehavior.Strict);
     private readonly Mock<WebSocket> _mockWebSocket = new(MockBehavior.Strict);
@@ -176,7 +176,7 @@ public class WebSocketHandlerTests : IDisposable
     [Fact]
     public void CreateSendStream_Old()
     {
-        _options.ConnectionInitWaitTimeout = Timeout.InfiniteTimeSpan;
+        _options.WebSockets.ConnectionInitWaitTimeout = Timeout.InfiniteTimeSpan;
         var mockSendStream = new Mock<IWebSocketConnection>(MockBehavior.Strict);
         var receiveStream = _handler.Do_CreateReceiveStream(mockSendStream.Object, "graphql-transport-ws", _userContext);
         receiveStream.ShouldBeOfType<GraphQL.AspNetCore3.WebSockets.GraphQLWs.SubscriptionServer>();
@@ -185,7 +185,7 @@ public class WebSocketHandlerTests : IDisposable
     [Fact]
     public void CreateSendStream_New()
     {
-        _options.ConnectionInitWaitTimeout = Timeout.InfiniteTimeSpan;
+        _options.WebSockets.ConnectionInitWaitTimeout = Timeout.InfiniteTimeSpan;
         var mockSendStream = new Mock<IWebSocketConnection>(MockBehavior.Strict);
         var receiveStream = _handler.Do_CreateReceiveStream(mockSendStream.Object, "graphql-ws", _userContext);
         receiveStream.ShouldBeOfType<GraphQL.AspNetCore3.WebSockets.SubscriptionsTransportWs.SubscriptionServer>();
