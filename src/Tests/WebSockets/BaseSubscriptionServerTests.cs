@@ -5,7 +5,7 @@ namespace Tests.WebSockets;
 
 public class BaseSubscriptionServerTests : IDisposable
 {
-    private readonly GraphQL.AspNetCore3.WebSockets.GraphQLWebSocketOptions _options = new();
+    private readonly GraphQLHttpMiddlewareOptions _options = new();
     private readonly Mock<IWebSocketConnection> _mockStream = new(MockBehavior.Strict);
     private readonly IWebSocketConnection _stream;
     private readonly Mock<TestBaseSubscriptionServer> _mockServer;
@@ -175,7 +175,7 @@ public class BaseSubscriptionServerTests : IDisposable
             tcs.TrySetResult(true);
             return Task.CompletedTask;
         }).Verifiable();
-        _options.KeepAliveTimeout = TimeSpan.FromSeconds(1);
+        _options.WebSockets.KeepAliveTimeout = TimeSpan.FromSeconds(1);
         await _server.Do_OnConnectionInitAsync(msg, smart);
         await tcs.Task;
         _mockServer.Verify();
@@ -229,7 +229,7 @@ public class BaseSubscriptionServerTests : IDisposable
     [Fact]
     public async Task StartConnectionInitTimer_Infinite()
     {
-        _options.ConnectionInitWaitTimeout = Timeout.InfiniteTimeSpan;
+        _options.WebSockets.ConnectionInitWaitTimeout = Timeout.InfiniteTimeSpan;
         await _server.Do_InitializeConnectionAsync();
     }
 
@@ -243,7 +243,7 @@ public class BaseSubscriptionServerTests : IDisposable
     [Fact]
     public async Task StartConnectionInitTimer_NotInitialized()
     {
-        _options.ConnectionInitWaitTimeout = TimeSpan.FromSeconds(1);
+        _options.WebSockets.ConnectionInitWaitTimeout = TimeSpan.FromSeconds(1);
         var tcs = new TaskCompletionSource<bool>();
         _mockServer.Protected().Setup<Task>("OnConnectionInitWaitTimeoutAsync").Returns(() => {
             tcs.TrySetResult(true);
@@ -258,7 +258,7 @@ public class BaseSubscriptionServerTests : IDisposable
     [Fact]
     public async Task StartConnectionInitTimer_Initialized()
     {
-        _options.ConnectionInitWaitTimeout = TimeSpan.FromSeconds(1);
+        _options.WebSockets.ConnectionInitWaitTimeout = TimeSpan.FromSeconds(1);
         var tcs = new TaskCompletionSource<bool>();
         _mockServer.Protected().Setup<Task>("OnConnectionInitWaitTimeoutAsync").Returns(() => {
             tcs.TrySetResult(true);
@@ -274,7 +274,7 @@ public class BaseSubscriptionServerTests : IDisposable
     [Fact]
     public async Task StartConnectionInitTimer_Canceled()
     {
-        _options.ConnectionInitWaitTimeout = TimeSpan.FromSeconds(1);
+        _options.WebSockets.ConnectionInitWaitTimeout = TimeSpan.FromSeconds(1);
         var tcs = new TaskCompletionSource<bool>();
         _mockServer.Protected().Setup<Task>("OnConnectionInitWaitTimeoutAsync").Returns(() => {
             tcs.TrySetResult(true);
@@ -685,7 +685,7 @@ public class BaseSubscriptionServerTests : IDisposable
     [InlineData(true)]
     public async Task Subscribe_DataEvents_CloseIfErrors(bool closeAfterError)
     {
-        _options.DisconnectAfterAnyError = closeAfterError;
+        _options.WebSockets.DisconnectAfterAnyError = closeAfterError;
         var message = new OperationMessage { Id = "abc" };
         var source = new Subject<ExecutionResult>();
         var result = new ExecutionResult {
@@ -753,7 +753,7 @@ public class BaseSubscriptionServerTests : IDisposable
     [InlineData(true)]
     public async Task Subscribe_DataEvents_ErrorsWork_Exception(bool closeAfterError)
     {
-        _options.DisconnectAfterErrorEvent = closeAfterError;
+        _options.WebSockets.DisconnectAfterErrorEvent = closeAfterError;
         var message = new OperationMessage { Id = "abc" };
         var source = new Subject<ExecutionResult>();
         var result = new ExecutionResult {

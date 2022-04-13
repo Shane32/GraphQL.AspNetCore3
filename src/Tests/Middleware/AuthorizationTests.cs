@@ -88,7 +88,7 @@ public class AuthorizationTests
         actual.ShouldBe(@"{""errors"":[{""message"":""Access denied for schema."",""extensions"":{""code"":""ACCESS_DENIED"",""codes"":[""ACCESS_DENIED""]}}]}");
     }
 
-    [Fact]
+    [Fact(Skip = "need custom implementation")]
     public async Task WebSocket_NotAuthorized()
     {
         _options.AuthorizationRequired = true;
