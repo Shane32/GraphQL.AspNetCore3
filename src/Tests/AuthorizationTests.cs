@@ -327,6 +327,24 @@ public class AuthorizationTests
         var ret = Validate(@"{ parent { child(arg: null) } }");
         ret.IsValid.ShouldBe(isValid);
 
+        // non-null test
+        _field.ResolvedType = new NonNullGraphType(_childGraph);
+        ret = Validate(@"{ parent { child(arg: null) } }");
+        ret.IsValid.ShouldBe(isValid);
+
+        // list test
+        _field.ResolvedType = new ListGraphType(_childGraph);
+        ret = Validate(@"{ parent { child(arg: null) } }");
+        ret.IsValid.ShouldBe(isValid);
+
+        // non-null list of non-null test
+        _field.ResolvedType = new NonNullGraphType(new ListGraphType(new NonNullGraphType(_childGraph)));
+        ret = Validate(@"{ parent { child(arg: null) } }");
+        ret.IsValid.ShouldBe(isValid);
+
+        //reset
+        _field.ResolvedType = _childGraph;
+
         // inline fragment
         ret = Validate(@"{ parent { ... on ChildType { child(arg: null) } } }");
         ret.IsValid.ShouldBe(isValid);
