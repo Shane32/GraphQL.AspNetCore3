@@ -37,6 +37,41 @@ public class BuilderMethodTests
     }
 
     [Fact]
+    public void WebSocketAuthenticationService_Typed()
+    {
+        var services = new ServiceCollection();
+        services.AddGraphQL(b => b.AddWebSocketAuthentication<MyWebSocketAuthenticationService>());
+        using var provider = services.BuildServiceProvider();
+        var service = provider.GetRequiredService<IWebSocketAuthenticationService>();
+        Should.Throw<NotImplementedException>(() => service.AuthenticateAsync(null!, null!, null!));
+    }
+
+    [Fact]
+    public void WebSocketAuthenticationService_Factory()
+    {
+        var services = new ServiceCollection();
+        services.AddGraphQL(b => b.AddWebSocketAuthentication(_ => new MyWebSocketAuthenticationService()));
+        using var provider = services.BuildServiceProvider();
+        var service = provider.GetRequiredService<IWebSocketAuthenticationService>();
+        Should.Throw<NotImplementedException>(() => service.AuthenticateAsync(null!, null!, null!));
+    }
+
+    [Fact]
+    public void WebSocketAuthenticationService_Instance()
+    {
+        var services = new ServiceCollection();
+        services.AddGraphQL(b => b.AddWebSocketAuthentication(new MyWebSocketAuthenticationService()));
+        using var provider = services.BuildServiceProvider();
+        var service = provider.GetRequiredService<IWebSocketAuthenticationService>();
+        Should.Throw<NotImplementedException>(() => service.AuthenticateAsync(null!, null!, null!));
+    }
+
+    private class MyWebSocketAuthenticationService : IWebSocketAuthenticationService
+    {
+        public Task AuthenticateAsync(IWebSocketConnection connection, string subProtocol, OperationMessage operationMessage) => throw new NotImplementedException();
+    }
+
+    [Fact]
     public async Task Basic()
     {
         _hostBuilder.Configure(app => {

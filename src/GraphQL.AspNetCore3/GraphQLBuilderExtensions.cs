@@ -19,6 +19,37 @@ public static class GraphQLBuilderExtensions
     }
 
     /// <summary>
+    /// Registers <typeparamref name="TWebSocketAuthenticationService"/> with the dependency injection framework
+    /// as a singleton of type <see cref="IWebSocketAuthenticationService"/>.
+    /// </summary>
+    public static IGraphQLBuilder AddWebSocketAuthentication<TWebSocketAuthenticationService>(this IGraphQLBuilder builder)
+        where TWebSocketAuthenticationService : class, IWebSocketAuthenticationService
+    {
+        builder.Services.Register<IWebSocketAuthenticationService, TWebSocketAuthenticationService>(ServiceLifetime.Singleton);
+        return builder;
+    }
+
+    /// <summary>
+    /// Registers a service of type <see cref="IWebSocketAuthenticationService"/> with the specified factory delegate
+    /// with the dependency injection framework as a singleton.
+    /// </summary>
+    public static IGraphQLBuilder AddWebSocketAuthentication(this IGraphQLBuilder builder, Func<IServiceProvider, IWebSocketAuthenticationService> factory)
+    {
+        builder.Services.Register(factory, ServiceLifetime.Singleton);
+        return builder;
+    }
+
+    /// <summary>
+    /// Registers a specified instance of type <see cref="IWebSocketAuthenticationService"/> with the
+    /// dependency injection framework.
+    /// </summary>
+    public static IGraphQLBuilder AddWebSocketAuthentication(this IGraphQLBuilder builder, IWebSocketAuthenticationService webSocketAuthenticationService)
+    {
+        builder.Services.Register(webSocketAuthenticationService);
+        return builder;
+    }
+
+    /// <summary>
     /// Registers an <see cref="IUserContextBuilder"/> type with the dependency injection framework
     /// and configures it to be used when executing a GraphQL request.
     /// <br/><br/>
