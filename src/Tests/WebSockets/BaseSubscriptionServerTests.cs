@@ -10,12 +10,11 @@ public class BaseSubscriptionServerTests : IDisposable
     private readonly IWebSocketConnection _stream;
     private readonly Mock<TestBaseSubscriptionServer> _mockServer;
     private TestBaseSubscriptionServer _server => _mockServer.Object;
-    private readonly Mock<IWebSocketAuthenticationService> _mockAuthorizationService = new(MockBehavior.Strict);
 
     public BaseSubscriptionServerTests()
     {
         _stream = _mockStream.Object;
-        _mockServer = new(_stream, _options, _mockAuthorizationService.Object);
+        _mockServer = new(_stream, _options);
         _mockServer.CallBase = true;
     }
 
@@ -195,25 +194,6 @@ public class BaseSubscriptionServerTests : IDisposable
         _mockServer.Verify();
         _mockServer.VerifyNoOtherCalls();
         _server.Get_Initialized.ShouldBeFalse();
-    }
-
-    [Fact]
-    public async Task AuthorizeAsync_Null()
-    {
-        var mockServer = new Mock<TestBaseSubscriptionServer>(_stream, _options, null);
-        mockServer.CallBase = true;
-        _mockStream.Setup(x => x.HttpContext).Returns((HttpContext)null!);
-        (await mockServer.Object.Do_AuthorizeAsync(new OperationMessage())).ShouldBeTrue();
-    }
-
-    [Theory(Skip = "redo")]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task AuthorizeAsync_PassThrough(bool expected)
-    {
-        var msg = new OperationMessage();
-        _mockAuthorizationService.Setup(x => x.AuthenticateAsync(_mockStream.Object, msg)).Returns(Task.CompletedTask);
-        (await _mockServer.Object.Do_AuthorizeAsync(msg)).ShouldBe(expected);
     }
 
     [Fact]

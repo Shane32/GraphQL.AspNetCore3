@@ -304,7 +304,7 @@ public abstract class GraphQLHttpMiddleware
     }
 
     /// <summary>
-    /// Perform authentication, if required, and return <see langword="true"/> if the
+    /// Perform authorization, if required, and return <see langword="true"/> if the
     /// request was handled (typically by returning an error message).  If <see langword="false"/>
     /// is returned, the request is processed normally.
     /// <br/><br/>

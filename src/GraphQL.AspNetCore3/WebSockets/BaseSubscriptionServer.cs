@@ -12,7 +12,6 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     private volatile int _initialized;
     private CancellationTokenSource? _cancellationTokenSource;
     private readonly GraphQLHttpMiddlewareOptions _options;
-    private readonly IWebSocketAuthenticationService? _authorizationService;
 
     /// <summary>
     /// Returns a <see cref="IWebSocketConnection"/> instance that can be used
@@ -45,14 +44,11 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     /// Initailizes a new instance with the specified parameters.
     /// </summary>
     /// <param name="sendStream">The WebSockets stream used to send data packets or close the connection.</param>
-    /// <param name="options">Configuration options for this instance</param>
-    /// <param name="authorizationService">A optional service to authorize connections</param>
+    /// <param name="options">Configuration options for this instance.</param>
     public BaseSubscriptionServer(
         IWebSocketConnection sendStream,
-        GraphQLHttpMiddlewareOptions options,
-        IWebSocketAuthenticationService? authorizationService = null)
+        GraphQLHttpMiddlewareOptions options)
     {
-        _authorizationService = authorizationService;
         _options = options ?? throw new ArgumentNullException(nameof(options));
         if (options.WebSockets.ConnectionInitWaitTimeout.HasValue) {
             if (options.WebSockets.ConnectionInitWaitTimeout.Value != Timeout.InfiniteTimeSpan && options.WebSockets.ConnectionInitWaitTimeout.Value <= TimeSpan.Zero || options.WebSockets.ConnectionInitWaitTimeout.Value > TimeSpan.FromMilliseconds(int.MaxValue))
@@ -184,23 +180,20 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     /// <summary>
     /// Authorizes an incoming GraphQL over WebSockets request with the connection initialization message.
     /// <br/><br/>
-    /// The default implementation calls the <see cref="IWebSocketAuthenticationService.AuthenticateAsync(IWebSocketConnection, OperationMessage)"/>
-    /// to authenticate the request, and then checks the authorization rules set in <see cref="GraphQLHttpMiddlewareOptions"/>,
+    /// The default implementation checks the authorization rules set in <see cref="GraphQLHttpMiddlewareOptions"/>,
     /// if any, against <see cref="HttpContext.User"/>.  If validation fails, control is passed
     /// to <see cref="OnNotAuthenticatedAsync(OperationMessage)">OnNotAuthenticatedAsync</see>,
     /// <see cref="OnNotAuthorizedRoleAsync(OperationMessage)">OnNotAuthorizedRoleAsync</see>
     /// or <see cref="OnNotAuthorizedPolicyAsync(OperationMessage, AuthorizationResult)">OnNotAuthorizedPolicyAsync</see>.
     /// <br/><br/>
-    /// This method should <see langword="true"/> if authorization is successful, or
-    /// return <see langword="false"/> if not.  It is recommended to to call
-    /// <see cref="Client">Client</see>.<see cref="IWebSocketConnection.CloseConnectionAsync(int, string?)">CloseConnectionAsync()</see>
-    /// with an appropriate error number and message.
+    /// Derived implementations should call the <see cref="IWebSocketAuthenticationService.AuthenticateAsync(IWebSocketConnection, string, OperationMessage)"/>
+    /// method to authenticate the request, and then call this base method.
+    /// <br/><br/>
+    /// This method will return <see langword="true"/> if authorization is successful, or
+    /// return <see langword="false"/> if not.
     /// </summary>
     protected virtual async ValueTask<bool> AuthorizeAsync(OperationMessage message)
     {
-        if (_authorizationService != null)
-            await _authorizationService.AuthenticateAsync(Client, message);
-
         // allocation-free authorization here
         var success = await AuthorizationHelper.AuthorizeAsync(
             new AuthorizationParameters<(BaseSubscriptionServer Server, OperationMessage Message)>(

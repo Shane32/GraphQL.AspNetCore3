@@ -18,5 +18,5 @@ public interface IWebSocketAuthenticationService
     /// <see cref="GraphQLHttpMiddlewareOptions.AuthorizationRequired"/>, <see cref="GraphQLHttpMiddlewareOptions.AuthorizedRoles"/> and
     /// <see cref="GraphQLHttpMiddlewareOptions.AuthorizedPolicy"/> properties.
     /// </summary>
-    Task AuthenticateAsync(IWebSocketConnection connection, OperationMessage operationMessage);
+    Task AuthenticateAsync(IWebSocketConnection connection, string subProtocol, OperationMessage operationMessage);
 }
