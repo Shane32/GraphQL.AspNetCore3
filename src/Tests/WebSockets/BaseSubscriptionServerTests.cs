@@ -1,5 +1,7 @@
 using System.Reactive.Subjects;
+using System.Security.Claims;
 using GraphQL.Execution;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Tests.WebSockets;
 
@@ -804,6 +806,80 @@ public class BaseSubscriptionServerTests : IDisposable
     {
         _server.Dispose();
         _server.Dispose();
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AuthorizeAsync(bool authorized)
+    {
+        var msg = new OperationMessage();
+        _options.AuthorizationRequired = true;
+        if (!authorized) {
+            _mockServer.Protected().Setup<Task>("OnNotAuthenticatedAsync", msg).CallBase().Verifiable();
+            _mockServer.Protected().Setup<Task>("ErrorAccessDeniedAsync").CallBase().Verifiable();
+            _mockStream.Setup(x => x.CloseConnectionAsync(4401, "Access denied")).Returns(Task.CompletedTask);
+        }
+        var user = new ClaimsPrincipal(authorized ? new ClaimsIdentity("test") : new ClaimsIdentity());
+        var mockContext = new Mock<HttpContext>(MockBehavior.Strict);
+        mockContext.Setup(x => x.User).Returns(user);
+        _mockStream.Setup(x => x.HttpContext).Returns(mockContext.Object);
+        _mockServer.Protected().Setup<ValueTask<bool>>("AuthorizeAsync", msg).CallBase().Verifiable();
+        var ret = await _server.Do_AuthorizeAsync(msg);
+        ret.ShouldBe(authorized);
+        _mockServer.Verify();
+        _mockServer.VerifyNoOtherCalls();
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AuthorizeAsync_Roles(bool authorized)
+    {
+        var msg = new OperationMessage();
+        _options.AuthorizedRoles.Add("myRole");
+        if (!authorized) {
+            _mockServer.Protected().Setup<Task>("OnNotAuthorizedRoleAsync", msg).CallBase().Verifiable();
+            _mockServer.Protected().Setup<Task>("ErrorAccessDeniedAsync").CallBase().Verifiable();
+            _mockStream.Setup(x => x.CloseConnectionAsync(4401, "Access denied")).Returns(Task.CompletedTask);
+        }
+        var user = new ClaimsPrincipal(authorized ? new ClaimsIdentity(new Claim[] { new Claim(ClaimTypes.Role, "myRole") }) : new ClaimsIdentity());
+        var mockContext = new Mock<HttpContext>(MockBehavior.Strict);
+        mockContext.Setup(x => x.User).Returns(user);
+        _mockStream.Setup(x => x.HttpContext).Returns(mockContext.Object);
+        _mockServer.Protected().Setup<ValueTask<bool>>("AuthorizeAsync", msg).CallBase().Verifiable();
+        var ret = await _server.Do_AuthorizeAsync(msg);
+        ret.ShouldBe(authorized);
+        _mockServer.Verify();
+        _mockServer.VerifyNoOtherCalls();
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AuthorizeAsync_Policy(bool authorized)
+    {
+        var msg = new OperationMessage();
+        _options.AuthorizedPolicy = "myPolicy";
+        if (!authorized) {
+            _mockServer.Protected().Setup<Task>("OnNotAuthorizedPolicyAsync", msg, ItExpr.IsAny<AuthorizationResult>()).CallBase().Verifiable();
+            _mockServer.Protected().Setup<Task>("ErrorAccessDeniedAsync").CallBase().Verifiable();
+            _mockStream.Setup(x => x.CloseConnectionAsync(4401, "Access denied")).Returns(Task.CompletedTask);
+        }
+        var user = new ClaimsPrincipal(new ClaimsIdentity());
+        var mockAuthorizationService = new Mock<IAuthorizationService>(MockBehavior.Strict);
+        mockAuthorizationService.Setup(x => x.AuthorizeAsync(user, null, "myPolicy")).Returns(authorized ? Task.FromResult(AuthorizationResult.Success()) : Task.FromResult(AuthorizationResult.Failed()));
+        var mockProvider = new Mock<IServiceProvider>(MockBehavior.Strict);
+        mockProvider.Setup(x => x.GetService(typeof(IAuthorizationService))).Returns(mockAuthorizationService.Object);
+        var mockContext = new Mock<HttpContext>(MockBehavior.Strict);
+        mockContext.Setup(x => x.User).Returns(user);
+        mockContext.Setup(x => x.RequestServices).Returns(mockProvider.Object);
+        _mockStream.Setup(x => x.HttpContext).Returns(mockContext.Object);
+        _mockServer.Protected().Setup<ValueTask<bool>>("AuthorizeAsync", msg).CallBase().Verifiable();
+        var ret = await _server.Do_AuthorizeAsync(msg);
+        ret.ShouldBe(authorized);
+        _mockServer.Verify();
+        _mockServer.VerifyNoOtherCalls();
     }
 
     //note: BaseSubscriptionServer.Observer isn't fully tested here
