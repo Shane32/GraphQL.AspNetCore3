@@ -4,19 +4,19 @@ namespace GraphQL.AspNetCore3.WebSockets;
 public class WebSocketHandler<TSchema> : WebSocketHandler, IWebSocketHandler<TSchema>
     where TSchema : ISchema
 {
-    /// <inheritdoc cref="WebSocketHandler(IGraphQLSerializer, IDocumentExecuter, IServiceScopeFactory, GraphQLHttpMiddlewareOptions, IHostApplicationLifetime, IWebSocketAuthorizationService)"/>
+    /// <inheritdoc cref="WebSocketHandler(IGraphQLSerializer, IDocumentExecuter, IServiceScopeFactory, GraphQLHttpMiddlewareOptions, IHostApplicationLifetime, IWebSocketAuthenticationService)"/>
     public WebSocketHandler(
         IGraphQLSerializer serializer,
         IDocumentExecuter<TSchema> executer,
         IServiceScopeFactory serviceScopeFactory,
         GraphQLHttpMiddlewareOptions options,
         IHostApplicationLifetime hostApplicationLifetime,
-        IWebSocketAuthorizationService? authorizationService)
+        IWebSocketAuthenticationService? authorizationService)
         : base(serializer, executer, serviceScopeFactory, options, hostApplicationLifetime, authorizationService)
     {
     }
 
-    /// <inheritdoc cref="WebSocketHandler(IGraphQLSerializer, IDocumentExecuter, IServiceScopeFactory, GraphQLHttpMiddlewareOptions, IHostApplicationLifetime, IWebSocketAuthorizationService)"/>
+    /// <inheritdoc cref="WebSocketHandler(IGraphQLSerializer, IDocumentExecuter, IServiceScopeFactory, GraphQLHttpMiddlewareOptions, IHostApplicationLifetime, IWebSocketAuthenticationService)"/>
     public WebSocketHandler(
         IGraphQLSerializer serializer,
         IDocumentExecuter<TSchema> executer,
@@ -35,7 +35,7 @@ public class WebSocketHandler : IWebSocketHandler
     private readonly IDocumentExecuter _executer;
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly IHostApplicationLifetime _hostApplicationLifetime;
-    private readonly IWebSocketAuthorizationService? _authorizationService;
+    private readonly IWebSocketAuthenticationService? _authorizationService;
 
     /// <summary>
     /// Gets the configuration options for this instance.
@@ -65,7 +65,7 @@ public class WebSocketHandler : IWebSocketHandler
         IServiceScopeFactory serviceScopeFactory,
         GraphQLHttpMiddlewareOptions options,
         IHostApplicationLifetime hostApplicationLifetime,
-        IWebSocketAuthorizationService? authorizationService = null)
+        IWebSocketAuthenticationService? authorizationService = null)
     {
         _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
         _executer = executer ?? throw new ArgumentNullException(nameof(executer));

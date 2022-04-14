@@ -45,7 +45,7 @@ public class SubscriptionServer : BaseSubscriptionServer
         IGraphQLSerializer serializer,
         IServiceScopeFactory serviceScopeFactory,
         IDictionary<string, object?> userContext,
-        IWebSocketAuthorizationService? authorizationService = null)
+        IWebSocketAuthenticationService? authorizationService = null)
         : base(sendStream, options, authorizationService)
     {
         DocumentExecuter = executer ?? throw new ArgumentNullException(nameof(executer));

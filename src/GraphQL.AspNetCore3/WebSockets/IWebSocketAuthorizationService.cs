@@ -1,24 +1,22 @@
 namespace GraphQL.AspNetCore3.WebSockets;
 
 /// <summary>
-/// Authorizes an incoming GraphQL over WebSockets request with the
+/// Authenticates an incoming GraphQL over WebSockets request with the
 /// connection initialization message.  A typical implementation will
 /// set the <see cref="HttpContext.User"/> property after reading the
 /// authorization token.  This service must be registered as a singleton
 /// in the dependency injection framework.
 /// </summary>
-public interface IWebSocketAuthorizationService
+public interface IWebSocketAuthenticationService
 {
     /// <summary>
-    /// Authorizes an incoming GraphQL over WebSockets request with the
-    /// connection initialization message.  A typical implementation will
-    /// set the <see cref="HttpContext.User"/> property after reading the
-    /// authorization token.
+    /// Authenticates an incoming GraphQL over WebSockets request with the connection initialization message.  The implementation should
+    /// set the <paramref name="connection"/>.<see cref="IWebSocketConnection.HttpContext">HttpContext</see>.<see cref="HttpContext.User">User</see>
+    /// property after validating the provided credentials.
     /// <br/><br/>
-    /// Return <see langword="true"/> if authorization is successful, or
-    /// return <see langword="false"/> if not.  You may choose to call
-    /// <see cref="IWebSocketConnection.CloseConnectionAsync(int, string?)"/>
-    /// with an appropriate error number and message.
+    /// After calling this method to authenticate the request, the infrastructure will authorize the incoming request via the
+    /// <see cref="GraphQLHttpMiddlewareOptions.AuthorizationRequired"/>, <see cref="GraphQLHttpMiddlewareOptions.AuthorizedRoles"/> and
+    /// <see cref="GraphQLHttpMiddlewareOptions.AuthorizedPolicy"/> properties.
     /// </summary>
-    ValueTask<bool> AuthorizeAsync(IWebSocketConnection connection, OperationMessage operationMessage);
+    Task AuthenticateAsync(IWebSocketConnection connection, OperationMessage operationMessage);
 }

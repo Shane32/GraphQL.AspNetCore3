@@ -76,7 +76,7 @@ public class GraphQLHttpMiddleware<TSchema> : GraphQLHttpMiddleware
 
         return new IWebSocketHandler<TSchema>[] {
             new WebSocketHandler<TSchema>(serializer, documentExecuter, serviceScopeFactory, options,
-                hostApplicationLifetime, provider.GetService<IWebSocketAuthorizationService>()),
+                hostApplicationLifetime, provider.GetService<IWebSocketAuthenticationService>()),
         };
     }
 
@@ -291,34 +291,16 @@ public abstract class GraphQLHttpMiddleware
     /// </summary>
     protected virtual async ValueTask<bool> HandleAuthorizeAsync(HttpContext context, RequestDelegate next)
     {
-        if (Options.AuthorizationRequired) {
-            if (!((context.User ?? NoUser()).Identity ?? NoIdentity()).IsAuthenticated) {
-                await HandleNotAuthenticatedAsync(context, next);
-                return true;
-            }
-        }
+        var success = await AuthorizationHelper.AuthorizeAsync(
+            new AuthorizationParameters<(GraphQLHttpMiddleware Middleware, HttpContext Context, RequestDelegate Next)>(
+                context,
+                Options,
+                static info => info.Middleware.HandleNotAuthenticatedAsync(info.Context, info.Next),
+                static info => info.Middleware.HandleNotAuthorizedRoleAsync(info.Context, info.Next),
+                static (info, result) => info.Middleware.HandleNotAuthorizedPolicyAsync(info.Context, info.Next, result)),
+            (this, context, next));
 
-        if (Options.AuthorizedRoles.Count > 0) {
-            var user = context.User ?? NoUser();
-            foreach (var role in Options.AuthorizedRoles) {
-                if (user.IsInRole(role))
-                    goto PassRoleCheck;
-            }
-            await HandleNotAuthorizedRoleAsync(context, next);
-            return true;
-        }
-    PassRoleCheck:
-
-        if (Options.AuthorizedPolicy != null) {
-            var authorizationService = context.RequestServices.GetRequiredService<IAuthorizationService>();
-            var authResult = await authorizationService.AuthorizeAsync(context.User ?? NoUser(), null, Options.AuthorizedPolicy);
-            if (!authResult.Succeeded) {
-                await HandleNotAuthorizedPolicyAsync(context, next, authResult);
-                return true;
-            }
-        }
-
-        return false;
+        return !success;
     }
 
     /// <summary>
@@ -507,10 +489,10 @@ public abstract class GraphQLHttpMiddleware
     protected virtual Task HandleNotAuthorizedPolicyAsync(HttpContext context, RequestDelegate next, AuthorizationResult authorizationResult)
         => WriteErrorResponseAsync(context, HttpStatusCode.Unauthorized, new AccessDeniedError("schema") { PolicyRequired = Options.AuthorizedPolicy, PolicyAuthorizationResult = authorizationResult });
 
-    private static IIdentity NoIdentity()
+    internal static IIdentity NoIdentity()
         => throw new InvalidOperationException($"IIdentity could not be retrieved from HttpContext.User.Identity.");
 
-    private static ClaimsPrincipal NoUser()
+    internal static ClaimsPrincipal NoUser()
         => throw new InvalidOperationException("ClaimsPrincipal could not be retrieved from HttpContext.User.");
 
     /// <summary>

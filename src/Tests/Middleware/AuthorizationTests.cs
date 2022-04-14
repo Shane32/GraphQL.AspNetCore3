@@ -88,21 +88,8 @@ public class AuthorizationTests
         actual.ShouldBe(@"{""errors"":[{""message"":""Access denied for schema."",""extensions"":{""code"":""ACCESS_DENIED"",""codes"":[""ACCESS_DENIED""]}}]}");
     }
 
-    [Fact(Skip = "need custom implementation")]
-    public async Task WebSocket_NotAuthorized()
-    {
-        _options.AuthorizationRequired = true;
-        var webSocketClient = _server.CreateWebSocketClient();
-        webSocketClient.ConfigureRequest = request => {
-            request.Headers["Sec-WebSocket-Protocol"] = "graphql-ws";
-        };
-        webSocketClient.SubProtocols.Add("graphql-ws");
-        var error = await Should.ThrowAsync<InvalidOperationException>(() => webSocketClient.ConnectAsync(new Uri(_server.BaseAddress, "/graphql"), default));
-        error.Message.ShouldBe("Incomplete handshake, status code: 401");
-    }
-
-    [Fact(Skip = "need custom implementation")]
-    public async Task WebSocket_IgnoreAuthentication()
+    [Fact]
+    public async Task WebSocket_IgnoreAuthenticationOnConnect()
     {
         _options.AuthorizationRequired = true;
         var webSocketClient = _server.CreateWebSocketClient();

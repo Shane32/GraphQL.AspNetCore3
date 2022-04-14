@@ -1,3 +1,7 @@
+using System.Security.Claims;
+using System.Security.Principal;
+using Microsoft.AspNetCore.Authorization;
+
 namespace GraphQL.AspNetCore3.WebSockets;
 
 /// <summary>
@@ -8,7 +12,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     private volatile int _initialized;
     private CancellationTokenSource? _cancellationTokenSource;
     private readonly GraphQLHttpMiddlewareOptions _options;
-    private readonly IWebSocketAuthorizationService? _authorizationService;
+    private readonly IWebSocketAuthenticationService? _authorizationService;
 
     /// <summary>
     /// Returns a <see cref="IWebSocketConnection"/> instance that can be used
@@ -46,7 +50,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     public BaseSubscriptionServer(
         IWebSocketConnection sendStream,
         GraphQLHttpMiddlewareOptions options,
-        IWebSocketAuthorizationService? authorizationService = null)
+        IWebSocketAuthenticationService? authorizationService = null)
     {
         _authorizationService = authorizationService;
         _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -178,20 +182,68 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
         => Client.CloseConnectionAsync(4409, $"Subscriber for {message.Id} already exists");
 
     /// <summary>
-    /// Authorizes an incoming GraphQL over WebSockets request with the
-    /// connection initialization message.  A typical implementation will
-    /// set the <see cref="HttpContext.User"/> property after reading the
-    /// authorization token.
+    /// Authorizes an incoming GraphQL over WebSockets request with the connection initialization message.
     /// <br/><br/>
-    /// Return <see langword="true"/> if authorization is successful, or
-    /// return <see langword="false"/> if not.  You may choose to call
+    /// The default implementation calls the <see cref="IWebSocketAuthenticationService.AuthenticateAsync(IWebSocketConnection, OperationMessage)"/>
+    /// to authenticate the request, and then checks the authorization rules set in <see cref="GraphQLHttpMiddlewareOptions"/>,
+    /// if any, against <see cref="HttpContext.User"/>.  If validation fails, control is passed
+    /// to <see cref="OnNotAuthenticatedAsync(OperationMessage)">OnNotAuthenticatedAsync</see>,
+    /// <see cref="OnNotAuthorizedRoleAsync(OperationMessage)">OnNotAuthorizedRoleAsync</see>
+    /// or <see cref="OnNotAuthorizedPolicyAsync(OperationMessage, AuthorizationResult)">OnNotAuthorizedPolicyAsync</see>.
+    /// <br/><br/>
+    /// This method should <see langword="true"/> if authorization is successful, or
+    /// return <see langword="false"/> if not.  It is recommended to to call
     /// <see cref="Client">Client</see>.<see cref="IWebSocketConnection.CloseConnectionAsync(int, string?)">CloseConnectionAsync()</see>
     /// with an appropriate error number and message.
-    /// <br/><br/>
-    /// Default implementation calls <see cref="IWebSocketAuthorizationService.AuthorizeAsync(IWebSocketConnection, OperationMessage)"/>.
     /// </summary>
-    protected virtual ValueTask<bool> AuthorizeAsync(OperationMessage message)
-        => _authorizationService?.AuthorizeAsync(Client, message) ?? new(true);
+    protected virtual async ValueTask<bool> AuthorizeAsync(OperationMessage message)
+    {
+        if (_authorizationService != null)
+            await _authorizationService.AuthenticateAsync(Client, message);
+
+        // allocation-free authorization here
+        var success = await AuthorizationHelper.AuthorizeAsync(
+            new AuthorizationParameters<(BaseSubscriptionServer Server, OperationMessage Message)>(
+                Client.HttpContext,
+                _options,
+                static info => info.Server.OnNotAuthenticatedAsync(info.Message),
+                static info => info.Server.OnNotAuthorizedRoleAsync(info.Message),
+                static (info, result) => info.Server.OnNotAuthorizedPolicyAsync(info.Message, result)),
+            (this, message));
+
+        return success;
+    }
+
+    /// <summary>
+    /// Executes if <see cref="GraphQLHttpMiddlewareOptions.AuthorizationRequired"/> is set
+    /// but <see cref="IIdentity.IsAuthenticated"/> returns <see langword="false"/>.
+    /// <br/><br/>
+    /// Default implementation closes the WebSocket connection with a 4401 'Access denied'
+    /// error message via <see cref="ErrorAccessDeniedAsync"/>.
+    /// </summary>
+    protected virtual Task OnNotAuthenticatedAsync(OperationMessage message)
+        => ErrorAccessDeniedAsync();
+
+    /// <summary>
+    /// Executes if <see cref="GraphQLHttpMiddlewareOptions.AuthorizedRoles"/> is set but
+    /// <see cref="ClaimsPrincipal.IsInRole(string)"/> returns <see langword="false"/> for all roles.
+    /// <br/><br/>
+    /// Default implementation closes the WebSocket connection with a 4401 'Access denied'
+    /// error message via <see cref="ErrorAccessDeniedAsync"/>.
+    /// </summary>
+    protected virtual Task OnNotAuthorizedRoleAsync(OperationMessage message)
+        => ErrorAccessDeniedAsync();
+
+    /// <summary>
+    /// Executes if <see cref="GraphQLHttpMiddlewareOptions.AuthorizedPolicy"/> is set but
+    /// <see cref="IAuthorizationService.AuthorizeAsync(ClaimsPrincipal, object, string)"/>
+    /// returns an unsuccessful <see cref="AuthorizationResult"/> for the specified policy.
+    /// <br/><br/>
+    /// Default implementation closes the WebSocket connection with a 4401 'Access denied'
+    /// error message via <see cref="ErrorAccessDeniedAsync"/>.
+    /// </summary>
+    protected virtual Task OnNotAuthorizedPolicyAsync(OperationMessage message, AuthorizationResult result)
+        => ErrorAccessDeniedAsync();
 
     /// <summary>
     /// Executes when the client is attempting to initalize the connection.
@@ -209,7 +261,6 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     protected virtual async Task OnConnectionInitAsync(OperationMessage message, bool smartKeepAlive)
     {
         if (!await AuthorizeAsync(message)) {
-            await ErrorAccessDeniedAsync();
             return;
         }
         await OnConnectionAcknowledgeAsync(message);
