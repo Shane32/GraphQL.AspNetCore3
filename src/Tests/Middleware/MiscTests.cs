@@ -11,7 +11,6 @@ public class MiscTests
     {
         RequestDelegate next = _ => Task.CompletedTask;
         var serializer = Mock.Of<IGraphQLTextSerializer>();
-        var handlers = new IWebSocketHandler<ISchema>[1];
         var options = new GraphQLHttpMiddlewareOptions();
         var executer = Mock.Of<IDocumentExecuter<ISchema>>();
         var scopeFactory = Mock.Of<IServiceScopeFactory>();
@@ -24,6 +23,23 @@ public class MiscTests
         Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, serializer, executer, scopeFactory, null!, provider, appLifetime));
         Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, serializer, executer, scopeFactory, options, null!, appLifetime));
         Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, serializer, executer, scopeFactory, options, provider, null!));
+        _ = new GraphQLHttpMiddleware<ISchema>(next, serializer, executer, scopeFactory, options, provider, appLifetime);
+
+        Should.Throw<ArgumentNullException>(() => new MyMiddleware2(null!, serializer, executer, scopeFactory, options, null));
+        Should.Throw<ArgumentNullException>(() => new MyMiddleware2(next, null!, executer, scopeFactory, options, null));
+        Should.Throw<ArgumentNullException>(() => new MyMiddleware2(next, serializer, null!, scopeFactory, options, null));
+        Should.Throw<ArgumentNullException>(() => new MyMiddleware2(next, serializer, executer, null!, options, null));
+        Should.Throw<ArgumentNullException>(() => new MyMiddleware2(next, serializer, executer, scopeFactory, null!, null));
+        _ = new MyMiddleware2(next, serializer, executer, scopeFactory, options, null);
+
+    }
+
+    private class MyMiddleware2 : GraphQLHttpMiddleware<ISchema>
+    {
+        public MyMiddleware2(RequestDelegate next, IGraphQLTextSerializer serializer, IDocumentExecuter<ISchema> documentExecuter, IServiceScopeFactory serviceScopeFactory, GraphQLHttpMiddlewareOptions options, IEnumerable<IWebSocketHandler<ISchema>>? webSocketHandlers)
+            : base(next, serializer, documentExecuter, serviceScopeFactory, options, webSocketHandlers)
+        {
+        }
     }
 
     [Fact]

@@ -4,6 +4,7 @@ using System.Security.Claims;
 using GraphQL.AspNetCore3.Errors;
 using GraphQL.Execution;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Hosting;
 
 namespace Tests.Middleware;
 
@@ -98,6 +99,44 @@ public class AuthorizationTests
         };
         webSocketClient.SubProtocols.Add("graphql-ws");
         using var webSocket = await webSocketClient.ConnectAsync(new Uri(_server.BaseAddress, "/graphql"), default);
+    }
+
+    [Fact]
+    public async Task WebSocket_NotAuthorized()
+    {
+        var hostBuilder = new WebHostBuilder();
+        hostBuilder.ConfigureServices(services => {
+            services.AddGraphQL(b => b
+                .AddAutoSchema<Chat.Schema.Query>()
+                .AddSystemTextJson());
+        });
+        hostBuilder.Configure(app => {
+            app.UseWebSockets();
+            app.UseGraphQL<MyMiddleware>("/graphql");
+        });
+        var server = new TestServer(hostBuilder);
+
+        var webSocketClient = server.CreateWebSocketClient();
+        webSocketClient.ConfigureRequest = request => {
+            request.Headers["Sec-WebSocket-Protocol"] = "graphql-ws";
+        };
+        webSocketClient.SubProtocols.Add("graphql-ws");
+        var error = await Should.ThrowAsync<InvalidOperationException>(() => webSocketClient.ConnectAsync(new Uri(_server.BaseAddress, "/graphql"), default));
+        error.Message.ShouldBe("Incomplete handshake, status code: 422");
+    }
+
+    private class MyMiddleware : GraphQLHttpMiddleware<ISchema>
+    {
+        public MyMiddleware(RequestDelegate next, IGraphQLTextSerializer serializer, IDocumentExecuter<ISchema> documentExecuter, IServiceScopeFactory serviceScopeFactory, IServiceProvider provider, IHostApplicationLifetime hostApplicationLifetime)
+            : base(next, serializer, documentExecuter, serviceScopeFactory, new(), provider, hostApplicationLifetime)
+        {
+        }
+
+        protected override async ValueTask<bool> HandleAuthorizeWebSocketConnectionAsync(HttpContext context, RequestDelegate next)
+        {
+            await WriteErrorResponseAsync(context, HttpStatusCode.UnprocessableEntity, "Access deined");
+            return true;
+        }
     }
 
     [Fact]

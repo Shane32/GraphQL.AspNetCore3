@@ -489,12 +489,6 @@ public abstract class GraphQLHttpMiddleware
     protected virtual Task HandleNotAuthorizedPolicyAsync(HttpContext context, RequestDelegate next, AuthorizationResult authorizationResult)
         => WriteErrorResponseAsync(context, HttpStatusCode.Unauthorized, new AccessDeniedError("schema") { PolicyRequired = Options.AuthorizedPolicy, PolicyAuthorizationResult = authorizationResult });
 
-    internal static IIdentity NoIdentity()
-        => throw new InvalidOperationException($"IIdentity could not be retrieved from HttpContext.User.Identity.");
-
-    internal static ClaimsPrincipal NoUser()
-        => throw new InvalidOperationException("ClaimsPrincipal could not be retrieved from HttpContext.User.");
-
     /// <summary>
     /// Writes a '400 JSON body text could not be parsed.' message to the output.
     /// Return <see langword="false"/> to rethrow the exception or <see langword="true"/>
