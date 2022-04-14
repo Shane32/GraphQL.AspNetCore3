@@ -3,7 +3,7 @@ namespace GraphQL.AspNetCore3;
 /// <summary>
 /// Validates that HTTP POST requests do not execute subscriptions.
 /// </summary>
-public class HttpPostValidationRule : IValidationRule
+public sealed class HttpPostValidationRule : IValidationRule
 {
     /// <inheritdoc/>
     public ValueTask<INodeVisitor?> ValidateAsync(ValidationContext context)

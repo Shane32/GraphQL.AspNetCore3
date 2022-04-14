@@ -96,9 +96,8 @@ namespace GraphQL.AspNetCore3
         public static GraphQL.AspNetCore3.GraphQLEndpointConventionBuilder MapGraphQL(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder endpoints, string pattern = "graphql", System.Action<GraphQL.AspNetCore3.GraphQLHttpMiddlewareOptions>? configureMiddleware = null) { }
         public static GraphQL.AspNetCore3.GraphQLEndpointConventionBuilder MapGraphQL<TSchema>(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder endpoints, string pattern = "graphql", System.Action<GraphQL.AspNetCore3.GraphQLHttpMiddlewareOptions>? configureMiddleware = null)
             where TSchema : GraphQL.Types.ISchema { }
-        public static GraphQL.AspNetCore3.GraphQLEndpointConventionBuilder MapGraphQL<TSchema, TMiddleware>(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder endpoints, string pattern = "graphql")
-            where TSchema : GraphQL.Types.ISchema
-            where TMiddleware : GraphQL.AspNetCore3.GraphQLHttpMiddleware<TSchema> { }
+        public static GraphQL.AspNetCore3.GraphQLEndpointConventionBuilder MapGraphQL<TMiddleware>(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder endpoints, string pattern = "graphql", params object[] args)
+            where TMiddleware : GraphQL.AspNetCore3.GraphQLHttpMiddleware { }
     }
     public abstract class GraphQLHttpMiddleware
     {
@@ -157,11 +156,7 @@ namespace GraphQL.AspNetCore3
         public HttpGetValidationRule() { }
         public System.Threading.Tasks.ValueTask<GraphQL.Validation.INodeVisitor?> ValidateAsync(GraphQL.Validation.ValidationContext context) { }
     }
-    public class HttpMethodValidationError : GraphQL.Validation.ValidationError
-    {
-        public HttpMethodValidationError(GraphQLParser.ROM originalQuery, GraphQLParser.AST.ASTNode node, string message) { }
-    }
-    public class HttpPostValidationRule : GraphQL.Validation.IValidationRule
+    public sealed class HttpPostValidationRule : GraphQL.Validation.IValidationRule
     {
         public HttpPostValidationRule() { }
         public System.Threading.Tasks.ValueTask<GraphQL.Validation.INodeVisitor?> ValidateAsync(GraphQL.Validation.ValidationContext context) { }
@@ -198,6 +193,10 @@ namespace GraphQL.AspNetCore3.Errors
     public class BatchedRequestsNotSupportedError : GraphQL.AspNetCore3.Errors.RequestError
     {
         public BatchedRequestsNotSupportedError() { }
+    }
+    public class HttpMethodValidationError : GraphQL.Validation.ValidationError
+    {
+        public HttpMethodValidationError(GraphQLParser.ROM originalQuery, GraphQLParser.AST.ASTNode node, string message) { }
     }
     public class InvalidContentTypeError : GraphQL.AspNetCore3.Errors.RequestError
     {

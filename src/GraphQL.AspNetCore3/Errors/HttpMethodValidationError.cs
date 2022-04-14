@@ -1,4 +1,4 @@
-namespace GraphQL.AspNetCore3;
+namespace GraphQL.AspNetCore3.Errors;
 
 /// <summary>
 /// Represents a validation error indicating that the requested operation is not valid
