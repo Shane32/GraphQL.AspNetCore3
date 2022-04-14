@@ -368,12 +368,14 @@ public class AuthorizationValidationRule : IValidationRule
                         goto PassRoles;
                 }
                 HandleNodeNotInRoles(info, roles);
+                success = false;
             }
         PassRoles:
 
             if (requiresAuthorization) {
                 if (!Authorize()) {
                     HandleNodeNotAuthorized(info);
+                    success = false;
                 }
             }
 
