@@ -107,7 +107,7 @@ public class AuthorizationValidationRule : IValidationRule
         public virtual void Enter(ASTNode node, ValidationContext context)
         {
             if (node == context.Operation || (node is GraphQLFragmentDefinition fragmentDefinition && _fragmentDefinitionsToCheck != null && _fragmentDefinitionsToCheck.Contains(fragmentDefinition))) {
-                var type = context.TypeInfo.GetLastType();
+                var type = context.TypeInfo.GetLastType()?.GetNamedType();
                 if (type != null) {
                     // if type is null that means that no type was configured for this operation in the schema; will produce a separate validation error
                     _onlyAnonymousSelected.Push(new());
@@ -191,7 +191,7 @@ public class AuthorizationValidationRule : IValidationRule
             void PopAndProcess()
             {
                 var info = _onlyAnonymousSelected.Pop();
-                var type = context.TypeInfo.GetLastType();
+                var type = context.TypeInfo.GetLastType()?.GetNamedType();
                 if (type == null)
                     return;
                 if (info.AnyAuthenticated || (!info.AnyAnonymous && (info.WaitingOnFragments?.Count ?? 0) == 0)) {
@@ -308,13 +308,13 @@ public class AuthorizationValidationRule : IValidationRule
             if (node is GraphQLField) {
                 if (obj is IGraphType) {
                     parentFieldType = context.TypeInfo.GetFieldDef(0);
-                    parentGraphType = context.TypeInfo.GetLastType(1);
+                    parentGraphType = context.TypeInfo.GetLastType(1)?.GetNamedType();
                 } else if (obj is IFieldType) {
-                    parentGraphType = context.TypeInfo.GetLastType(1);
+                    parentGraphType = context.TypeInfo.GetLastType(1)?.GetNamedType();
                 }
             } else if (node is GraphQLArgument) {
                 parentFieldType = context.TypeInfo.GetFieldDef();
-                parentGraphType = context.TypeInfo.GetLastType(1);
+                parentGraphType = context.TypeInfo.GetLastType(1)?.GetNamedType();
             }
             return new(obj, node, parentFieldType, parentGraphType, context);
         }
