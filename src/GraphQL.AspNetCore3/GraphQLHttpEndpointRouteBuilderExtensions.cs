@@ -40,16 +40,15 @@ public static class GraphQLHttpEndpointRouteBuilderExtensions
     /// <summary>
     /// Add the GraphQL middleware to the HTTP request pipeline for the specified schema.
     /// </summary>
-    /// <typeparam name="TSchema">The implementation of <see cref="ISchema"/> to use</typeparam>
     /// <typeparam name="TMiddleware">Custom middleware inherited from <see cref="GraphQLHttpMiddleware{TSchema}"/></typeparam>
     /// <param name="endpoints">Defines a contract for a route builder in an application. A route builder specifies the routes for an application.</param>
     /// <param name="pattern">The route pattern.</param>
+    /// <param name="args">The arguments to pass to the middleware type instance's constructor.</param>
     /// <returns>The <see cref="IApplicationBuilder"/> received as parameter</returns>
-    public static GraphQLEndpointConventionBuilder MapGraphQL<TSchema, TMiddleware>(this IEndpointRouteBuilder endpoints, string pattern = "graphql")
-        where TSchema : ISchema
-        where TMiddleware : GraphQLHttpMiddleware<TSchema>
+    public static GraphQLEndpointConventionBuilder MapGraphQL<TMiddleware>(this IEndpointRouteBuilder endpoints, string pattern = "graphql", params object[] args)
+        where TMiddleware : GraphQLHttpMiddleware
     {
-        var requestDelegate = endpoints.CreateApplicationBuilder().UseMiddleware<TMiddleware>().Build();
+        var requestDelegate = endpoints.CreateApplicationBuilder().UseMiddleware<TMiddleware>(args).Build();
         return new GraphQLEndpointConventionBuilder(endpoints.Map(pattern, requestDelegate).WithDisplayName("GraphQL"));
     }
 }
