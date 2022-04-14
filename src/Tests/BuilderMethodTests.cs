@@ -114,10 +114,9 @@ public class BuilderMethodTests
     [Fact]
     public async Task SpecificMiddleware()
     {
-        _hostBuilder.ConfigureServices(services => services.AddSingleton<GraphQLHttpMiddlewareOptions>());
         _hostBuilder.Configure(app => {
             app.UseWebSockets();
-            app.UseGraphQL<GraphQLHttpMiddleware<ISchema>>("/graphql");
+            app.UseGraphQL<GraphQLHttpMiddleware<ISchema>>("/graphql", new GraphQLHttpMiddlewareOptions());
         });
         await VerifyAsync();
     }
@@ -125,10 +124,9 @@ public class BuilderMethodTests
     [Fact]
     public async Task SpecificMiddleware_PathString()
     {
-        _hostBuilder.ConfigureServices(services => services.AddSingleton<GraphQLHttpMiddlewareOptions>());
         _hostBuilder.Configure(app => {
             app.UseWebSockets();
-            app.UseGraphQL<GraphQLHttpMiddleware<ISchema>>(new PathString("/graphql"));
+            app.UseGraphQL<GraphQLHttpMiddleware<ISchema>>(new PathString("/graphql"), new GraphQLHttpMiddlewareOptions());
         });
         await VerifyAsync();
     }
@@ -165,12 +163,11 @@ public class BuilderMethodTests
     public async Task EndpointRouting_WithMiddleware()
     {
         _hostBuilder.ConfigureServices(services => services.AddRouting());
-        _hostBuilder.ConfigureServices(services => services.AddSingleton<GraphQLHttpMiddlewareOptions>());
         _hostBuilder.Configure(app => {
             app.UseWebSockets();
             app.UseRouting();
             app.UseEndpoints(endpoints => {
-                endpoints.MapGraphQL<ISchema, GraphQLHttpMiddleware<ISchema>>("graphql");
+                endpoints.MapGraphQL<GraphQLHttpMiddleware<ISchema>>("graphql", new GraphQLHttpMiddlewareOptions());
             });
         });
         await VerifyAsync();
