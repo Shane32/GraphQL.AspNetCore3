@@ -8,7 +8,7 @@ public class WebSocketConnectionTests : IDisposable
     private WebSocket _webSocket => _mockWebSocket.Object;
     private readonly Mock<IGraphQLSerializer> _mockSerializer = new Mock<IGraphQLSerializer>(MockBehavior.Strict);
     private IGraphQLSerializer _serializer => _mockSerializer.Object;
-    private readonly WebSocketHandlerOptions _options = new();
+    private readonly GraphQLHttpMiddlewareOptions _options = new();
     private readonly CancellationTokenSource _cts = new();
     private CancellationToken _token => _cts.Token;
     private readonly Mock<TestWebSocketConnection> _mockConnection;
@@ -63,7 +63,7 @@ public class WebSocketConnectionTests : IDisposable
     [InlineData(2147483648d)]
     public void Constructor_InvalidTimeout(double ms)
     {
-        _options.DisconnectionTimeout = TimeSpan.FromMilliseconds(ms);
+        _options.WebSockets.DisconnectionTimeout = TimeSpan.FromMilliseconds(ms);
         Should.Throw<ArgumentOutOfRangeException>(() => new WebSocketConnection(Mock.Of<HttpContext>(MockBehavior.Strict), _webSocket, _serializer, _options, default));
     }
 
@@ -73,7 +73,7 @@ public class WebSocketConnectionTests : IDisposable
     [InlineData(2147483647d)]
     public void Constructor_ValidTimeout(double ms)
     {
-        _options.DisconnectionTimeout = TimeSpan.FromMilliseconds(ms);
+        _options.WebSockets.DisconnectionTimeout = TimeSpan.FromMilliseconds(ms);
         _ = new WebSocketConnection(Mock.Of<HttpContext>(MockBehavior.Strict), _webSocket, _serializer, _options, default);
     }
 

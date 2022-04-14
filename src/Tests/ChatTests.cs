@@ -1,10 +1,18 @@
+using System.Security.Claims;
+
 namespace Tests;
 
 public class ChatTests : IDisposable
 {
-    private readonly TestServer _app = new(ConfigureBuilder());
+    private readonly TestServer _app;
+    private GraphQLHttpMiddlewareOptions _options = null!;
 
-    private static IWebHostBuilder ConfigureBuilder()
+    public ChatTests()
+    {
+        _app = new(ConfigureBuilder());
+    }
+
+    private IWebHostBuilder ConfigureBuilder()
     {
         var hostBuilder = new WebHostBuilder();
         hostBuilder.ConfigureServices(services => {
@@ -17,7 +25,9 @@ public class ChatTests : IDisposable
         });
         hostBuilder.Configure(app => {
             app.UseWebSockets();
-            app.UseGraphQL("/graphql");
+            app.UseGraphQL("/graphql", o => {
+                _options = o;
+            });
         });
         return hostBuilder;
     }
@@ -299,10 +309,11 @@ public class ChatTests : IDisposable
     public async Task Subscription_AuthorizationFailed(string subProtocol)
     {
         var builder = ConfigureBuilder();
-        var mockAuthorizationService = new Mock<IWebSocketAuthorizationService>(MockBehavior.Strict);
-        mockAuthorizationService.Setup(x => x.AuthorizeAsync(It.IsAny<IWebSocketConnection>(), It.IsAny<OperationMessage>())).Returns(new ValueTask<bool>(false)).Verifiable();
+        var mockAuthorizationService = new Mock<IWebSocketAuthenticationService>(MockBehavior.Strict);
+        mockAuthorizationService.Setup(x => x.AuthenticateAsync(It.IsAny<IWebSocketConnection>(), subProtocol, It.IsAny<OperationMessage>())).Returns(Task.CompletedTask).Verifiable();
         builder.ConfigureServices(s => s.AddSingleton(mockAuthorizationService.Object));
         using var app = new TestServer(builder);
+        _options.AuthorizationRequired = true;
 
         // create websocket connection
         var webSocketClient = app.CreateWebSocketClient();
@@ -326,6 +337,66 @@ public class ChatTests : IDisposable
 
         // wait for websocket closure
         (await webSocket.ReceiveCloseAsync()).ShouldBe((System.Net.WebSockets.WebSocketCloseStatus)4401);
+
+        mockAuthorizationService.Verify();
+    }
+
+    [Theory]
+    [InlineData("graphql-ws", false)]
+    [InlineData("graphql-ws", true)]
+    [InlineData("graphql-transport-ws", false)]
+    [InlineData("graphql-transport-ws", true)]
+    public async Task Subscription_Authentication(string subProtocol, bool successfulAuthentication)
+    {
+        var builder = ConfigureBuilder();
+        var mockAuthorizationService = new Mock<IWebSocketAuthenticationService>(MockBehavior.Strict);
+        mockAuthorizationService.Setup(x => x.AuthenticateAsync(It.IsAny<IWebSocketConnection>(), subProtocol, It.IsAny<OperationMessage>()))
+            .Returns<WebSocketConnection, string, OperationMessage>((connection, _, message) => {
+                connection.HttpContext.User.Identity!.IsAuthenticated.ShouldBeFalse();
+                var serializer = connection.HttpContext.RequestServices.GetRequiredService<IGraphQLSerializer>();
+                var payload = serializer.ReadNode<Inputs>(message.Payload);
+                var valueString = payload?.TryGetValue("Authorization", out var value) == true && value is string str ? str : null;
+                valueString.ShouldBe("Bearer testing");
+                var claimsPrincipal = new ClaimsPrincipal(new ClaimsIdentity("Bearer"));
+                if (successfulAuthentication)
+                    connection.HttpContext.User = claimsPrincipal;
+                return Task.CompletedTask;
+            }).Verifiable();
+        builder.ConfigureServices(s => s.AddSingleton(mockAuthorizationService.Object));
+        using var app = new TestServer(builder);
+        _options.AuthorizationRequired = true;
+
+        // create websocket connection
+        var webSocketClient = app.CreateWebSocketClient();
+        webSocketClient.ConfigureRequest = request => {
+            request.Headers["Sec-WebSocket-Protocol"] = subProtocol;
+        };
+        webSocketClient.SubProtocols.Add(subProtocol);
+        using var webSocket = await webSocketClient.ConnectAsync(new Uri(_app.BaseAddress, "/graphql"), default);
+
+        // send CONNECTION_INIT
+        await webSocket.SendMessageAsync(new OperationMessage {
+            Type = "connection_init",
+            Payload = new {
+                Authorization = "Bearer testing",
+            },
+        });
+
+        if (successfulAuthentication) {
+            // wait for CONNECTION_ACK
+            var message = await webSocket.ReceiveMessageAsync();
+            message.Type.ShouldBe("connection_ack");
+        } else {
+            if (subProtocol == "graphql-ws") {
+                // wait for CONNECTION_ERROR
+                var message = await webSocket.ReceiveMessageAsync();
+                message.Type.ShouldBe("connection_error");
+                message.Payload.ShouldBeOfType<string>().ShouldBe("\"Access denied\""); // for the purposes of testing, this contains the raw JSON received for this JSON element.
+            }
+
+            // wait for websocket closure
+            (await webSocket.ReceiveCloseAsync()).ShouldBe((System.Net.WebSockets.WebSocketCloseStatus)4401);
+        }
 
         mockAuthorizationService.Verify();
     }

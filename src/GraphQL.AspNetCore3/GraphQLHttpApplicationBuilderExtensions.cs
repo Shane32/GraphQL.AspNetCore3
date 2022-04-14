@@ -68,10 +68,11 @@ public static class GraphQLHttpApplicationBuilderExtensions
     /// <typeparam name="TMiddleware">Custom middleware inherited from <see cref="GraphQLHttpMiddleware{TSchema}"/></typeparam>
     /// <param name="builder">The application builder</param>
     /// <param name="path">The path to the GraphQL endpoint which defaults to '/graphql'</param>
+    /// <param name="args">The arguments to pass to the middleware type instance's constructor.</param>
     /// <returns>The <see cref="IApplicationBuilder"/> received as parameter</returns>
-    public static IApplicationBuilder UseGraphQL<TMiddleware>(this IApplicationBuilder builder, string path = "/graphql")
+    public static IApplicationBuilder UseGraphQL<TMiddleware>(this IApplicationBuilder builder, string path = "/graphql", params object[] args)
         where TMiddleware : GraphQLHttpMiddleware
-        => builder.UseGraphQL<TMiddleware>(new PathString(path));
+        => builder.UseGraphQL<TMiddleware>(new PathString(path), args);
 
     /// <summary>
     /// Add the GraphQL custom middleware to the HTTP request pipeline for the specified schema.
@@ -79,12 +80,13 @@ public static class GraphQLHttpApplicationBuilderExtensions
     /// <typeparam name="TMiddleware">Custom middleware inherited from <see cref="GraphQLHttpMiddleware{TSchema}"/></typeparam>
     /// <param name="builder">The application builder</param>
     /// <param name="path">The path to the GraphQL endpoint</param>
+    /// <param name="args">The arguments to pass to the middleware type instance's constructor.</param>
     /// <returns>The <see cref="IApplicationBuilder"/> received as parameter</returns>
-    public static IApplicationBuilder UseGraphQL<TMiddleware>(this IApplicationBuilder builder, PathString path)
+    public static IApplicationBuilder UseGraphQL<TMiddleware>(this IApplicationBuilder builder, PathString path, params object[] args)
         where TMiddleware : GraphQLHttpMiddleware
     {
         return builder.UseWhen(
             context => context.Request.Path.StartsWithSegments(path, out var remaining) && string.IsNullOrEmpty(remaining),
-            b => b.UseMiddleware<TMiddleware>());
+            b => b.UseMiddleware<TMiddleware>(args));
     }
 }

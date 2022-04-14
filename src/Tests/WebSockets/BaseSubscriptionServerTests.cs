@@ -1,21 +1,22 @@
 using System.Reactive.Subjects;
+using System.Security.Claims;
 using GraphQL.Execution;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Tests.WebSockets;
 
 public class BaseSubscriptionServerTests : IDisposable
 {
-    private readonly WebSocketHandlerOptions _options = new();
+    private readonly GraphQLHttpMiddlewareOptions _options = new();
     private readonly Mock<IWebSocketConnection> _mockStream = new(MockBehavior.Strict);
     private readonly IWebSocketConnection _stream;
     private readonly Mock<TestBaseSubscriptionServer> _mockServer;
     private TestBaseSubscriptionServer _server => _mockServer.Object;
-    private readonly Mock<IWebSocketAuthorizationService> _mockAuthorizationService = new(MockBehavior.Strict);
 
     public BaseSubscriptionServerTests()
     {
         _stream = _mockStream.Object;
-        _mockServer = new(_stream, _options, _mockAuthorizationService.Object);
+        _mockServer = new(_stream, _options);
         _mockServer.CallBase = true;
     }
 
@@ -24,38 +25,49 @@ public class BaseSubscriptionServerTests : IDisposable
     [Fact]
     public void InvalidConstructorArgumentsThrows()
     {
-        Should.Throw<ArgumentNullException>(() => new TestBaseSubscriptionServer(null!, new WebSocketHandlerOptions()));
+        var options = new GraphQLHttpMiddlewareOptions();
+        Should.Throw<ArgumentNullException>(() => new TestBaseSubscriptionServer(null!, new GraphQLHttpMiddlewareOptions()));
         Should.Throw<ArgumentNullException>(() => new TestBaseSubscriptionServer(_stream, null!));
-        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, new WebSocketHandlerOptions {
-            ConnectionInitWaitTimeout = TimeSpan.FromSeconds(-1),
-        }));
-        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, new WebSocketHandlerOptions {
-            ConnectionInitWaitTimeout = TimeSpan.FromMilliseconds(int.MaxValue + 100d),
-        }));
-        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, new WebSocketHandlerOptions {
-            KeepAliveTimeout = TimeSpan.FromSeconds(-1),
-        }));
-        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, new WebSocketHandlerOptions {
-            KeepAliveTimeout = TimeSpan.FromMilliseconds(int.MaxValue + 100d),
-        }));
-        _ = new TestBaseSubscriptionServer(_stream, new WebSocketHandlerOptions {
-            ConnectionInitWaitTimeout = Timeout.InfiniteTimeSpan,
-        });
-        _ = new TestBaseSubscriptionServer(_stream, new WebSocketHandlerOptions {
-            KeepAliveTimeout = Timeout.InfiniteTimeSpan,
-        });
-        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, new WebSocketHandlerOptions {
-            ConnectionInitWaitTimeout = TimeSpan.Zero,
-        }));
-        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, new WebSocketHandlerOptions {
-            KeepAliveTimeout = TimeSpan.Zero,
-        }));
-        _ = new TestBaseSubscriptionServer(_stream, new WebSocketHandlerOptions {
-            ConnectionInitWaitTimeout = TimeSpan.FromSeconds(1),
-        });
-        _ = new TestBaseSubscriptionServer(_stream, new WebSocketHandlerOptions {
-            KeepAliveTimeout = TimeSpan.FromSeconds(1),
-        });
+
+        options = new();
+        options.WebSockets.ConnectionInitWaitTimeout = TimeSpan.FromSeconds(-1);
+        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, options));
+
+        options = new();
+        options.WebSockets.ConnectionInitWaitTimeout = TimeSpan.FromMilliseconds(int.MaxValue + 100d);
+        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, options));
+
+        options = new();
+        options.WebSockets.ConnectionInitWaitTimeout = TimeSpan.Zero;
+        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, options));
+
+        options = new();
+        options.WebSockets.ConnectionInitWaitTimeout = Timeout.InfiniteTimeSpan;
+        _ = new TestBaseSubscriptionServer(_stream, options);
+
+        options = new();
+        options.WebSockets.ConnectionInitWaitTimeout = TimeSpan.FromSeconds(1);
+        _ = new TestBaseSubscriptionServer(_stream, options);
+
+        options = new();
+        options.WebSockets.KeepAliveTimeout = TimeSpan.FromSeconds(-1);
+        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, options));
+
+        options = new();
+        options.WebSockets.KeepAliveTimeout = TimeSpan.FromMilliseconds(int.MaxValue + 100d);
+        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, options));
+
+        options = new();
+        options.WebSockets.KeepAliveTimeout = TimeSpan.Zero;
+        Should.Throw<ArgumentOutOfRangeException>(() => new TestBaseSubscriptionServer(_stream, options));
+
+        options = new();
+        options.WebSockets.KeepAliveTimeout = Timeout.InfiniteTimeSpan;
+        _ = new TestBaseSubscriptionServer(_stream, options);
+
+        options = new();
+        options.WebSockets.KeepAliveTimeout = TimeSpan.FromSeconds(1);
+        _ = new TestBaseSubscriptionServer(_stream, options);
     }
 
     [Fact]
@@ -164,7 +176,7 @@ public class BaseSubscriptionServerTests : IDisposable
             tcs.TrySetResult(true);
             return Task.CompletedTask;
         }).Verifiable();
-        _options.KeepAliveTimeout = TimeSpan.FromSeconds(1);
+        _options.WebSockets.KeepAliveTimeout = TimeSpan.FromSeconds(1);
         await _server.Do_OnConnectionInitAsync(msg, smart);
         await tcs.Task;
         _mockServer.Verify();
@@ -180,29 +192,10 @@ public class BaseSubscriptionServerTests : IDisposable
         var msg = new OperationMessage();
         _mockServer.Protected().Setup<Task>("OnConnectionInitAsync", msg, smart).CallBase().Verifiable();
         _mockServer.Protected().Setup<ValueTask<bool>>("AuthorizeAsync", msg).Returns(new ValueTask<bool>(false)).Verifiable();
-        _mockServer.Protected().Setup<Task>("ErrorAccessDeniedAsync").Returns(Task.CompletedTask).Verifiable();
         await _server.Do_OnConnectionInitAsync(msg, smart);
         _mockServer.Verify();
         _mockServer.VerifyNoOtherCalls();
         _server.Get_Initialized.ShouldBeFalse();
-    }
-
-    [Fact]
-    public async Task AuthorizeAsync_Null()
-    {
-        var mockServer = new Mock<TestBaseSubscriptionServer>(_stream, _options, null);
-        mockServer.CallBase = true;
-        (await mockServer.Object.Do_AuthorizeAsync(new OperationMessage())).ShouldBeTrue();
-    }
-
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task AuthorizeAsync_PassThrough(bool expected)
-    {
-        var msg = new OperationMessage();
-        _mockAuthorizationService.Setup(x => x.AuthorizeAsync(_mockStream.Object, msg)).Returns(new ValueTask<bool>(expected));
-        (await _mockServer.Object.Do_AuthorizeAsync(msg)).ShouldBe(expected);
     }
 
     [Fact]
@@ -218,7 +211,7 @@ public class BaseSubscriptionServerTests : IDisposable
     [Fact]
     public async Task StartConnectionInitTimer_Infinite()
     {
-        _options.ConnectionInitWaitTimeout = Timeout.InfiniteTimeSpan;
+        _options.WebSockets.ConnectionInitWaitTimeout = Timeout.InfiniteTimeSpan;
         await _server.Do_InitializeConnectionAsync();
     }
 
@@ -232,7 +225,7 @@ public class BaseSubscriptionServerTests : IDisposable
     [Fact]
     public async Task StartConnectionInitTimer_NotInitialized()
     {
-        _options.ConnectionInitWaitTimeout = TimeSpan.FromSeconds(1);
+        _options.WebSockets.ConnectionInitWaitTimeout = TimeSpan.FromSeconds(1);
         var tcs = new TaskCompletionSource<bool>();
         _mockServer.Protected().Setup<Task>("OnConnectionInitWaitTimeoutAsync").Returns(() => {
             tcs.TrySetResult(true);
@@ -247,7 +240,7 @@ public class BaseSubscriptionServerTests : IDisposable
     [Fact]
     public async Task StartConnectionInitTimer_Initialized()
     {
-        _options.ConnectionInitWaitTimeout = TimeSpan.FromSeconds(1);
+        _options.WebSockets.ConnectionInitWaitTimeout = TimeSpan.FromSeconds(1);
         var tcs = new TaskCompletionSource<bool>();
         _mockServer.Protected().Setup<Task>("OnConnectionInitWaitTimeoutAsync").Returns(() => {
             tcs.TrySetResult(true);
@@ -263,7 +256,7 @@ public class BaseSubscriptionServerTests : IDisposable
     [Fact]
     public async Task StartConnectionInitTimer_Canceled()
     {
-        _options.ConnectionInitWaitTimeout = TimeSpan.FromSeconds(1);
+        _options.WebSockets.ConnectionInitWaitTimeout = TimeSpan.FromSeconds(1);
         var tcs = new TaskCompletionSource<bool>();
         _mockServer.Protected().Setup<Task>("OnConnectionInitWaitTimeoutAsync").Returns(() => {
             tcs.TrySetResult(true);
@@ -674,7 +667,7 @@ public class BaseSubscriptionServerTests : IDisposable
     [InlineData(true)]
     public async Task Subscribe_DataEvents_CloseIfErrors(bool closeAfterError)
     {
-        _options.DisconnectAfterAnyError = closeAfterError;
+        _options.WebSockets.DisconnectAfterAnyError = closeAfterError;
         var message = new OperationMessage { Id = "abc" };
         var source = new Subject<ExecutionResult>();
         var result = new ExecutionResult {
@@ -742,7 +735,7 @@ public class BaseSubscriptionServerTests : IDisposable
     [InlineData(true)]
     public async Task Subscribe_DataEvents_ErrorsWork_Exception(bool closeAfterError)
     {
-        _options.DisconnectAfterErrorEvent = closeAfterError;
+        _options.WebSockets.DisconnectAfterErrorEvent = closeAfterError;
         var message = new OperationMessage { Id = "abc" };
         var source = new Subject<ExecutionResult>();
         var result = new ExecutionResult {
@@ -813,6 +806,80 @@ public class BaseSubscriptionServerTests : IDisposable
     {
         _server.Dispose();
         _server.Dispose();
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AuthorizeAsync(bool authorized)
+    {
+        var msg = new OperationMessage();
+        _options.AuthorizationRequired = true;
+        if (!authorized) {
+            _mockServer.Protected().Setup<Task>("OnNotAuthenticatedAsync", msg).CallBase().Verifiable();
+            _mockServer.Protected().Setup<Task>("ErrorAccessDeniedAsync").CallBase().Verifiable();
+            _mockStream.Setup(x => x.CloseConnectionAsync(4401, "Access denied")).Returns(Task.CompletedTask);
+        }
+        var user = new ClaimsPrincipal(authorized ? new ClaimsIdentity("test") : new ClaimsIdentity());
+        var mockContext = new Mock<HttpContext>(MockBehavior.Strict);
+        mockContext.Setup(x => x.User).Returns(user);
+        _mockStream.Setup(x => x.HttpContext).Returns(mockContext.Object);
+        _mockServer.Protected().Setup<ValueTask<bool>>("AuthorizeAsync", msg).CallBase().Verifiable();
+        var ret = await _server.Do_AuthorizeAsync(msg);
+        ret.ShouldBe(authorized);
+        _mockServer.Verify();
+        _mockServer.VerifyNoOtherCalls();
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AuthorizeAsync_Roles(bool authorized)
+    {
+        var msg = new OperationMessage();
+        _options.AuthorizedRoles.Add("myRole");
+        if (!authorized) {
+            _mockServer.Protected().Setup<Task>("OnNotAuthorizedRoleAsync", msg).CallBase().Verifiable();
+            _mockServer.Protected().Setup<Task>("ErrorAccessDeniedAsync").CallBase().Verifiable();
+            _mockStream.Setup(x => x.CloseConnectionAsync(4401, "Access denied")).Returns(Task.CompletedTask);
+        }
+        var user = new ClaimsPrincipal(authorized ? new ClaimsIdentity(new Claim[] { new Claim(ClaimTypes.Role, "myRole") }) : new ClaimsIdentity());
+        var mockContext = new Mock<HttpContext>(MockBehavior.Strict);
+        mockContext.Setup(x => x.User).Returns(user);
+        _mockStream.Setup(x => x.HttpContext).Returns(mockContext.Object);
+        _mockServer.Protected().Setup<ValueTask<bool>>("AuthorizeAsync", msg).CallBase().Verifiable();
+        var ret = await _server.Do_AuthorizeAsync(msg);
+        ret.ShouldBe(authorized);
+        _mockServer.Verify();
+        _mockServer.VerifyNoOtherCalls();
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AuthorizeAsync_Policy(bool authorized)
+    {
+        var msg = new OperationMessage();
+        _options.AuthorizedPolicy = "myPolicy";
+        if (!authorized) {
+            _mockServer.Protected().Setup<Task>("OnNotAuthorizedPolicyAsync", msg, ItExpr.IsAny<AuthorizationResult>()).CallBase().Verifiable();
+            _mockServer.Protected().Setup<Task>("ErrorAccessDeniedAsync").CallBase().Verifiable();
+            _mockStream.Setup(x => x.CloseConnectionAsync(4401, "Access denied")).Returns(Task.CompletedTask);
+        }
+        var user = new ClaimsPrincipal(new ClaimsIdentity());
+        var mockAuthorizationService = new Mock<IAuthorizationService>(MockBehavior.Strict);
+        mockAuthorizationService.Setup(x => x.AuthorizeAsync(user, null, "myPolicy")).Returns(authorized ? Task.FromResult(AuthorizationResult.Success()) : Task.FromResult(AuthorizationResult.Failed()));
+        var mockProvider = new Mock<IServiceProvider>(MockBehavior.Strict);
+        mockProvider.Setup(x => x.GetService(typeof(IAuthorizationService))).Returns(mockAuthorizationService.Object);
+        var mockContext = new Mock<HttpContext>(MockBehavior.Strict);
+        mockContext.Setup(x => x.User).Returns(user);
+        mockContext.Setup(x => x.RequestServices).Returns(mockProvider.Object);
+        _mockStream.Setup(x => x.HttpContext).Returns(mockContext.Object);
+        _mockServer.Protected().Setup<ValueTask<bool>>("AuthorizeAsync", msg).CallBase().Verifiable();
+        var ret = await _server.Do_AuthorizeAsync(msg);
+        ret.ShouldBe(authorized);
+        _mockServer.Verify();
+        _mockServer.VerifyNoOtherCalls();
     }
 
     //note: BaseSubscriptionServer.Observer isn't fully tested here

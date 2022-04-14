@@ -1,3 +1,7 @@
+using System.Security.Claims;
+using System.Security.Principal;
+using Microsoft.AspNetCore.Authorization;
+
 namespace GraphQL.AspNetCore3.WebSockets;
 
 /// <summary>
@@ -7,8 +11,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
 {
     private volatile int _initialized;
     private CancellationTokenSource? _cancellationTokenSource;
-    private readonly WebSocketHandlerOptions _options;
-    private readonly IWebSocketAuthorizationService? _authorizationService;
+    private readonly GraphQLHttpMiddlewareOptions _options;
 
     /// <summary>
     /// Returns a <see cref="IWebSocketConnection"/> instance that can be used
@@ -41,25 +44,22 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     /// Initailizes a new instance with the specified parameters.
     /// </summary>
     /// <param name="sendStream">The WebSockets stream used to send data packets or close the connection.</param>
-    /// <param name="options">Configuration options for this instance</param>
-    /// <param name="authorizationService">A optional service to authorize connections</param>
+    /// <param name="options">Configuration options for this instance.</param>
     public BaseSubscriptionServer(
         IWebSocketConnection sendStream,
-        WebSocketHandlerOptions options,
-        IWebSocketAuthorizationService? authorizationService = null)
+        GraphQLHttpMiddlewareOptions options)
     {
-        _authorizationService = authorizationService;
         _options = options ?? throw new ArgumentNullException(nameof(options));
-        if (options.ConnectionInitWaitTimeout.HasValue) {
-            if (options.ConnectionInitWaitTimeout.Value != Timeout.InfiniteTimeSpan && options.ConnectionInitWaitTimeout.Value <= TimeSpan.Zero || options.ConnectionInitWaitTimeout.Value > TimeSpan.FromMilliseconds(int.MaxValue))
+        if (options.WebSockets.ConnectionInitWaitTimeout.HasValue) {
+            if (options.WebSockets.ConnectionInitWaitTimeout.Value != Timeout.InfiniteTimeSpan && options.WebSockets.ConnectionInitWaitTimeout.Value <= TimeSpan.Zero || options.WebSockets.ConnectionInitWaitTimeout.Value > TimeSpan.FromMilliseconds(int.MaxValue))
 #pragma warning disable CA2208 // Instantiate argument exceptions correctly
-                throw new ArgumentOutOfRangeException(nameof(options) + "." + nameof(WebSocketHandlerOptions.ConnectionInitWaitTimeout));
+                throw new ArgumentOutOfRangeException($"{nameof(options)}.{nameof(GraphQLHttpMiddlewareOptions.WebSockets)}.{nameof(GraphQLWebSocketOptions.ConnectionInitWaitTimeout)}");
 #pragma warning restore CA2208 // Instantiate argument exceptions correctly
         }
-        if (options.KeepAliveTimeout.HasValue) {
-            if (options.KeepAliveTimeout.Value != Timeout.InfiniteTimeSpan && options.KeepAliveTimeout.Value <= TimeSpan.Zero || options.KeepAliveTimeout.Value > TimeSpan.FromMilliseconds(int.MaxValue))
+        if (options.WebSockets.KeepAliveTimeout.HasValue) {
+            if (options.WebSockets.KeepAliveTimeout.Value != Timeout.InfiniteTimeSpan && options.WebSockets.KeepAliveTimeout.Value <= TimeSpan.Zero || options.WebSockets.KeepAliveTimeout.Value > TimeSpan.FromMilliseconds(int.MaxValue))
 #pragma warning disable CA2208 // Instantiate argument exceptions correctly
-                throw new ArgumentOutOfRangeException(nameof(options) + "." + nameof(WebSocketHandlerOptions.KeepAliveTimeout));
+                throw new ArgumentOutOfRangeException($"{nameof(options)}.{nameof(GraphQLHttpMiddlewareOptions.WebSockets)}.{nameof(GraphQLWebSocketOptions.KeepAliveTimeout)}");
 #pragma warning restore CA2208 // Instantiate argument exceptions correctly
         }
         Client = sendStream ?? throw new ArgumentNullException(nameof(sendStream));
@@ -71,7 +71,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     /// <inheritdoc/>
     public virtual Task InitializeConnectionAsync()
     {
-        var connectInitWaitTimeout = _options.ConnectionInitWaitTimeout ?? DefaultConnectionTimeout;
+        var connectInitWaitTimeout = _options.WebSockets.ConnectionInitWaitTimeout ?? DefaultConnectionTimeout;
         if (connectInitWaitTimeout != Timeout.InfiniteTimeSpan) {
             _ = Task.Run(async () => {
                 await Task.Delay(connectInitWaitTimeout, CancellationToken); // CancellationToken is set when this class is disposed
@@ -178,20 +178,65 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
         => Client.CloseConnectionAsync(4409, $"Subscriber for {message.Id} already exists");
 
     /// <summary>
-    /// Authorizes an incoming GraphQL over WebSockets request with the
-    /// connection initialization message.  A typical implementation will
-    /// set the <see cref="HttpContext.User"/> property after reading the
-    /// authorization token.
+    /// Authorizes an incoming GraphQL over WebSockets request with the connection initialization message.
     /// <br/><br/>
-    /// Return <see langword="true"/> if authorization is successful, or
-    /// return <see langword="false"/> if not.  You may choose to call
-    /// <see cref="Client">Client</see>.<see cref="IWebSocketConnection.CloseConnectionAsync(int, string?)">CloseConnectionAsync()</see>
-    /// with an appropriate error number and message.
+    /// The default implementation checks the authorization rules set in <see cref="GraphQLHttpMiddlewareOptions"/>,
+    /// if any, against <see cref="HttpContext.User"/>.  If validation fails, control is passed
+    /// to <see cref="OnNotAuthenticatedAsync(OperationMessage)">OnNotAuthenticatedAsync</see>,
+    /// <see cref="OnNotAuthorizedRoleAsync(OperationMessage)">OnNotAuthorizedRoleAsync</see>
+    /// or <see cref="OnNotAuthorizedPolicyAsync(OperationMessage, AuthorizationResult)">OnNotAuthorizedPolicyAsync</see>.
     /// <br/><br/>
-    /// Default implementation calls <see cref="IWebSocketAuthorizationService.AuthorizeAsync(IWebSocketConnection, OperationMessage)"/>.
+    /// Derived implementations should call the <see cref="IWebSocketAuthenticationService.AuthenticateAsync(IWebSocketConnection, string, OperationMessage)"/>
+    /// method to authenticate the request, and then call this base method.
+    /// <br/><br/>
+    /// This method will return <see langword="true"/> if authorization is successful, or
+    /// return <see langword="false"/> if not.
     /// </summary>
-    protected virtual ValueTask<bool> AuthorizeAsync(OperationMessage message)
-        => _authorizationService?.AuthorizeAsync(Client, message) ?? new(true);
+    protected virtual async ValueTask<bool> AuthorizeAsync(OperationMessage message)
+    {
+        // allocation-free authorization here
+        var success = await AuthorizationHelper.AuthorizeAsync(
+            new AuthorizationParameters<(BaseSubscriptionServer Server, OperationMessage Message)>(
+                Client.HttpContext,
+                _options,
+                static info => info.Server.OnNotAuthenticatedAsync(info.Message),
+                static info => info.Server.OnNotAuthorizedRoleAsync(info.Message),
+                static (info, result) => info.Server.OnNotAuthorizedPolicyAsync(info.Message, result)),
+            (this, message));
+
+        return success;
+    }
+
+    /// <summary>
+    /// Executes if <see cref="GraphQLHttpMiddlewareOptions.AuthorizationRequired"/> is set
+    /// but <see cref="IIdentity.IsAuthenticated"/> returns <see langword="false"/>.
+    /// <br/><br/>
+    /// Default implementation closes the WebSocket connection with a 4401 'Access denied'
+    /// error message via <see cref="ErrorAccessDeniedAsync"/>.
+    /// </summary>
+    protected virtual Task OnNotAuthenticatedAsync(OperationMessage message)
+        => ErrorAccessDeniedAsync();
+
+    /// <summary>
+    /// Executes if <see cref="GraphQLHttpMiddlewareOptions.AuthorizedRoles"/> is set but
+    /// <see cref="ClaimsPrincipal.IsInRole(string)"/> returns <see langword="false"/> for all roles.
+    /// <br/><br/>
+    /// Default implementation closes the WebSocket connection with a 4401 'Access denied'
+    /// error message via <see cref="ErrorAccessDeniedAsync"/>.
+    /// </summary>
+    protected virtual Task OnNotAuthorizedRoleAsync(OperationMessage message)
+        => ErrorAccessDeniedAsync();
+
+    /// <summary>
+    /// Executes if <see cref="GraphQLHttpMiddlewareOptions.AuthorizedPolicy"/> is set but
+    /// <see cref="IAuthorizationService.AuthorizeAsync(ClaimsPrincipal, object, string)"/>
+    /// returns an unsuccessful <see cref="AuthorizationResult"/> for the specified policy.
+    /// <br/><br/>
+    /// Default implementation closes the WebSocket connection with a 4401 'Access denied'
+    /// error message via <see cref="ErrorAccessDeniedAsync"/>.
+    /// </summary>
+    protected virtual Task OnNotAuthorizedPolicyAsync(OperationMessage message, AuthorizationResult result)
+        => ErrorAccessDeniedAsync();
 
     /// <summary>
     /// Executes when the client is attempting to initalize the connection.
@@ -204,18 +249,17 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     /// <see cref="TryInitialize"/> is called to indicate that this WebSocket connection is ready to accept requests, 
     /// and keep-alive messages are sent via <see cref="OnSendKeepAliveAsync"/> if configured to do so.
     /// Keep-alive messages are only sent if no messages have been sent over the WebSockets connection for the
-    /// length of time configured in <see cref="WebSocketHandlerOptions.KeepAliveTimeout"/>.
+    /// length of time configured in <see cref="GraphQLWebSocketOptions.KeepAliveTimeout"/>.
     /// </summary>
     protected virtual async Task OnConnectionInitAsync(OperationMessage message, bool smartKeepAlive)
     {
         if (!await AuthorizeAsync(message)) {
-            await ErrorAccessDeniedAsync();
             return;
         }
         await OnConnectionAcknowledgeAsync(message);
         TryInitialize();
 
-        var keepAliveTimeout = _options.KeepAliveTimeout ?? DefaultKeepAliveTimeout;
+        var keepAliveTimeout = _options.WebSockets.KeepAliveTimeout ?? DefaultKeepAliveTimeout;
         if (keepAliveTimeout > TimeSpan.Zero) {
             if (smartKeepAlive)
                 _ = StartSmartKeepAliveLoopAsync();
@@ -298,7 +342,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
                 // do not return a result, but set up a subscription
                 var stream = result.Streams!.Single().Value;
                 // note that this may immediately trigger some notifications
-                var disposer = stream.Subscribe(new Observer(this, message.Id, _options.DisconnectAfterErrorEvent, _options.DisconnectAfterAnyError));
+                var disposer = stream.Subscribe(new Observer(this, message.Id, _options.WebSockets.DisconnectAfterErrorEvent, _options.WebSockets.DisconnectAfterAnyError));
                 try {
                     if (Subscriptions.CompareExchange(message.Id, dummyDisposer, disposer)) {
                         disposer = null;

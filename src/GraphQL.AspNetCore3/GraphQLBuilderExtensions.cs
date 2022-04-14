@@ -19,34 +19,33 @@ public static class GraphQLBuilderExtensions
     }
 
     /// <summary>
-    /// Registers the default WebSocket handler with the dependency injection framework and
-    /// optionally configures it with the specified configuration delegate.
+    /// Registers <typeparamref name="TWebSocketAuthenticationService"/> with the dependency injection framework
+    /// as a singleton of type <see cref="IWebSocketAuthenticationService"/>.
     /// </summary>
-    public static IGraphQLBuilder AddWebSocketHandler(this IGraphQLBuilder builder, Action<WebSocketHandlerOptions>? configure = null)
+    public static IGraphQLBuilder AddWebSocketAuthentication<TWebSocketAuthenticationService>(this IGraphQLBuilder builder)
+        where TWebSocketAuthenticationService : class, IWebSocketAuthenticationService
     {
-        builder.Services.Register(typeof(IWebSocketHandler<>), typeof(WebSocketHandler<>), ServiceLifetime.Singleton);
-        builder.Services.Configure(configure);
+        builder.Services.Register<IWebSocketAuthenticationService, TWebSocketAuthenticationService>(ServiceLifetime.Singleton);
         return builder;
     }
 
     /// <summary>
-    /// Registers the default WebSocket handler with the dependency injection framework and
-    /// configures it with the specified configuration delegate.
+    /// Registers a service of type <see cref="IWebSocketAuthenticationService"/> with the specified factory delegate
+    /// with the dependency injection framework as a singleton.
     /// </summary>
-    public static IGraphQLBuilder AddWebSocketHandler(this IGraphQLBuilder builder, Action<WebSocketHandlerOptions, IServiceProvider>? configure)
+    public static IGraphQLBuilder AddWebSocketAuthentication(this IGraphQLBuilder builder, Func<IServiceProvider, IWebSocketAuthenticationService> factory)
     {
-        builder.Services.Register<IWebSocketHandler, WebSocketHandler>(ServiceLifetime.Singleton);
-        builder.Services.Configure(configure);
+        builder.Services.Register(factory, ServiceLifetime.Singleton);
         return builder;
     }
 
     /// <summary>
-    /// Registers the specified WebSocket handler with the dependency injection framework as a singleton.
+    /// Registers a specified instance of type <see cref="IWebSocketAuthenticationService"/> with the
+    /// dependency injection framework.
     /// </summary>
-    public static IGraphQLBuilder AddWebSocketHandler<TWebSocketHandler>(this IGraphQLBuilder builder)
-        where TWebSocketHandler : class, IWebSocketHandler
+    public static IGraphQLBuilder AddWebSocketAuthentication(this IGraphQLBuilder builder, IWebSocketAuthenticationService webSocketAuthenticationService)
     {
-        builder.Services.Register<IWebSocketHandler, TWebSocketHandler>(ServiceLifetime.Singleton);
+        builder.Services.Register(webSocketAuthenticationService);
         return builder;
     }
 

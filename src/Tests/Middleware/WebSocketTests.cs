@@ -86,15 +86,40 @@ public class WebSocketTests : IDisposable
     [Fact]
     public async Task UnsupportedHandler()
     {
-        Configure(configureServices: services => {
-            var mockHandler = new Mock<IWebSocketHandler<ISchema>>(MockBehavior.Strict);
-            mockHandler.Setup(x => x.SupportedSubProtocols).Returns(new[] { "newprotocol" });
-            services.AddSingleton(mockHandler.Object);
+        var hostBuilder = new WebHostBuilder();
+        hostBuilder.ConfigureServices(services => {
+            services.AddSingleton<Chat.Services.ChatService>();
+            services.AddGraphQL(b => b
+                .AddSchema<Schema2>()
+                .AddSystemTextJson());
+        });
+        hostBuilder.Configure(app => {
+            app.UseWebSockets();
+            app.UseGraphQL<TestMiddleware>("/graphql");
         });
 
+        _server = new TestServer(hostBuilder);
         var webSocketClient = BuildClient();
         var error = await Should.ThrowAsync<InvalidOperationException>(() => webSocketClient.ConnectAsync(new Uri(_server.BaseAddress, "/graphql"), default));
         error.Message.ShouldBe("Incomplete handshake, status code: 400");
+    }
+
+    private class TestMiddleware : GraphQLHttpMiddleware
+    {
+        public TestMiddleware(RequestDelegate next) : base(next, new GraphQLSerializer(), new GraphQLHttpMiddlewareOptions(), new IWebSocketHandler[] { GetMockHandler() }) { }
+
+        private static IWebSocketHandler GetMockHandler()
+        {
+            var mock = new Mock<IWebSocketHandler>(MockBehavior.Strict);
+            mock.Setup(x => x.SupportedSubProtocols).Returns(new string[] { "unsupportedProtocol" });
+            return mock.Object;
+        }
+
+        protected override Task<ExecutionResult> ExecuteRequestAsync(HttpContext context, GraphQLRequest request, IServiceProvider serviceProvider, IDictionary<string, object?> userContext)
+            => throw new NotImplementedException();
+
+        protected override Task<ExecutionResult> ExecuteScopedRequestAsync(HttpContext context, GraphQLRequest request, IDictionary<string, object?> userContext)
+            => throw new NotImplementedException();
     }
 
     [Fact]

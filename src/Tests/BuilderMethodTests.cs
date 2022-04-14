@@ -37,6 +37,41 @@ public class BuilderMethodTests
     }
 
     [Fact]
+    public void WebSocketAuthenticationService_Typed()
+    {
+        var services = new ServiceCollection();
+        services.AddGraphQL(b => b.AddWebSocketAuthentication<MyWebSocketAuthenticationService>());
+        using var provider = services.BuildServiceProvider();
+        var service = provider.GetRequiredService<IWebSocketAuthenticationService>();
+        Should.Throw<NotImplementedException>(() => service.AuthenticateAsync(null!, null!, null!));
+    }
+
+    [Fact]
+    public void WebSocketAuthenticationService_Factory()
+    {
+        var services = new ServiceCollection();
+        services.AddGraphQL(b => b.AddWebSocketAuthentication(_ => new MyWebSocketAuthenticationService()));
+        using var provider = services.BuildServiceProvider();
+        var service = provider.GetRequiredService<IWebSocketAuthenticationService>();
+        Should.Throw<NotImplementedException>(() => service.AuthenticateAsync(null!, null!, null!));
+    }
+
+    [Fact]
+    public void WebSocketAuthenticationService_Instance()
+    {
+        var services = new ServiceCollection();
+        services.AddGraphQL(b => b.AddWebSocketAuthentication(new MyWebSocketAuthenticationService()));
+        using var provider = services.BuildServiceProvider();
+        var service = provider.GetRequiredService<IWebSocketAuthenticationService>();
+        Should.Throw<NotImplementedException>(() => service.AuthenticateAsync(null!, null!, null!));
+    }
+
+    private class MyWebSocketAuthenticationService : IWebSocketAuthenticationService
+    {
+        public Task AuthenticateAsync(IWebSocketConnection connection, string subProtocol, OperationMessage operationMessage) => throw new NotImplementedException();
+    }
+
+    [Fact]
     public async Task Basic()
     {
         _hostBuilder.Configure(app => {
@@ -137,46 +172,6 @@ public class BuilderMethodTests
             app.UseEndpoints(endpoints => {
                 endpoints.MapGraphQL<ISchema, GraphQLHttpMiddleware<ISchema>>("graphql");
             });
-        });
-        await VerifyAsync();
-    }
-
-    [Fact]
-    public async Task WebSocketHandler_Configure()
-    {
-        _hostBuilder.ConfigureServices(services => {
-            services.AddGraphQL(b => b.AddWebSocketHandler(c => { }));
-        });
-        _hostBuilder.Configure(app => {
-            app.UseWebSockets();
-            app.UseGraphQL();
-        });
-        await VerifyAsync();
-    }
-
-    [Fact]
-    public async Task WebSocketHandler_Configure2()
-    {
-        _hostBuilder.ConfigureServices(services => {
-            services.AddGraphQL(b => b.AddWebSocketHandler((c, p) => { }));
-        });
-        _hostBuilder.Configure(app => {
-            app.UseWebSockets();
-            app.UseGraphQL();
-        });
-        await VerifyAsync();
-    }
-
-    [Fact]
-    public async Task WebSocketHandler_Configure3()
-    {
-        _hostBuilder.ConfigureServices(services => {
-            services.AddSingleton<WebSocketHandlerOptions>();
-            services.AddGraphQL(b => b.AddWebSocketHandler<WebSocketHandler<ISchema>>());
-        });
-        _hostBuilder.Configure(app => {
-            app.UseWebSockets();
-            app.UseGraphQL();
         });
         await VerifyAsync();
     }

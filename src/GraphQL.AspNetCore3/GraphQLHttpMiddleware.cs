@@ -33,9 +33,23 @@ public class GraphQLHttpMiddleware<TSchema> : GraphQLHttpMiddleware
         IServiceScopeFactory serviceScopeFactory,
         GraphQLHttpMiddlewareOptions options,
         IServiceProvider provider,
-        IHostApplicationLifetime hostApplicationLifetime,
-        IEnumerable<IWebSocketHandler<TSchema>>? webSocketHandlers)
-        : base(next, serializer, options, GetWebSocketHandlers(serializer, documentExecuter, serviceScopeFactory, provider, hostApplicationLifetime, webSocketHandlers))
+        IHostApplicationLifetime hostApplicationLifetime)
+        : this(next, serializer, documentExecuter, serviceScopeFactory, options,
+              CreateWebSocketHandlers(serializer, documentExecuter, serviceScopeFactory, provider, hostApplicationLifetime, options))
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance.
+    /// </summary>
+    protected GraphQLHttpMiddleware(
+        RequestDelegate next,
+        IGraphQLTextSerializer serializer,
+        IDocumentExecuter<TSchema> documentExecuter,
+        IServiceScopeFactory serviceScopeFactory,
+        GraphQLHttpMiddlewareOptions options,
+        IEnumerable<IWebSocketHandler<TSchema>>? webSocketHandlers = null)
+        : base(next, serializer, options, webSocketHandlers)
     {
         _documentExecuter = documentExecuter ?? throw new ArgumentNullException(nameof(documentExecuter));
         _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
@@ -47,22 +61,23 @@ public class GraphQLHttpMiddleware<TSchema> : GraphQLHttpMiddleware
         _postCachedDocumentValidationRules = new[] { postRule };
     }
 
-    private static IEnumerable<IWebSocketHandler> GetWebSocketHandlers(
+    private static IEnumerable<IWebSocketHandler<TSchema>> CreateWebSocketHandlers(
         IGraphQLSerializer serializer,
         IDocumentExecuter<TSchema> documentExecuter,
         IServiceScopeFactory serviceScopeFactory,
         IServiceProvider provider,
         IHostApplicationLifetime hostApplicationLifetime,
-        IEnumerable<IWebSocketHandler<TSchema>>? webSocketHandlers)
+        GraphQLHttpMiddlewareOptions options)
     {
-        if (webSocketHandlers == null || !webSocketHandlers.Any()) {
-            return new IWebSocketHandler[] {
-                new WebSocketHandler(serializer, documentExecuter, serviceScopeFactory, new WebSocketHandlerOptions(),
-                    hostApplicationLifetime ?? throw new ArgumentNullException(nameof(hostApplicationLifetime)),
-                    (provider ?? throw new ArgumentNullException(nameof(provider))).GetService<IWebSocketAuthorizationService>()),
-            };
-        }
-        return webSocketHandlers;
+        if (hostApplicationLifetime == null)
+            throw new ArgumentNullException(nameof(hostApplicationLifetime));
+        if (provider == null)
+            throw new ArgumentNullException(nameof(provider));
+
+        return new IWebSocketHandler<TSchema>[] {
+            new WebSocketHandler<TSchema>(serializer, documentExecuter, serviceScopeFactory, options,
+                hostApplicationLifetime, provider.GetService<IWebSocketAuthenticationService>()),
+        };
     }
 
     /// <inheritdoc/>
@@ -146,11 +161,8 @@ public abstract class GraphQLHttpMiddleware
     {
         if (context.WebSockets.IsWebSocketRequest) {
             if (Options.HandleWebSockets) {
-                // Authenticate request if necessary
-                if (Options.WebSocketsRequireAuthorization) {
-                    if (await HandleAuthorizeAsync(context, _next))
-                        return;
-                }
+                if (await HandleAuthorizeWebSocketConnectionAsync(context, _next))
+                    return;
                 // Process WebSocket request
                 await HandleWebSocketAsync(context, _next);
             } else
@@ -279,35 +291,29 @@ public abstract class GraphQLHttpMiddleware
     /// </summary>
     protected virtual async ValueTask<bool> HandleAuthorizeAsync(HttpContext context, RequestDelegate next)
     {
-        if (Options.AuthorizationRequired) {
-            if (!((context.User ?? NoUser()).Identity ?? NoIdentity()).IsAuthenticated) {
-                await HandleNotAuthenticatedAsync(context, next);
-                return true;
-            }
-        }
+        var success = await AuthorizationHelper.AuthorizeAsync(
+            new AuthorizationParameters<(GraphQLHttpMiddleware Middleware, HttpContext Context, RequestDelegate Next)>(
+                context,
+                Options,
+                static info => info.Middleware.HandleNotAuthenticatedAsync(info.Context, info.Next),
+                static info => info.Middleware.HandleNotAuthorizedRoleAsync(info.Context, info.Next),
+                static (info, result) => info.Middleware.HandleNotAuthorizedPolicyAsync(info.Context, info.Next, result)),
+            (this, context, next));
 
-        if (Options.AuthorizedRoles.Count > 0) {
-            var user = context.User ?? NoUser();
-            foreach (var role in Options.AuthorizedRoles) {
-                if (user.IsInRole(role))
-                    goto PassRoleCheck;
-            }
-            await HandleNotAuthorizedRoleAsync(context, next);
-            return true;
-        }
-    PassRoleCheck:
-
-        if (Options.AuthorizedPolicy != null) {
-            var authorizationService = context.RequestServices.GetRequiredService<IAuthorizationService>();
-            var authResult = await authorizationService.AuthorizeAsync(context.User ?? NoUser(), null, Options.AuthorizedPolicy);
-            if (!authResult.Succeeded) {
-                await HandleNotAuthorizedPolicyAsync(context, next, authResult);
-                return true;
-            }
-        }
-
-        return false;
+        return !success;
     }
+
+    /// <summary>
+    /// Perform authorization, if required, and return <see langword="true"/> if the
+    /// request was handled (typically by returning an error message).  If <see langword="false"/>
+    /// is returned, the request is processed normally.
+    /// <br/><br/>
+    /// By default this does not check authorization rules becuase authentication may take place within
+    /// the WebSocket connection during the ConnectionInit message.  Authorization checks for
+    /// WebSocket connections occur then, after authorization has taken place.
+    /// </summary>
+    protected virtual ValueTask<bool> HandleAuthorizeWebSocketConnectionAsync(HttpContext context, RequestDelegate next)
+        => new(false);
 
     /// <summary>
     /// Handles a single GraphQL request.
@@ -482,12 +488,6 @@ public abstract class GraphQLHttpMiddleware
     /// </summary>
     protected virtual Task HandleNotAuthorizedPolicyAsync(HttpContext context, RequestDelegate next, AuthorizationResult authorizationResult)
         => WriteErrorResponseAsync(context, HttpStatusCode.Unauthorized, new AccessDeniedError("schema") { PolicyRequired = Options.AuthorizedPolicy, PolicyAuthorizationResult = authorizationResult });
-
-    private static IIdentity NoIdentity()
-        => throw new InvalidOperationException($"IIdentity could not be retrieved from HttpContext.User.Identity.");
-
-    private static ClaimsPrincipal NoUser()
-        => throw new InvalidOperationException("ClaimsPrincipal could not be retrieved from HttpContext.User.");
 
     /// <summary>
     /// Writes a '400 JSON body text could not be parsed.' message to the output.
