@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 namespace GraphQL.AspNetCore3;
 
 /// <summary>
-/// Configuration options for <see cref="GraphQLHttpMiddleware{TSchema}"/>.
+/// Configuration options for <see cref="GraphQLHttpMiddleware"/>.
 /// </summary>
 public class GraphQLHttpMiddlewareOptions
 {
