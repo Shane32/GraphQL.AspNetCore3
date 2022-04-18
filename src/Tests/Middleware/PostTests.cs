@@ -158,12 +158,28 @@ public class PostTests : IDisposable
         await response.ShouldBeAsync(true, @"{""errors"":[{""message"":""JSON body text could not be parsed. Expected depth to be zero at the end of the JSON payload. There is an open JSON object or array that should be closed. Path: $ | LineNumber: 0 | BytePositionInLine: 1."",""extensions"":{""code"":""JSON_INVALID"",""codes"":[""JSON_INVALID""]}}]}");
     }
 
-    [Fact]
-    public async Task AltContentType()
+    [Theory]
+    [InlineData("application/graphql")]
+    [InlineData("APPLICATION/GRAPHQL")]
+    public async Task ContentType_GraphQL(string contentType)
     {
         var client = _server.CreateClient();
         var content = new StringContent("{count}");
-        content.Headers.ContentType = new("application/graphql");
+        content.Headers.ContentType = new(contentType);
+        using var response = await client.PostAsync("/graphql", content);
+        await response.ShouldBeAsync(@"{""data"":{""count"":0}}");
+    }
+
+    [Theory]
+    [InlineData("application/json")]
+    [InlineData("application/graphql+json")]
+    [InlineData("APPLICATION/JSON")]
+    [InlineData("APPLICATION/GRAPHQL+JSON")]
+    public async Task ContentType_GraphQLJson(string contentType)
+    {
+        var client = _server.CreateClient();
+        var content = new StringContent(@"{""query"":""{count}""}");
+        content.Headers.ContentType = new(contentType);
         using var response = await client.PostAsync("/graphql", content);
         await response.ShouldBeAsync(@"{""data"":{""count"":0}}");
     }

@@ -132,8 +132,10 @@ public abstract class GraphQLHttpMiddleware
     private const string VARIABLES_KEY = "variables";
     private const string EXTENSIONS_KEY = "extensions";
     private const string OPERATION_NAME_KEY = "operationName";
+    private const string MEDIATYPE_GRAPHQLJSON = "application/graphql+json";
     private const string MEDIATYPE_JSON = "application/json";
     private const string MEDIATYPE_GRAPHQL = "application/graphql";
+    private const string CONTENTTYPE_GRAPHQLJSON = "application/graphql+json; charset=utf-8";
 
     /// <summary>
     /// Gets the options configured for this instance.
@@ -196,7 +198,8 @@ public abstract class GraphQLHttpMiddleware
                 return;
             }
 
-            switch (mediaTypeHeader.MediaType) {
+            switch (mediaTypeHeader.MediaType?.ToLowerInvariant()) {
+                case MEDIATYPE_GRAPHQLJSON:
                 case MEDIATYPE_JSON:
                     IList<GraphQLRequest>? deserializationResult;
                     try {
@@ -422,7 +425,7 @@ public abstract class GraphQLHttpMiddleware
     /// </summary>
     protected virtual Task WriteJsonResponseAsync<TResult>(HttpContext context, HttpStatusCode httpStatusCode, TResult result)
     {
-        context.Response.ContentType = MEDIATYPE_JSON;
+        context.Response.ContentType = CONTENTTYPE_GRAPHQLJSON;
         context.Response.StatusCode = (int)httpStatusCode;
 
         return _serializer.WriteAsync(context.Response.Body, result, context.RequestAborted);
