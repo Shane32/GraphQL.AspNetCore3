@@ -202,7 +202,7 @@ public class BuilderMethodTests
 
     private class MyUserContextBuilder : IUserContextBuilder
     {
-        public ValueTask<IDictionary<string, object?>> BuildUserContextAsync(HttpContext context)
+        public ValueTask<IDictionary<string, object?>> BuildUserContextAsync(HttpContext context, object? payload)
             => new ValueTask<IDictionary<string, object?>>(new MyUserContext { UserInfo = "fromBuilder" });
     }
 

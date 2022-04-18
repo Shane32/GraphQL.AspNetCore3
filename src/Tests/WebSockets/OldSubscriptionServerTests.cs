@@ -10,13 +10,13 @@ public class OldSubscriptionServerTests : IDisposable
     private readonly Mock<IDocumentExecuter> _mockDocumentExecuter = new(MockBehavior.Strict);
     private readonly Mock<IServiceScopeFactory> _mockServiceScopeFactory = new(MockBehavior.Strict);
     private readonly Mock<IGraphQLSerializer> _mockSerializer = new(MockBehavior.Strict);
-    private readonly Mock<IDictionary<string, object?>> _mockUserContext = new(MockBehavior.Strict);
+    private readonly Mock<IUserContextBuilder> _mockUserContextBuilder = new(MockBehavior.Strict);
 
     public OldSubscriptionServerTests()
     {
         _stream = _mockStream.Object;
         _mockServer = new(_stream, _options, _mockDocumentExecuter.Object, _mockSerializer.Object,
-            _mockServiceScopeFactory.Object, _mockUserContext.Object);
+            _mockServiceScopeFactory.Object, _mockUserContextBuilder.Object);
         _mockServer.CallBase = true;
     }
 
@@ -28,22 +28,22 @@ public class OldSubscriptionServerTests : IDisposable
         _server.Get_DocumentExecuter.ShouldBe(_mockDocumentExecuter.Object);
         _server.Get_Serializer.ShouldBe(_mockSerializer.Object);
         _server.Get_ServiceScopeFactory.ShouldBe(_mockServiceScopeFactory.Object);
-        _server.Get_UserContext.ShouldBe(_mockUserContext.Object);
+        _server.Get_UserContextBuilder.ShouldBe(_mockUserContextBuilder.Object);
     }
 
     [Fact]
     public void InvalidConstructorArgumentsThrows()
     {
         Should.Throw<ArgumentNullException>(() => new TestOldSubscriptionServer(_stream, _options,
-            null!, _mockSerializer.Object, _mockServiceScopeFactory.Object, _mockUserContext.Object));
+            null!, _mockSerializer.Object, _mockServiceScopeFactory.Object, _mockUserContextBuilder.Object));
         Should.Throw<ArgumentNullException>(() => new TestOldSubscriptionServer(_stream, _options,
-            _mockDocumentExecuter.Object, null!, _mockServiceScopeFactory.Object, _mockUserContext.Object));
+            _mockDocumentExecuter.Object, null!, _mockServiceScopeFactory.Object, _mockUserContextBuilder.Object));
         Should.Throw<ArgumentNullException>(() => new TestOldSubscriptionServer(_stream, _options,
-            _mockDocumentExecuter.Object, _mockSerializer.Object, null!, _mockUserContext.Object));
+            _mockDocumentExecuter.Object, _mockSerializer.Object, null!, _mockUserContextBuilder.Object));
         Should.Throw<ArgumentNullException>(() => new TestOldSubscriptionServer(_stream, _options,
             _mockDocumentExecuter.Object, _mockSerializer.Object, _mockServiceScopeFactory.Object, null!));
         _ = new TestOldSubscriptionServer(_stream, _options, _mockDocumentExecuter.Object,
-            _mockSerializer.Object, _mockServiceScopeFactory.Object, _mockUserContext.Object);
+            _mockSerializer.Object, _mockServiceScopeFactory.Object, _mockUserContextBuilder.Object);
     }
 
     [Theory]
@@ -304,6 +304,8 @@ public class OldSubscriptionServerTests : IDisposable
             .Verifiable();
         mockScope.Setup(x => x.Dispose()).Verifiable();
         var result = Mock.Of<ExecutionResult>(MockBehavior.Strict);
+        var mockUserContext = new Mock<IDictionary<string, object?>>(MockBehavior.Strict);
+        _server.Set_UserContext(mockUserContext.Object);
         _mockDocumentExecuter.Setup(x => x.ExecuteAsync(It.IsAny<ExecutionOptions>()))
             .Returns<ExecutionOptions>(options => {
                 options.ShouldNotBeNull();
@@ -311,7 +313,7 @@ public class OldSubscriptionServerTests : IDisposable
                 options.Variables.ShouldBe(request.Variables);
                 options.Extensions.ShouldBe(request.Extensions);
                 options.OperationName.ShouldBe(request.OperationName);
-                options.UserContext.ShouldBe(_mockUserContext.Object);
+                options.UserContext.ShouldBe(mockUserContext.Object);
                 options.RequestServices.ShouldBe(mockServiceProvider.Object);
                 return Task.FromResult(result);
             })
@@ -321,7 +323,7 @@ public class OldSubscriptionServerTests : IDisposable
         _mockDocumentExecuter.Verify();
         _mockSerializer.Verify();
         _mockServiceScopeFactory.Verify();
-        _mockUserContext.Verify();
+        _mockUserContextBuilder.Verify();
         mockServiceProvider.Verify();
         mockScope.Verify();
     }

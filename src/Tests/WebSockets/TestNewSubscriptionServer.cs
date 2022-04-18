@@ -6,8 +6,8 @@ public class TestNewSubscriptionServer : SubscriptionServer
 {
     public TestNewSubscriptionServer(IWebSocketConnection sendStream, GraphQLHttpMiddlewareOptions options,
         IDocumentExecuter executer, IGraphQLSerializer serializer, IServiceScopeFactory serviceScopeFactory,
-        IDictionary<string, object?> userContext)
-        : base(sendStream, options, executer, serializer, serviceScopeFactory, userContext) { }
+        IUserContextBuilder userContextBuilder)
+        : base(sendStream, options, executer, serializer, serviceScopeFactory, userContextBuilder) { }
 
     public bool Do_TryInitialize()
         => TryInitialize();
@@ -47,7 +47,11 @@ public class TestNewSubscriptionServer : SubscriptionServer
 
     public IGraphQLSerializer Get_Serializer => Serializer;
 
-    public IDictionary<string, object?> Get_UserContext => UserContext;
+    public IDictionary<string, object?>? Get_UserContext => UserContext;
+
+    public void Set_UserContext(IDictionary<string, object?>? userContext) => UserContext = userContext;
+
+    public IUserContextBuilder Get_UserContextBuilder => UserContextBuilder;
 
     public IDocumentExecuter Get_DocumentExecuter => DocumentExecuter;
 

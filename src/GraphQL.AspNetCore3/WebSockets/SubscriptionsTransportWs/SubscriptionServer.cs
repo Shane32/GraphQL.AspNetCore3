@@ -23,9 +23,14 @@ public class SubscriptionServer : BaseSubscriptionServer
     protected IServiceScopeFactory ServiceScopeFactory { get; }
 
     /// <summary>
-    /// Returns the user context used to execute requests.
+    /// Gets or sets the user context used to execute requests.
     /// </summary>
-    protected IDictionary<string, object?> UserContext { get; }
+    protected IDictionary<string, object?>? UserContext { get; set; }
+
+    /// <summary>
+    /// Returns the user context builder used during connection initialization.
+    /// </summary>
+    protected IUserContextBuilder UserContextBuilder { get; }
 
     /// <summary>
     /// Returns the <see cref="IGraphQLSerializer"/> used to deserialize <see cref="OperationMessage"/> payloads.
@@ -40,7 +45,7 @@ public class SubscriptionServer : BaseSubscriptionServer
     /// <param name="executer">The <see cref="IDocumentExecuter"/> to use to execute GraphQL requests.</param>
     /// <param name="serializer">The <see cref="IGraphQLSerializer"/> to use to deserialize payloads stored within <see cref="OperationMessage.Payload"/>.</param>
     /// <param name="serviceScopeFactory">A <see cref="IServiceScopeFactory"/> to create service scopes for execution of GraphQL requests.</param>
-    /// <param name="userContext">The user context to pass to the <see cref="IDocumentExecuter"/>.</param>
+    /// <param name="userContextBuilder">The user context builder used during connection initialization.</param>
     /// <param name="authenticationService">An optional service to authenticate connections.</param>
     public SubscriptionServer(
         IWebSocketConnection sendStream,
@@ -48,13 +53,13 @@ public class SubscriptionServer : BaseSubscriptionServer
         IDocumentExecuter executer,
         IGraphQLSerializer serializer,
         IServiceScopeFactory serviceScopeFactory,
-        IDictionary<string, object?> userContext,
+        IUserContextBuilder userContextBuilder,
         IWebSocketAuthenticationService? authenticationService = null)
         : base(sendStream, options)
     {
         DocumentExecuter = executer ?? throw new ArgumentNullException(nameof(executer));
         ServiceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
-        UserContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
+        UserContextBuilder = userContextBuilder ?? throw new ArgumentNullException(nameof(userContextBuilder));
         Serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
         _authenticationService = authenticationService;
     }
@@ -152,15 +157,17 @@ public class SubscriptionServer : BaseSubscriptionServer
     {
         var request = Serializer.ReadNode<GraphQLRequest>(message.Payload)!;
         using var scope = ServiceScopeFactory.CreateScope();
-        return await DocumentExecuter.ExecuteAsync(new ExecutionOptions {
+        var options = new ExecutionOptions {
             Query = request.Query,
             Variables = request.Variables,
             Extensions = request.Extensions,
             OperationName = request.OperationName,
-            UserContext = UserContext,
             RequestServices = scope.ServiceProvider,
             CancellationToken = CancellationToken,
-        });
+        };
+        if (UserContext != null)
+            options.UserContext = UserContext;
+        return await DocumentExecuter.ExecuteAsync(options);
     }
 
     /// <inheritdoc/>
@@ -174,7 +181,7 @@ public class SubscriptionServer : BaseSubscriptionServer
     }
 
     /// <summary>
-    /// Authorizes an incoming GraphQL over WebSockets request with the connection initialization message.
+    /// Authorizes an incoming GraphQL over WebSockets request with the connection initialization message and initializes the <see cref="UserContext"/>.
     /// <br/><br/>
     /// The default implementation calls the <see cref="IWebSocketAuthenticationService.AuthenticateAsync(IWebSocketConnection, string, OperationMessage)"/>
     /// method to authenticate the request, checks the authorization rules set in <see cref="GraphQLHttpMiddlewareOptions"/>,
@@ -182,6 +189,10 @@ public class SubscriptionServer : BaseSubscriptionServer
     /// to <see cref="BaseSubscriptionServer.OnNotAuthenticatedAsync(OperationMessage)">OnNotAuthenticatedAsync</see>,
     /// <see cref="BaseSubscriptionServer.OnNotAuthorizedRoleAsync(OperationMessage)">OnNotAuthorizedRoleAsync</see>
     /// or <see cref="BaseSubscriptionServer.OnNotAuthorizedPolicyAsync(OperationMessage, AuthorizationResult)">OnNotAuthorizedPolicyAsync</see>.
+    /// <br/><br/>
+    /// After successful authorization, the default implementation calls
+    /// <see cref="UserContextBuilder"/>.<see cref="IUserContextBuilder.BuildUserContextAsync(HttpContext, object?)">BuildUserContextAsync</see>
+    /// to generate a user context.
     /// <br/><br/>
     /// This method will return <see langword="true"/> if authorization is successful, or
     /// return <see langword="false"/> if not.
@@ -191,6 +202,12 @@ public class SubscriptionServer : BaseSubscriptionServer
         if (_authenticationService != null)
             await _authenticationService.AuthenticateAsync(Client, SubProtocol, message);
 
-        return await base.AuthorizeAsync(message);
+        var success = await base.AuthorizeAsync(message);
+
+        if (success) {
+            UserContext = await UserContextBuilder.BuildUserContextAsync(Client.HttpContext, message.Payload);
+        }
+
+        return success;
     }
 }

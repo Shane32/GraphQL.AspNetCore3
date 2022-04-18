@@ -126,6 +126,7 @@ public abstract class GraphQLHttpMiddleware
     private readonly IGraphQLTextSerializer _serializer;
     private readonly IEnumerable<IWebSocketHandler>? _webSocketHandlers;
     private readonly RequestDelegate _next;
+    private readonly IUserContextBuilder _userContextBuilderForWebSockets;
 
     private const string QUERY_KEY = "query";
     private const string VARIABLES_KEY = "variables";
@@ -152,6 +153,7 @@ public abstract class GraphQLHttpMiddleware
         _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
         Options = options ?? throw new ArgumentNullException(nameof(options));
         _webSocketHandlers = webSocketHandlers;
+        _userContextBuilderForWebSockets = new UserContextBuilder<IDictionary<string, object?>>(BuildUserContextAsync);
     }
 
     /// <inheritdoc/>
@@ -322,7 +324,7 @@ public abstract class GraphQLHttpMiddleware
         GraphQLRequest gqlRequest)
     {
         // Normal execution with single graphql request
-        var userContext = await BuildUserContextAsync(context);
+        var userContext = await BuildUserContextAsync(context, null);
         var result = await ExecuteRequestAsync(context, gqlRequest, context.RequestServices, userContext);
         var statusCode = Options.ValidationErrorsReturnBadRequest && !result.Executed
             ? HttpStatusCode.BadRequest
@@ -338,7 +340,7 @@ public abstract class GraphQLHttpMiddleware
         RequestDelegate next,
         IList<GraphQLRequest> gqlRequests)
     {
-        var userContext = await BuildUserContextAsync(context);
+        var userContext = await BuildUserContextAsync(context, null);
         var results = new ExecutionResult[gqlRequests.Count];
         if (gqlRequests.Count == 1) {
             results[0] = await ExecuteRequestAsync(context, gqlRequests[0], context.RequestServices, userContext);
@@ -406,12 +408,12 @@ public abstract class GraphQLHttpMiddleware
     /// In this manner, both scoped and singleton <see cref="IUserContextBuilder"/>
     /// instances are supported, although singleton instances are recommended.
     /// </summary>
-    protected virtual async ValueTask<IDictionary<string, object?>> BuildUserContextAsync(HttpContext context)
+    protected virtual async ValueTask<IDictionary<string, object?>> BuildUserContextAsync(HttpContext context, object? payload)
     {
         var userContextBuilder = context.RequestServices.GetService<IUserContextBuilder>();
         var userContext = userContextBuilder == null
             ? new Dictionary<string, object?>()
-            : await userContextBuilder.BuildUserContextAsync(context);
+            : await userContextBuilder.BuildUserContextAsync(context, payload);
         return userContext;
     }
 
@@ -463,10 +465,8 @@ public abstract class GraphQLHttpMiddleware
             return;
         }
 
-        // Prepare user context
-        var userContext = await BuildUserContextAsync(context);
         // Connect, then wait until the websocket has disconnected (and all subscriptions ended)
-        await selectedHandler.ExecuteAsync(context, socket, selectedProtocol, userContext);
+        await selectedHandler.ExecuteAsync(context, socket, selectedProtocol, _userContextBuilderForWebSockets);
     }
 
     /// <summary>

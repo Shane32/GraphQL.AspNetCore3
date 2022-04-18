@@ -50,7 +50,7 @@ public class UserContextBuilderTests : IDisposable
             context2.ShouldBe(context);
             return userContext;
         });
-        (await builder.BuildUserContextAsync(context)).ShouldBe(userContext);
+        (await builder.BuildUserContextAsync(context, null)).ShouldBe(userContext);
     }
 
     [Fact]
@@ -62,7 +62,33 @@ public class UserContextBuilderTests : IDisposable
             context2.ShouldBe(context);
             return new ValueTask<MyUserContext>(userContext);
         });
-        (await builder.BuildUserContextAsync(context)).ShouldBe(userContext);
+        (await builder.BuildUserContextAsync(context, null)).ShouldBe(userContext);
+    }
+
+    [Fact]
+    public async Task Sync_Payload_Works()
+    {
+        var context = Mock.Of<HttpContext>(MockBehavior.Strict);
+        var userContext = new MyUserContext();
+        var builder = new UserContextBuilder<MyUserContext>((context2, payload) => {
+            context2.ShouldBe(context);
+            payload.ShouldBe("test");
+            return userContext;
+        });
+        (await builder.BuildUserContextAsync(context, "test")).ShouldBe(userContext);
+    }
+
+    [Fact]
+    public async Task Async_Payload_Works()
+    {
+        var context = Mock.Of<HttpContext>(MockBehavior.Strict);
+        var userContext = new MyUserContext();
+        var builder = new UserContextBuilder<MyUserContext>((context2, payload) => {
+            context2.ShouldBe(context);
+            payload.ShouldBe("test");
+            return new ValueTask<MyUserContext>(userContext);
+        });
+        (await builder.BuildUserContextAsync(context, "test")).ShouldBe(userContext);
     }
 
     private async Task Test(string name)
@@ -139,9 +165,49 @@ public class UserContextBuilderTests : IDisposable
         await TestDirect("John Doe");
     }
 
+    [Fact]
+    public async Task Builder4()
+    {
+        Configure(b => b.AddUserContextBuilder((ctx, payload) => new MyUserContext { Name = "John Doe" }));
+        await Test("John Doe");
+    }
+
+    [Fact]
+    public async Task Builder4Direct()
+    {
+        Configure(b => b.AddUserContextBuilder((ctx, payload) => new MyUserContext { Name = "John Doe" }));
+        await TestDirect("John Doe");
+    }
+
+    [Fact]
+    public void Builder4Null()
+    {
+        Should.Throw<ArgumentNullException>(() => Configure(b => b.AddUserContextBuilder((Func<HttpContext, object?, MyUserContext>)null!)));
+    }
+
+    [Fact]
+    public async Task Builder5()
+    {
+        Configure(b => b.AddUserContextBuilder((ctx, payload) => Task.FromResult(new MyUserContext { Name = "John Doe" })));
+        await Test("John Doe");
+    }
+
+    [Fact]
+    public async Task Builder5Direct()
+    {
+        Configure(b => b.AddUserContextBuilder((ctx, payload) => Task.FromResult(new MyUserContext { Name = "John Doe" })));
+        await TestDirect("John Doe");
+    }
+
+    [Fact]
+    public void Builder5Null()
+    {
+        Should.Throw<ArgumentNullException>(() => Configure(b => b.AddUserContextBuilder((Func<HttpContext, object?, Task<MyUserContext>>)null!)));
+    }
+
     private class MyBuilder : IUserContextBuilder
     {
-        public ValueTask<IDictionary<string, object?>> BuildUserContextAsync(HttpContext context)
+        public ValueTask<IDictionary<string, object?>> BuildUserContextAsync(HttpContext context, object? payload)
             => new(new MyUserContext { Name = "John Doe" });
     }
 
