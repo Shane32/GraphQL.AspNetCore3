@@ -421,11 +421,23 @@ public abstract class GraphQLHttpMiddleware
     }
 
     /// <summary>
+    /// Selects a response content type string based on the <see cref="HttpContext"/>.
+    /// Defaults to <see cref="CONTENTTYPE_GRAPHQLJSON"/>.  Override this value for compatibility
+    /// with non-conforming GraphQL clients.
+    /// <br/><br/>
+    /// Note that by default, the response will be written as UTF-8 encoded JSON, regardless
+    /// of the content-type value here.  For more complex behavior patterns, override
+    /// <see cref="WriteJsonResponseAsync{TResult}(HttpContext, HttpStatusCode, TResult)"/>.
+    /// </summary>
+    protected virtual string SelectResponseContentType(HttpContext context)
+        => CONTENTTYPE_GRAPHQLJSON;
+
+    /// <summary>
     /// Writes the specified object (usually a GraphQL response) as JSON to the HTTP response stream.
     /// </summary>
     protected virtual Task WriteJsonResponseAsync<TResult>(HttpContext context, HttpStatusCode httpStatusCode, TResult result)
     {
-        context.Response.ContentType = CONTENTTYPE_GRAPHQLJSON;
+        context.Response.ContentType = SelectResponseContentType(context);
         context.Response.StatusCode = (int)httpStatusCode;
 
         return _serializer.WriteAsync(context.Response.Body, result, context.RequestAborted);
