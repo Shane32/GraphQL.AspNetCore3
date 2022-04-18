@@ -39,6 +39,10 @@ public class UserContextBuilderTests : IDisposable
         Should.Throw<ArgumentNullException>(() => new UserContextBuilder<MyUserContext>(func));
         Func<HttpContext, ValueTask<MyUserContext>> func2 = null!;
         Should.Throw<ArgumentNullException>(() => new UserContextBuilder<MyUserContext>(func2));
+        Func<HttpContext, object?, MyUserContext> func3 = null!;
+        Should.Throw<ArgumentNullException>(() => new UserContextBuilder<MyUserContext>(func3));
+        Func<HttpContext, object?, ValueTask<MyUserContext>> func4 = null!;
+        Should.Throw<ArgumentNullException>(() => new UserContextBuilder<MyUserContext>(func4));
     }
 
     [Fact]
