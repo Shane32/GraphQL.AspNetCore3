@@ -76,7 +76,7 @@ public class WebSocketHandler : IWebSocketHandler
     }
 
     /// <inheritdoc/>
-    public virtual async Task ExecuteAsync(HttpContext httpContext, WebSocket webSocket, string subProtocol, IDictionary<string, object?> userContext)
+    public virtual async Task ExecuteAsync(HttpContext httpContext, WebSocket webSocket, string subProtocol, IUserContextBuilder userContextBuilder)
     {
         if (httpContext == null)
             throw new ArgumentNullException(nameof(httpContext));
@@ -84,15 +84,15 @@ public class WebSocketHandler : IWebSocketHandler
             throw new ArgumentNullException(nameof(webSocket));
         if (subProtocol == null)
             throw new ArgumentNullException(nameof(subProtocol));
-        if (userContext == null)
-            throw new ArgumentNullException(nameof(userContext));
+        if (userContextBuilder == null)
+            throw new ArgumentNullException(nameof(userContextBuilder));
         var appStoppingToken = _hostApplicationLifetime.ApplicationStopping;
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(httpContext.RequestAborted, appStoppingToken);
         if (cts.Token.IsCancellationRequested)
             return;
         try {
             var webSocketConnection = CreateWebSocketConnection(httpContext, webSocket, cts.Token);
-            using var operationMessageReceiveStream = CreateReceiveStream(webSocketConnection, subProtocol, userContext);
+            using var operationMessageReceiveStream = CreateReceiveStream(webSocketConnection, subProtocol, userContextBuilder);
             await webSocketConnection.ExecuteAsync(operationMessageReceiveStream);
         } catch (OperationCanceledException) when (appStoppingToken.IsCancellationRequested) {
             // terminate all pending WebSockets connections when the application is in the process of stopping
@@ -108,7 +108,7 @@ public class WebSocketHandler : IWebSocketHandler
     /// <summary>
     /// Builds an <see cref="IOperationMessageProcessor"/> for the specified sub-protocol.
     /// </summary>
-    protected virtual IOperationMessageProcessor CreateReceiveStream(IWebSocketConnection webSocketConnection, string subProtocol, IDictionary<string, object?> userContext)
+    protected virtual IOperationMessageProcessor CreateReceiveStream(IWebSocketConnection webSocketConnection, string subProtocol, IUserContextBuilder userContextBuilder)
     {
         switch (subProtocol) {
             case GraphQLWs.SubscriptionServer.SubProtocol: {
@@ -118,7 +118,7 @@ public class WebSocketHandler : IWebSocketHandler
                     _executer,
                     _serializer,
                     _serviceScopeFactory,
-                    userContext,
+                    userContextBuilder,
                     _authorizationService);
                 return server;
             }
@@ -129,7 +129,7 @@ public class WebSocketHandler : IWebSocketHandler
                     _executer,
                     _serializer,
                     _serviceScopeFactory,
-                    userContext,
+                    userContextBuilder,
                     _authorizationService);
                 return server;
             }
