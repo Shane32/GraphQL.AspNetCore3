@@ -432,6 +432,7 @@ A list of methods are as follows:
 | `BuildUserContextAsync`     | Builds the user context based on a `HttpContext`. |
 | `ExecuteRequestAsync`       | Executes a GraphQL request. |
 | `ExecuteScopedRequestAsync` | Executes a GraphQL request with a scoped service provider. |
+| `SelectResponseContentType` | Selects a content-type header for the JSON-formatted GraphQL response. |
 | `WriteErrorResponseAsync`   | Writes the specified error message as a JSON-formatted GraphQL response, with the specified HTTP status code. |
 | `WriteJsonResponseAsync`    | Writes the specified object (usually a GraphQL response) as JSON to the HTTP response stream. |
 
