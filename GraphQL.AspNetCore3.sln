@@ -12,6 +12,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution items", "Solution 
 		LICENSE = LICENSE
 		logo.64x64.png = logo.64x64.png
 		logo.jpg = logo.jpg
+		migration.md = migration.md
 		README.md = README.md
 	EndProjectSection
 EndProject
@@ -43,7 +44,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GraphQL.AspNetCore3", "src\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tests.ApiTests", "src\Tests.ApiApprovals\Tests.ApiTests.csproj", "{610E33F5-E136-427C-A501-025E7C54A576}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthorizationSample", "src\Samples\AuthorizationSample\AuthorizationSample.csproj", "{512A40B4-C371-4437-AF85-E28ACAA541EE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AuthorizationSample", "src\Samples\AuthorizationSample\AuthorizationSample.csproj", "{512A40B4-C371-4437-AF85-E28ACAA541EE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
