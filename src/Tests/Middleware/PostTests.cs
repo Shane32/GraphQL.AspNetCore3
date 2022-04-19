@@ -230,7 +230,7 @@ public class PostTests : IDisposable
     {
         _options.HandlePost = false;
         using var response = await PostRequestAsync(new() { Query = "{count}" });
-        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        response.StatusCode.ShouldBe(HttpStatusCode.MethodNotAllowed);
     }
 
     [Theory]

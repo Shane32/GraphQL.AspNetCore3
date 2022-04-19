@@ -73,7 +73,7 @@ public class GetTests : IDisposable
         _options.HandleGet = false;
         var client = _server.CreateClient();
         using var response = await client.GetAsync("/graphql?query={count}");
-        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        response.StatusCode.ShouldBe(HttpStatusCode.MethodNotAllowed);
     }
 
     [Theory]

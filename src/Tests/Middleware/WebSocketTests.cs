@@ -129,7 +129,7 @@ public class WebSocketTests : IDisposable
 
         var webSocketClient = BuildClient();
         var error = await Should.ThrowAsync<InvalidOperationException>(() => webSocketClient.ConnectAsync(new Uri(_server.BaseAddress, "/graphql"), default));
-        error.Message.ShouldBe("Incomplete handshake, status code: 404");
+        error.Message.ShouldBe("Incomplete handshake, status code: 405");
     }
 
     private class MyGraphQLHttpMiddleware : GraphQLHttpMiddleware
