@@ -553,7 +553,8 @@ public abstract class GraphQLHttpMiddleware
         context.RequestAborted.ThrowIfCancellationRequested();
         if (!context.Response.HasStarted && context.Response.StatusCode == (int)HttpStatusCode.NotFound) {
             context.Response.Headers["Allow"] = Options.HandleGet && Options.HandlePost ? "GET, POST" : Options.HandleGet ? "GET" : Options.HandlePost ? "POST" : "";
-            await WriteErrorResponseAsync(context, HttpStatusCode.MethodNotAllowed, $"Invalid HTTP method.{(Options.HandleGet || Options.HandlePost ? $" Only {(Options.HandleGet && Options.HandlePost ? "GET and POST are" : Options.HandleGet ? "GET is" : "POST is")} supported." : "")}");
+            context.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
+            //await WriteErrorResponseAsync(context, HttpStatusCode.MethodNotAllowed, $"Invalid HTTP method.{(Options.HandleGet || Options.HandlePost ? $" Only {(Options.HandleGet && Options.HandlePost ? "GET and POST are" : Options.HandleGet ? "GET is" : "POST is")} supported." : "")}");
         }
     }
 
