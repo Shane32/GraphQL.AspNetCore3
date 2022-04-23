@@ -27,7 +27,7 @@ public class DefaultWebSocketAuthenticationService : IWebSocketAuthenticationSer
     /// <inheritdoc/>
     public virtual async Task AuthenticateAsync(IWebSocketConnection connection, string subProtocol, OperationMessage operationMessage)
     {
-        if (connection.HttpContext.User.Identity.IsAuthenticated)
+        if (connection.HttpContext.User.Identity?.IsAuthenticated ?? false)
             return;
         var inputs = _serializer.ReadNode<Inputs>(operationMessage.Payload);
         if (inputs != null && inputs.TryGetValue("Authorization", out var authValue) && authValue is string authValueString) {
@@ -37,7 +37,7 @@ public class DefaultWebSocketAuthenticationService : IWebSocketAuthenticationSer
             };
             var result = await _authenticationService.AuthenticateAsync(new FakeHttpContext(connection.HttpContext, headers), null);
             if (result.Succeeded)
-                connection.HttpContext.User = result.Principal;
+                connection.HttpContext.User = result.Principal!;
         }
     }
 
@@ -56,7 +56,7 @@ public class DefaultWebSocketAuthenticationService : IWebSocketAuthenticationSer
 
         public override IFeatureCollection Features => _baseContext.Features;
 
-        public override IDictionary<object, object> Items { get => _baseContext.Items; set => throw new NotImplementedException(); }
+        public override IDictionary<object, object?> Items { get => _baseContext.Items; set => throw new NotImplementedException(); }
 
         public override HttpRequest Request => _request;
 
