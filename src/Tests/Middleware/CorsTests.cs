@@ -68,7 +68,6 @@ public class CorsTests
                 .AddAutoSchema<Query>()
                 .AddSystemTextJson());
             services.AddCors();
-            services.AddRouting();
         });
         hostBuilder.Configure(app => {
             if (configureCorsPolicy != null)
