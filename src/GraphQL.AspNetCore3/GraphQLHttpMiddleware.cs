@@ -1,7 +1,6 @@
 #pragma warning disable CA1716 // Identifiers should not match keywords
 
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Cors.Infrastructure;
 
 namespace GraphQL.AspNetCore3;
 
