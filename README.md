@@ -340,8 +340,8 @@ await app.RunAsync();
 
 ### CORS configuration
 
-By default the middleware responds to OPTIONS requests, allowing ASP.NET Core middleware to respond
-to CORS requests if so configured.  To configure CORS requests, add `AddCors()` and `UseCors()`
+ASP.NET Core supports CORS requests independently of GraphQL, including CORS pre-flight
+requests.  To configure your application for CORS requests, add `AddCors()` and `UseCors()`
 into the application pipeline.
 
 ```csharp
@@ -411,7 +411,6 @@ endpoint; the WebSocket handler options are configured globally via `AddWebSocke
 | `EnableBatchedRequests`            | Enables handling of batched GraphQL requests for POST requests when formatted as JSON. | True |
 | `HandleGet`                        | Enables handling of GET requests. | True |
 | `HandlePost`                       | Enables handling of POST requests. | True |
-| `HandleOptions`                    | Enables handling of OPTIONS requests for CORS preflight requests. | True |
 | `HandleWebSockets`                 | Enables handling of WebSockets requests. | True |
 | `ReadExtensionsFromQueryString`    | Enables reading extensions from the query string. | True |
 | `ReadQueryStringOnPost`            | Enables parsing the query string on POST requests. | True |

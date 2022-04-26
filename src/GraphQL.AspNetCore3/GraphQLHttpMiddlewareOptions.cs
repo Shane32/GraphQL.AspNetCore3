@@ -21,11 +21,6 @@ public class GraphQLHttpMiddlewareOptions
     public bool HandlePost { get; set; } = true;
 
     /// <summary>
-    /// Enables handling of OPTIONS requests, for preflight CORS requests.
-    /// </summary>
-    public bool HandleOptions { get; set; } = true;
-
-    /// <summary>
     /// Enables handling of WebSockets requests.
     /// <br/><br/>
     /// Requires calling <see cref="WebSocketMiddlewareExtensions.UseWebSockets(IApplicationBuilder)"/>
