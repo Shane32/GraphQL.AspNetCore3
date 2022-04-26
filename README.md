@@ -338,6 +338,43 @@ app.UseGraphQLPlayground(
 await app.RunAsync();
 ```
 
+### CORS configuration
+
+By default the middleware responds to OPTIONS requests, allowing ASP.NET Core middleware to respond
+to CORS requests if so configured.  To configure CORS requests, add `AddCors()` and `UseCors()`
+into the application pipeline.
+
+```csharp
+builder.Services.AddCors();
+
+app.UseCors(policy => {
+    // configure default policy here
+});
+```
+
+To configure GraphQL to use a named CORS policy, configure the application to use endpoint routing
+and call `RequireCors()` on the endpoint configuration builder.
+
+```csharp
+// ...
+builder.Services.AddRouting();
+builder.Services.AddCors(builder => {
+    // configure named and/or default policies here
+});
+
+var app = builder.Build();
+app.UseDeveloperExceptionPage();
+app.UseWebSockets();
+app.UseRouting();
+app.UseCors();
+app.UseEndpoints(endpoints => {
+    // configure the graphql endpoint with the specified CORS policy
+    endpoints.MapGraphQL()
+        .RequireCors("MyCorsPolicy");
+});
+await app.RunAsync();
+```
+
 ## Advanced configuration
 
 For more advanced configurations, see the overloads and configuration options
@@ -374,6 +411,7 @@ endpoint; the WebSocket handler options are configured globally via `AddWebSocke
 | `EnableBatchedRequests`            | Enables handling of batched GraphQL requests for POST requests when formatted as JSON. | True |
 | `HandleGet`                        | Enables handling of GET requests. | True |
 | `HandlePost`                       | Enables handling of POST requests. | True |
+| `HandleOptions`                    | Enables handling of OPTIONS requests for CORS preflight requests. | True |
 | `HandleWebSockets`                 | Enables handling of WebSockets requests. | True |
 | `ReadExtensionsFromQueryString`    | Enables reading extensions from the query string. | True |
 | `ReadQueryStringOnPost`            | Enables parsing the query string on POST requests. | True |
@@ -558,6 +596,7 @@ typical ASP.Net Core scenarios.
 | `BasicSample`           | Demonstrates the minimum required setup for a HTTP GraphQL server. |
 | `Chat`                  | A basic schema common to all samples; demonstrates queries, mutations and subscriptions. |
 | `ControllerSample`      | Demonstrates using a controller action to serve GraphQL requests; does not support subscriptions. |
+| `CorsSample`            | Demonstrates configuring a GraphQL endpoint to use a specified CORS policy. |
 | `EndpointRoutingSample` | Demonstrates configuring GraphQL endpoints through endpoint routing. |
 | `MultipleSchema`        | Demonstrates multiple GraphQL endpoints served through a single project. |
 | `PagesSample`           | Demonstrates configuring GraphQL within a ASP.NET Core Pages project. |
