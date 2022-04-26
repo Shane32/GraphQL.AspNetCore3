@@ -122,7 +122,6 @@ namespace GraphQL.AspNetCore3
         protected virtual System.Threading.Tasks.Task HandleNotAuthenticatedAsync(Microsoft.AspNetCore.Http.HttpContext context, Microsoft.AspNetCore.Http.RequestDelegate next) { }
         protected virtual System.Threading.Tasks.Task HandleNotAuthorizedPolicyAsync(Microsoft.AspNetCore.Http.HttpContext context, Microsoft.AspNetCore.Http.RequestDelegate next, Microsoft.AspNetCore.Authorization.AuthorizationResult authorizationResult) { }
         protected virtual System.Threading.Tasks.Task HandleNotAuthorizedRoleAsync(Microsoft.AspNetCore.Http.HttpContext context, Microsoft.AspNetCore.Http.RequestDelegate next) { }
-        protected virtual System.Threading.Tasks.Task HandleOptionsAsync(Microsoft.AspNetCore.Http.HttpContext context, Microsoft.AspNetCore.Http.RequestDelegate next) { }
         protected virtual System.Threading.Tasks.Task HandleRequestAsync(Microsoft.AspNetCore.Http.HttpContext context, Microsoft.AspNetCore.Http.RequestDelegate next, GraphQL.Transport.GraphQLRequest gqlRequest) { }
         protected virtual System.Threading.Tasks.Task HandleWebSocketAsync(Microsoft.AspNetCore.Http.HttpContext context, Microsoft.AspNetCore.Http.RequestDelegate next) { }
         protected virtual System.Threading.Tasks.Task HandleWebSocketSubProtocolNotSupportedAsync(Microsoft.AspNetCore.Http.HttpContext context, Microsoft.AspNetCore.Http.RequestDelegate next) { }
@@ -141,7 +140,6 @@ namespace GraphQL.AspNetCore3
         public bool BatchedRequestsExecuteInParallel { get; set; }
         public bool EnableBatchedRequests { get; set; }
         public bool HandleGet { get; set; }
-        public bool HandleOptions { get; set; }
         public bool HandlePost { get; set; }
         public bool HandleWebSockets { get; set; }
         public bool ReadExtensionsFromQueryString { get; set; }
