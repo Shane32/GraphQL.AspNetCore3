@@ -11,12 +11,10 @@ builder.Services.AddGraphQL(b => b
         .WithMutation<Chat.Schema.Mutation>()
         .WithSubscription<Chat.Schema.Subscription>())
     .AddSystemTextJson());
-builder.Services.AddCors();
 
 var app = builder.Build();
 app.UseDeveloperExceptionPage();
 app.UseWebSockets();
-app.UseCors(b => b.WithOrigins("https://localhost:5001"));
 // configure the graphql endpoint at "/graphql"
 app.UseGraphQL("/graphql");
 // configure Playground at "/"
