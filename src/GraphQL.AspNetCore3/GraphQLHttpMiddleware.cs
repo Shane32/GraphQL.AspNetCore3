@@ -553,7 +553,7 @@ public abstract class GraphQLHttpMiddleware
     /// </summary>
     protected virtual Task HandleInvalidHttpMethodErrorAsync(HttpContext context, RequestDelegate next)
     {
-        //context.Response.Headers["Allow"] = _allow;
+        //context.Response.Headers["Allow"] = Options.HandleGet && Options.HandlePost ? "GET, POST" : Options.HandleGet ? "GET" : Options.HandlePost ? "POST" : "";
         //return WriteErrorResponseAsync(context, $"Invalid HTTP method.{(Options.HandleGet || Options.HandlePost ? $" Only {(Options.HandleGet && Options.HandlePost ? "GET and POST are" : Options.HandleGet ? "GET is" : "POST is")} supported." : "")}", HttpStatusCode.MethodNotAllowed);
         return next(context);
     }
