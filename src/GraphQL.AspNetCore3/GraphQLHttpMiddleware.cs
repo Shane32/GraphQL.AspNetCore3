@@ -180,7 +180,10 @@ public abstract class GraphQLHttpMiddleware
         // GraphQL HTTP only supports GET and POST methods
         bool isGet = HttpMethods.IsGet(httpRequest.Method);
         bool isPost = HttpMethods.IsPost(httpRequest.Method);
-        if (isGet && !Options.HandleGet || isPost && !Options.HandlePost || !isGet && !isPost) {
+
+        bool handleResponse = isGet && Options.HandleGet || isPost && Options.HandlePost;
+
+        if (!handleResponse) {
             await HandleInvalidHttpMethodErrorAsync(context, _next);
             return;
         }

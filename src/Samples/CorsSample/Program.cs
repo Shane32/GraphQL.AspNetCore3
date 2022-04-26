@@ -12,14 +12,22 @@ builder.Services.AddGraphQL(b => b
         .WithSubscription<Chat.Schema.Subscription>())
     .AddSystemTextJson());
 builder.Services.AddRouting();
+builder.Services.AddCors(options => {
+    options.AddPolicy("MyCorsPolicy", b => {
+        b.AllowCredentials();
+        b.WithOrigins("https://localhost:5001");
+    });
+});
 
 var app = builder.Build();
 app.UseDeveloperExceptionPage();
 app.UseWebSockets();
 app.UseRouting();
+app.UseCors();
 app.UseEndpoints(endpoints => {
     // configure the graphql endpoint at "/graphql"
-    endpoints.MapGraphQL("/graphql");
+    endpoints.MapGraphQL("/graphql")
+        .RequireCors("MyCorsPolicy");
     // configure Playground at "/"
     endpoints.MapGraphQLPlayground("/");
 });
