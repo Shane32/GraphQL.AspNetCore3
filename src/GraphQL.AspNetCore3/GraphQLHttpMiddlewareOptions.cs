@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using System.Security.Principal;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Cors.Infrastructure;
 
 namespace GraphQL.AspNetCore3;
 
