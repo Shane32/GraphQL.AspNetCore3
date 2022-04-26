@@ -1,6 +1,7 @@
 #pragma warning disable CA1716 // Identifiers should not match keywords
 
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors.Infrastructure;
 
 namespace GraphQL.AspNetCore3;
 
@@ -127,6 +128,7 @@ public abstract class GraphQLHttpMiddleware
     private readonly IEnumerable<IWebSocketHandler>? _webSocketHandlers;
     private readonly RequestDelegate _next;
     private readonly IUserContextBuilder _userContextBuilderForWebSockets;
+    private readonly string _allow;
 
     private const string QUERY_KEY = "query";
     private const string VARIABLES_KEY = "variables";
@@ -156,6 +158,15 @@ public abstract class GraphQLHttpMiddleware
         Options = options ?? throw new ArgumentNullException(nameof(options));
         _webSocketHandlers = webSocketHandlers;
         _userContextBuilderForWebSockets = new UserContextBuilder<IDictionary<string, object?>>(BuildUserContextAsync);
+
+        var allowedMethods = new List<string>();
+        if (options.HandleGet)
+            allowedMethods.Add("GET");
+        if (options.HandlePost)
+            allowedMethods.Add("POST");
+        if (options.HandleOptions)
+            allowedMethods.Add("OPTIONS");
+        _allow = allowedMethods.Count > 0 ? string.Join(", ", allowedMethods) : string.Empty;
     }
 
     /// <inheritdoc/>
@@ -180,8 +191,17 @@ public abstract class GraphQLHttpMiddleware
         // GraphQL HTTP only supports GET and POST methods
         bool isGet = HttpMethods.IsGet(httpRequest.Method);
         bool isPost = HttpMethods.IsPost(httpRequest.Method);
-        if (isGet && !Options.HandleGet || isPost && !Options.HandlePost || !isGet && !isPost) {
+        bool isOptions = HttpMethods.IsOptions(httpRequest.Method);
+
+        bool handleResponse = isGet && Options.HandleGet || isPost && Options.HandlePost || isOptions && Options.HandleOptions;
+
+        if (!handleResponse) {
             await HandleInvalidHttpMethodErrorAsync(context, _next);
+            return;
+        }
+
+        if (isOptions) {
+            await HandleOptionsAsync(context, _next);
             return;
         }
 
@@ -285,6 +305,16 @@ public abstract class GraphQLHttpMiddleware
         } else {
             await HandleBatchedRequestsNotSupportedAsync(context, _next);
         }
+    }
+
+    /// <summary>
+    /// Handles OPTIONS requests allowing CORS middleware to respond to preflight requests.
+    /// </summary>
+    protected virtual Task HandleOptionsAsync(HttpContext context, RequestDelegate next)
+    {
+        context.Response.Headers["Allow"] = _allow;
+        context.Response.StatusCode = (int)HttpStatusCode.OK;
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -549,7 +579,7 @@ public abstract class GraphQLHttpMiddleware
     /// </summary>
     protected virtual Task HandleInvalidHttpMethodErrorAsync(HttpContext context, RequestDelegate next)
     {
-        //context.Response.Headers["Allow"] = Options.HandleGet && Options.HandlePost ? "GET, POST" : Options.HandleGet ? "GET" : Options.HandlePost ? "POST" : "";
+        //context.Response.Headers["Allow"] = _allow;
         //return WriteErrorResponseAsync(context, $"Invalid HTTP method.{(Options.HandleGet || Options.HandlePost ? $" Only {(Options.HandleGet && Options.HandlePost ? "GET and POST are" : Options.HandleGet ? "GET is" : "POST is")} supported." : "")}", HttpStatusCode.MethodNotAllowed);
         return next(context);
     }

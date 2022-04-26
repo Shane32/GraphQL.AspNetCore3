@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Security.Principal;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors.Infrastructure;
 
 namespace GraphQL.AspNetCore3;
 
@@ -18,6 +19,11 @@ public class GraphQLHttpMiddlewareOptions
     /// Enables handling of POST requests, including form submissions, JSON-formatted requests and raw query requests.
     /// </summary>
     public bool HandlePost { get; set; } = true;
+
+    /// <summary>
+    /// Enables handling of OPTIONS requests, for preflight CORS requests.
+    /// </summary>
+    public bool HandleOptions { get; set; } = true;
 
     /// <summary>
     /// Enables handling of WebSockets requests.
