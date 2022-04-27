@@ -375,6 +375,32 @@ app.UseEndpoints(endpoints => {
 await app.RunAsync();
 ```
 
+### Response compression
+
+ASP.NET Core supports response compression independently of GraphQL, with brotli and gzip
+support automatically based on the compression formats listed as supported in the request headers.
+To configure your application for response compression, configure your Program/Startup file as
+follows:
+
+```csharp
+// add and configure the service
+builder.Services.AddResponseCompression(options => {
+    options.EnableForHttps = true; //may lead to CRIME and BREACH attacks
+    options.MimeTypes = new[] { "application/json", "application/graphql+json" };
+})
+
+// place this first/early in the pipeline
+app.UseResponseCompression();
+```
+
+In order to compress GraphQL responses, the `application/graphql+json` content type must be
+added to the `MimeTypes` option.  You may choose to enable other content types as well.
+
+Please note that enabling response compression over HTTPS can lead to CRIME and BREACH
+attacks.  These side-channel attacks typically affects sites that rely on cookies for
+authentication.  Please read [this](https://docs.microsoft.com/en-us/aspnet/core/performance/response-compression?view=aspnetcore-6.0)
+and [this](http://www.breachattack.com/#howitworks) for more details.
+
 ## Advanced configuration
 
 For more advanced configurations, see the overloads and configuration options
