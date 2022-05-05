@@ -60,7 +60,7 @@ public class WebSocketConnectionTests : IDisposable
         }
     }
 
-                [Fact]
+    [Fact]
     public void Constructor()
     {
         var context = Mock.Of<HttpContext>(MockBehavior.Strict);
