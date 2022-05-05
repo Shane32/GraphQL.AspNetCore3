@@ -36,11 +36,16 @@ public class AuthorizationTests
                     policyConfig.RequireAuthenticatedUser();
                 });
             });
+#if NETCOREAPP2_1
+            services.AddHostApplicationLifetime();
+#endif
         });
         hostBuilder.Configure(app => {
             app.UseWebSockets();
             app.UseAuthentication();
+#if !NETCOREAPP2_1
             app.UseAuthorization();
+#endif
             app.UseGraphQL("/graphql", opts => {
                 _options = opts;
             });
@@ -109,6 +114,9 @@ public class AuthorizationTests
             services.AddGraphQL(b => b
                 .AddAutoSchema<Chat.Schema.Query>()
                 .AddSystemTextJson());
+#if NETCOREAPP2_1
+            services.AddHostApplicationLifetime();
+#endif
         });
         hostBuilder.Configure(app => {
             app.UseWebSockets();

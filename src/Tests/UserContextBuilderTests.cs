@@ -16,6 +16,9 @@ public class UserContextBuilderTests : IDisposable
                 b.AddSystemTextJson();
             });
             services.AddHttpContextAccessor();
+#if NETCOREAPP2_1
+            services.AddHostApplicationLifetime();
+#endif
         });
         hostBuilder.Configure(app => {
             app.UseWebSockets();
@@ -105,12 +108,12 @@ public class UserContextBuilderTests : IDisposable
 
     private async Task TestDirect(string name)
     {
-        var executer = _server.Services.GetRequiredService<IDocumentExecuter<ISchema>>();
+        var executer = _server.Host.Services.GetRequiredService<IDocumentExecuter<ISchema>>();
         var result = await executer.ExecuteAsync(new ExecutionOptions {
             Query = "{test}",
-            RequestServices = _server.Services,
+            RequestServices = _server.Host.Services,
         });
-        var serializer = _server.Services.GetRequiredService<IGraphQLTextSerializer>();
+        var serializer = _server.Host.Services.GetRequiredService<IGraphQLTextSerializer>();
         var actual = serializer.Serialize(result);
         actual.ShouldBe(@"{""data"":{""test"":""" + name + @"""}}");
     }

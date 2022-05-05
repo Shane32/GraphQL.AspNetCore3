@@ -59,7 +59,6 @@ public class WebSocketConnectionTests : IDisposable
 
     [Theory]
     [InlineData(-2)]
-    [InlineData(-0.5)]
     [InlineData(2147483648d)]
     public void Constructor_InvalidTimeout(double ms)
     {

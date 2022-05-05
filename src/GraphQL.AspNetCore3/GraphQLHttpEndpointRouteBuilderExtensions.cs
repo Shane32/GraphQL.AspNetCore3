@@ -1,6 +1,6 @@
 namespace GraphQL.AspNetCore3;
 
-#if !NETSTANDARD2_0
+#if !NETSTANDARD2_0 && !NETCOREAPP2_1
 
 /// <summary>
 /// Extensions for <see cref="IEndpointRouteBuilder"/> to add <see cref="GraphQLHttpMiddleware{TSchema}"/>
