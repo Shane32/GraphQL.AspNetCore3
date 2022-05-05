@@ -12,16 +12,16 @@ namespace GraphQL.AspNetCore3.WebSockets;
 /// </summary>
 public class DefaultWebSocketAuthenticationService : IWebSocketAuthenticationService
 {
-    private readonly IAuthenticationService _authenticationService;
     private readonly IGraphQLSerializer _serializer;
+    private readonly AuthenticationMiddleware _middleware;
 
     /// <summary>
     /// Initializes a new instance with the specified properties.
     /// </summary>
-    public DefaultWebSocketAuthenticationService(IAuthenticationService authenticationService, IGraphQLSerializer serializer)
+    public DefaultWebSocketAuthenticationService(IAuthenticationSchemeProvider schemes, IGraphQLSerializer serializer)
     {
-        _authenticationService = authenticationService;
         _serializer = serializer;
+        _middleware = new(_ => Task.CompletedTask, schemes);
     }
 
     /// <inheritdoc/>
@@ -35,9 +35,8 @@ public class DefaultWebSocketAuthenticationService : IWebSocketAuthenticationSer
             var headers = new HeaderDictionary(dic) {
                 ["Authorization"] = authValueString
             };
-            var result = await _authenticationService.AuthenticateAsync(new FakeHttpContext(connection.HttpContext, headers), null);
-            if (result.Succeeded)
-                connection.HttpContext.User = result.Principal!;
+            var fakeContext = new FakeHttpContext(connection.HttpContext, headers);
+            await _middleware.Invoke(fakeContext);
         }
     }
 
