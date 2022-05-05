@@ -5,6 +5,8 @@
 Supports building user contexts after authentication has occurred for WebSocket
 connections; supports and returns media type of `application/graphql+json` by default.
 
+Support for ASP.NET Core 2.1 added, tested with .NET Core 2.1 and .NET Framework 4.8.
+
 ## 2.1.0
 
 Authentication validation rule and support
