@@ -1,4 +1,4 @@
-#if !NETCOREAPP2_1
+#if !NETCOREAPP2_1 && !NET48
 
 using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Cors.Infrastructure;

@@ -22,7 +22,7 @@ public class WebSocketTests : IDisposable
                     .WithSubscription<Chat.Schema.Subscription>())
                 .AddSchema<Schema2>()
                 .AddSystemTextJson());
-#if NETCOREAPP2_1
+#if NETCOREAPP2_1 || NET48
             services.AddHostApplicationLifetime();
 #endif
             configureServices(services);

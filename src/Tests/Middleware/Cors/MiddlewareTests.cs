@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 
@@ -17,7 +18,7 @@ public class MiddlewareTests
                 .AddAutoSchema<Query>()
                 .AddSystemTextJson());
             services.AddCors();
-#if NETCOREAPP2_1
+#if NETCOREAPP2_1 || NET48
             services.AddHostApplicationLifetime();
 #endif
         });
@@ -87,13 +88,8 @@ public class MiddlewareTests
     [Theory]
     [InlineData("POST", true)]
     [InlineData("POST", false)]
-#if !NETCOREAPP2_1
     [InlineData("OPTIONS", true)]
     [InlineData("OPTIONS", false)]
-#else
-    [InlineData("OPTIONS", true, Skip = "ASP.NET Core 2.1's CORS handler does not handle OPTIONS requests")]
-    [InlineData("OPTIONS", false, Skip = "ASP.NET Core 2.1's CORS handler does not handle OPTIONS requests")]
-#endif
     public async Task DefaultOriginPolicy(string httpMethod, bool pass)
     {
         var ret = await ExecuteMiddleware(
@@ -101,6 +97,7 @@ public class MiddlewareTests
             configureCorsPolicy: b => {
                 b.AllowCredentials();
                 b.WithOrigins("http://www.example.com", "http://www.example2.com");
+                b.AllowAnyMethod();
             },
             configureGraphQl: _ => { },
             configureHeaders: headers => {

@@ -1,4 +1,7 @@
 using System.Net.WebSockets;
+#if NET48
+using ValueWebSocketReceiveResult = System.Net.WebSockets.WebSocketReceiveResult;
+#endif
 
 namespace Tests.WebSockets;
 
@@ -32,12 +35,22 @@ public class WebSocketConnectionTests : IDisposable
     private void SetupWebSocketReceive(byte[] data, ValueWebSocketReceiveResult result, bool verifyCloseOutput = true)
     {
         _webSocketResponses.Enqueue((data, result));
+#if NET48
+        _mockWebSocket.Setup(x => x.ReceiveAsync(It.IsAny<ArraySegment<byte>>(), _token))
+            .Returns<ArraySegment<byte>, CancellationToken>((bytes, _) => {
+#else
         _mockWebSocket.Setup(x => x.ReceiveAsync(It.IsAny<Memory<byte>>(), _token))
             .Returns<Memory<byte>, CancellationToken>((bytes, _) => {
-                if (!_webSocketResponses.TryDequeue(out var result))
+#endif
+                if (_webSocketResponses.Count == 0)
                     throw new InvalidOperationException("No more data");
+                var result = _webSocketResponses.Dequeue();
                 new Memory<byte>(result.Item1).CopyTo(bytes);
+#if NET48
+                return Task.FromResult<WebSocketReceiveResult>(result.Item2);
+#else
                 return new ValueTask<ValueWebSocketReceiveResult>(result.Item2);
+#endif
             })
             .Verifiable();
         if (verifyCloseOutput) {
@@ -47,7 +60,7 @@ public class WebSocketConnectionTests : IDisposable
         }
     }
 
-    [Fact]
+                [Fact]
     public void Constructor()
     {
         var context = Mock.Of<HttpContext>(MockBehavior.Strict);
@@ -278,11 +291,20 @@ public class WebSocketConnectionTests : IDisposable
         var mockReceiveStream = new Mock<IOperationMessageProcessor>(MockBehavior.Strict);
         mockReceiveStream.Setup(x => x.InitializeConnectionAsync()).Returns(Task.CompletedTask).Verifiable();
         mockReceiveStream.Setup(x => x.Dispose());
+#if NET48
+        _mockWebSocket.Setup(x => x.ReceiveAsync(It.IsAny<ArraySegment<byte>>(), _token))
+            .Returns<ArraySegment<byte>, CancellationToken>((_, token) => {
+#else
         _mockWebSocket.Setup(x => x.ReceiveAsync(It.IsAny<Memory<byte>>(), _token))
             .Returns<Memory<byte>, CancellationToken>((_, token) => {
+#endif
                 _cts.Cancel();
                 token.ThrowIfCancellationRequested();
+#if NET48
+                return Task.FromResult<ValueWebSocketReceiveResult>(null!);
+#else
                 return default;
+#endif
             })
             .Verifiable();
         await Should.ThrowAsync<OperationCanceledException>(() => _connection.ExecuteAsync(mockReceiveStream.Object));
@@ -295,8 +317,13 @@ public class WebSocketConnectionTests : IDisposable
         var mockReceiveStream = new Mock<IOperationMessageProcessor>(MockBehavior.Strict);
         mockReceiveStream.Setup(x => x.InitializeConnectionAsync()).Returns(Task.CompletedTask).Verifiable();
         mockReceiveStream.Setup(x => x.Dispose());
+#if NET48
+        _mockWebSocket.Setup(x => x.ReceiveAsync(It.IsAny<ArraySegment<byte>>(), _token))
+            .Returns<ArraySegment<byte>, CancellationToken>((_, _) => throw new WebSocketException())
+#else
         _mockWebSocket.Setup(x => x.ReceiveAsync(It.IsAny<Memory<byte>>(), _token))
             .Returns<Memory<byte>, CancellationToken>((_, _) => throw new WebSocketException())
+#endif
             .Verifiable();
         await _connection.ExecuteAsync(mockReceiveStream.Object);
     }

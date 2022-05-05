@@ -1,5 +1,11 @@
 using System.Net.WebSockets;
 using System.Text.Json;
+#if NET48
+using MemoryBytes = System.ArraySegment<byte>;
+using ValueWebSocketReceiveResult = System.Net.WebSockets.WebSocketReceiveResult;
+#else
+using MemoryBytes = System.Memory<byte>;
+#endif
 
 namespace Tests;
 
@@ -13,7 +19,7 @@ public static class WebSocketExtensions
     public static async Task SendStringAsync(this WebSocket socket, string str)
     {
         var bytes = Encoding.UTF8.GetBytes(str);
-        await socket.SendAsync(bytes, WebSocketMessageType.Text, true, default);
+        await socket.SendAsync(new MemoryBytes(bytes), WebSocketMessageType.Text, true, default);
     }
 
     public static async Task<OperationMessage> ReceiveMessageAsync(this WebSocket socket)
@@ -24,7 +30,7 @@ public static class WebSocketExtensions
         ValueWebSocketReceiveResult response;
         do {
             var buffer = new byte[1024];
-            response = await socket.ReceiveAsync(new Memory<byte>(buffer), cts.Token);
+            response = await socket.ReceiveAsync(new MemoryBytes(buffer), cts.Token);
             mem.Write(buffer, 0, response.Count);
         } while (!response.EndOfMessage);
         response.MessageType.ShouldBe(WebSocketMessageType.Text);
@@ -43,7 +49,7 @@ public static class WebSocketExtensions
         ValueWebSocketReceiveResult response;
         do {
             var buffer = new byte[1024];
-            response = await socket.ReceiveAsync(new Memory<byte>(buffer), cts.Token);
+            response = await socket.ReceiveAsync(new MemoryBytes(buffer), cts.Token);
             mem.Write(buffer, 0, response.Count);
         } while (!response.EndOfMessage);
         response.MessageType.ShouldBe(WebSocketMessageType.Close);
