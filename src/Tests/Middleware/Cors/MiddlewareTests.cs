@@ -97,7 +97,7 @@ public class MiddlewareTests
             configureCorsPolicy: b => {
                 b.AllowCredentials();
                 b.WithOrigins("http://www.example.com", "http://www.example2.com");
-                b.AllowAnyMethod();
+                b.WithMethods("POST");
             },
             configureGraphQl: _ => { },
             configureHeaders: headers => {
@@ -105,13 +105,18 @@ public class MiddlewareTests
             });
 
         ret.AllowHeaders.ShouldBeNull();
-        ret.AllowMethods.ShouldBeNull();
         if (pass) {
             ret.AllowCredentials.ShouldBe(true);
             ret.AllowOrigin.ShouldBe("http://www.example.com");
+#if !NET48 && !NETCOREAPP2_1
+            if (httpMethod == "OPTIONS") {
+                ret.AllowMethods.ShouldBe("POST");
+            }
+#endif
         } else {
             ret.AllowCredentials.ShouldBeNull();
             ret.AllowOrigin.ShouldBeNull();
+            ret.AllowMethods.ShouldBeNull();
         }
     }
 }
