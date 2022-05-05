@@ -2,7 +2,7 @@
 
 [![NuGet](https://img.shields.io/nuget/v/GraphQL.AspNetCore3.svg)](https://www.nuget.org/packages/GraphQL.AspNetCore3) [![Coverage Status](https://coveralls.io/repos/github/Shane32/GraphQL.AspNetCore3/badge.svg?branch=master)](https://coveralls.io/github/Shane32/GraphQL.AspNetCore3?branch=master)
 
-This package is designed for ASP.Net Core 3.1+ to facilitate easy set-up of GraphQL requests
+This package is designed for ASP.Net Core (2.1 through 6.0) to facilitate easy set-up of GraphQL requests
 over HTTP.  The code is designed to be used as middleware within the ASP.Net Core pipeline,
 serving GET, POST or WebSocket requests.  GET requests process requests from the querystring.
 POST requests can be in the form of JSON requests, form submissions, or raw GraphQL strings.
@@ -313,7 +313,7 @@ fields are marked with `AllowAnonymous`.
 
 This project does not include user interfaces, such as GraphiQL or Playground,
 but you can include references to the ones provided by the [GraphQL Server](https://github.com/graphql-dotnet/server)
-repository which work well.  Below is a list of the nuget packages offered:
+repository which work well with ASP.Net Core 3.1+.  Below is a list of the nuget packages offered:
 
 | Package                                              | Downloads                                                                                                                                                                             | NuGet Latest                                                                                                                                                                         |
 |------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -400,6 +400,21 @@ Please note that enabling response compression over HTTPS can lead to CRIME and 
 attacks.  These side-channel attacks typically affects sites that rely on cookies for
 authentication.  Please read [this](https://docs.microsoft.com/en-us/aspnet/core/performance/response-compression?view=aspnetcore-6.0)
 and [this](http://www.breachattack.com/#howitworks) for more details.
+
+### ASP.NET Core 2.1
+
+You may choose to use the .NET Core 2.1 runtime or a .NET Framework runtime.
+This library has been tested with .NET Core 2.1 and .NET Framework 4.8.
+
+The only additional requirement is that you must add this code in your `Startup.cs` file:
+
+```csharp
+services.AddHostApplicationLifetime();
+```
+
+Besides that requirement, all features are supported in exactly the same manner as
+when using ASP.NET Core 3.1+.  You may find differences in the ASP.NET Core runtime,
+such as CORS implementation differences, which are outside the scope of this project.
 
 ## Advanced configuration
 
@@ -624,4 +639,5 @@ typical ASP.Net Core scenarios.
 | `CorsSample`            | Demonstrates configuring a GraphQL endpoint to use a specified CORS policy. |
 | `EndpointRoutingSample` | Demonstrates configuring GraphQL endpoints through endpoint routing. |
 | `MultipleSchema`        | Demonstrates multiple GraphQL endpoints served through a single project. |
+| `Net48Sample`           | Demonstrates a GraphQL server running on .NET Framework 4.8 (or for linux machines, .NET Core 2.1) |
 | `PagesSample`           | Demonstrates configuring GraphQL within a ASP.NET Core Pages project. |
