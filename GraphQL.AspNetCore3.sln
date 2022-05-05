@@ -12,6 +12,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution items", "Solution 
 		LICENSE = LICENSE
 		logo.64x64.png = logo.64x64.png
 		logo.jpg = logo.jpg
+		migration.md = migration.md
 		README.md = README.md
 	EndProjectSection
 EndProject

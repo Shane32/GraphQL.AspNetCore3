@@ -25,6 +25,9 @@ any policies or roles specified for input graph types, fields of input graph typ
 directives.  It does not skip validation for fields that are marked with the `@skip` or
 `@include` directives.
 
+See [version history / migration notes](https://github.com/Shane32/GraphQL.AspNetCore3/blob/master/migration.md)
+for changes from previous versions.
+
 ## Configuration
 
 ### Typical configuration with HTTP middleware
