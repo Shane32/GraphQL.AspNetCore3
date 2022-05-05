@@ -157,17 +157,22 @@ public class SubscriptionServer : BaseSubscriptionServer
     {
         var request = Serializer.ReadNode<GraphQLRequest>(message.Payload)!;
         using var scope = ServiceScopeFactory.CreateScope();
-        var options = new ExecutionOptions {
-            Query = request.Query,
-            Variables = request.Variables,
-            Extensions = request.Extensions,
-            OperationName = request.OperationName,
-            RequestServices = scope.ServiceProvider,
-            CancellationToken = CancellationToken,
-        };
-        if (UserContext != null)
-            options.UserContext = UserContext;
-        return await DocumentExecuter.ExecuteAsync(options);
+        try {
+            var options = new ExecutionOptions {
+                Query = request.Query,
+                Variables = request.Variables,
+                Extensions = request.Extensions,
+                OperationName = request.OperationName,
+                RequestServices = scope.ServiceProvider,
+                CancellationToken = CancellationToken,
+            };
+            if (UserContext != null)
+                options.UserContext = UserContext;
+            return await DocumentExecuter.ExecuteAsync(options);
+        } finally {
+            if (scope is IAsyncDisposable ad)
+                await ad.DisposeAsync();
+        }
     }
 
     /// <inheritdoc/>

@@ -338,6 +338,69 @@ app.UseGraphQLPlayground(
 await app.RunAsync();
 ```
 
+### CORS configuration
+
+ASP.NET Core supports CORS requests independently of GraphQL, including CORS pre-flight
+requests.  To configure your application for CORS requests, add `AddCors()` and `UseCors()`
+into the application pipeline.
+
+```csharp
+builder.Services.AddCors();
+
+app.UseCors(policy => {
+    // configure default policy here
+});
+```
+
+To configure GraphQL to use a named CORS policy, configure the application to use endpoint routing
+and call `RequireCors()` on the endpoint configuration builder.
+
+```csharp
+// ...
+builder.Services.AddRouting();
+builder.Services.AddCors(builder => {
+    // configure named and/or default policies here
+});
+
+var app = builder.Build();
+app.UseDeveloperExceptionPage();
+app.UseWebSockets();
+app.UseRouting();
+app.UseCors();
+app.UseEndpoints(endpoints => {
+    // configure the graphql endpoint with the specified CORS policy
+    endpoints.MapGraphQL()
+        .RequireCors("MyCorsPolicy");
+});
+await app.RunAsync();
+```
+
+### Response compression
+
+ASP.NET Core supports response compression independently of GraphQL, with brotli and gzip
+support automatically based on the compression formats listed as supported in the request headers.
+To configure your application for response compression, configure your Program/Startup file as
+follows:
+
+```csharp
+// add and configure the service
+builder.Services.AddResponseCompression(options => {
+    options.EnableForHttps = true; //may lead to CRIME and BREACH attacks
+    options.MimeTypes = new[] { "application/json", "application/graphql+json" };
+})
+
+// place this first/early in the pipeline
+app.UseResponseCompression();
+```
+
+In order to compress GraphQL responses, the `application/graphql+json` content type must be
+added to the `MimeTypes` option.  You may choose to enable other content types as well.
+
+Please note that enabling response compression over HTTPS can lead to CRIME and BREACH
+attacks.  These side-channel attacks typically affects sites that rely on cookies for
+authentication.  Please read [this](https://docs.microsoft.com/en-us/aspnet/core/performance/response-compression?view=aspnetcore-6.0)
+and [this](http://www.breachattack.com/#howitworks) for more details.
+
 ## Advanced configuration
 
 For more advanced configurations, see the overloads and configuration options
@@ -558,6 +621,7 @@ typical ASP.Net Core scenarios.
 | `BasicSample`           | Demonstrates the minimum required setup for a HTTP GraphQL server. |
 | `Chat`                  | A basic schema common to all samples; demonstrates queries, mutations and subscriptions. |
 | `ControllerSample`      | Demonstrates using a controller action to serve GraphQL requests; does not support subscriptions. |
+| `CorsSample`            | Demonstrates configuring a GraphQL endpoint to use a specified CORS policy. |
 | `EndpointRoutingSample` | Demonstrates configuring GraphQL endpoints through endpoint routing. |
 | `MultipleSchema`        | Demonstrates multiple GraphQL endpoints served through a single project. |
 | `PagesSample`           | Demonstrates configuring GraphQL within a ASP.NET Core Pages project. |

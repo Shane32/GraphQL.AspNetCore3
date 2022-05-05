@@ -82,7 +82,12 @@ public class GraphQLHttpMiddleware<TSchema> : GraphQLHttpMiddleware
     protected override async Task<ExecutionResult> ExecuteScopedRequestAsync(HttpContext context, GraphQLRequest request, IDictionary<string, object?> userContext)
     {
         using var scope = _serviceScopeFactory.CreateScope();
-        return await ExecuteRequestAsync(context, request, scope.ServiceProvider, userContext);
+        try {
+            return await ExecuteRequestAsync(context, request, scope.ServiceProvider, userContext);
+        } finally {
+            if (scope is IAsyncDisposable ad)
+                await ad.DisposeAsync();
+        }
     }
 
     /// <inheritdoc/>
@@ -180,7 +185,10 @@ public abstract class GraphQLHttpMiddleware
         // GraphQL HTTP only supports GET and POST methods
         bool isGet = HttpMethods.IsGet(httpRequest.Method);
         bool isPost = HttpMethods.IsPost(httpRequest.Method);
-        if (isGet && !Options.HandleGet || isPost && !Options.HandlePost || !isGet && !isPost) {
+
+        bool handleResponse = isGet && Options.HandleGet || isPost && Options.HandlePost;
+
+        if (!handleResponse) {
             await HandleInvalidHttpMethodErrorAsync(context, _next);
             return;
         }
