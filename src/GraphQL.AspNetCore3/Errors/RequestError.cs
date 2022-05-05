@@ -25,7 +25,7 @@ public class RequestError : ExecutionError
     {
         var code = ErrorInfoProvider.GetErrorCode(GetType());
         if (code != "REQUEST_ERROR" && code.EndsWith("_ERROR", StringComparison.Ordinal))
-            code = code[0..^6];
+            code = code.Substring(0, code.Length - 6);
         return code;
     }
 }

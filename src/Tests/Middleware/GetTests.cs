@@ -19,6 +19,9 @@ public class GetTests : IDisposable
                     .WithSubscription<Chat.Schema.Subscription>())
                 .AddSchema<Schema2>()
                 .AddSystemTextJson());
+#if NETCOREAPP2_1 || NET48
+            services.AddHostApplicationLifetime();
+#endif
         });
         hostBuilder.Configure(app => {
             app.UseWebSockets();

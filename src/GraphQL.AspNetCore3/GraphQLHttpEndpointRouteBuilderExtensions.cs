@@ -1,5 +1,7 @@
 namespace GraphQL.AspNetCore3;
 
+#if !NETSTANDARD2_0 && !NETCOREAPP2_1
+
 /// <summary>
 /// Extensions for <see cref="IEndpointRouteBuilder"/> to add <see cref="GraphQLHttpMiddleware{TSchema}"/>
 /// or its descendants in the HTTP request pipeline.
@@ -69,3 +71,5 @@ public class GraphQLEndpointConventionBuilder : IEndpointConventionBuilder
     /// <inheritdoc />
     public void Add(Action<EndpointBuilder> convention) => _builder.Add(convention);
 }
+
+#endif

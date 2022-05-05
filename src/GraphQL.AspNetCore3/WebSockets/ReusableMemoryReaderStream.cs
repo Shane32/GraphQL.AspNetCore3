@@ -44,7 +44,11 @@ internal class ReusableMemoryReaderStream : Stream
         => Read(new Span<byte>(buffer, offset, count));
 
     /// <inheritdoc/>
-    public override int Read(Span<byte> buffer)
+    public
+#if !NETSTANDARD2_0
+        override
+#endif
+        int Read(Span<byte> buffer)
     {
         var count = Math.Min(_length - _position, buffer.Length);
         var source = new Span<byte>(_buffer, _position, count);
@@ -57,9 +61,11 @@ internal class ReusableMemoryReaderStream : Stream
     public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         => Task.FromResult(Read(buffer, offset, count));
 
+#if !NETSTANDARD2_0
     /// <inheritdoc/>
     public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         => new(Read(buffer.Span));
+#endif
 
     /// <inheritdoc/>
     public override long Seek(long offset, SeekOrigin origin)

@@ -322,29 +322,30 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
             await ErrorIdCannotBeBlankAsync(message);
             return;
         }
+        var messageId = message.Id!;
 
         var dummyDisposer = new DummyDisposer();
 
         try {
             if (overwrite) {
-                Subscriptions[message.Id] = dummyDisposer;
+                Subscriptions[messageId] = dummyDisposer;
             } else {
-                if (!Subscriptions.TryAdd(message.Id, dummyDisposer)) {
+                if (!Subscriptions.TryAdd(messageId, dummyDisposer)) {
                     await ErrorIdAlreadyExistsAsync(message);
                     return;
                 }
             }
 
             var result = await ExecuteRequestAsync(message);
-            if (!Subscriptions.Contains(message.Id, dummyDisposer))
+            if (!Subscriptions.Contains(messageId, dummyDisposer))
                 return;
             if (result.Streams?.Count == 1) {
                 // do not return a result, but set up a subscription
                 var stream = result.Streams!.Single().Value;
                 // note that this may immediately trigger some notifications
-                var disposer = stream.Subscribe(new Observer(this, message.Id, _options.WebSockets.DisconnectAfterErrorEvent, _options.WebSockets.DisconnectAfterAnyError));
+                var disposer = stream.Subscribe(new Observer(this, messageId, _options.WebSockets.DisconnectAfterErrorEvent, _options.WebSockets.DisconnectAfterAnyError));
                 try {
-                    if (Subscriptions.CompareExchange(message.Id, dummyDisposer, disposer)) {
+                    if (Subscriptions.CompareExchange(messageId, dummyDisposer, disposer)) {
                         disposer = null;
                     }
                 } finally {
@@ -358,11 +359,11 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
         } catch (OperationCanceledException) when (CancellationToken.IsCancellationRequested) {
             throw;
         } catch (ExecutionError error) {
-            if (!Subscriptions.Contains(message.Id, dummyDisposer))
+            if (!Subscriptions.Contains(messageId, dummyDisposer))
                 return;
             await SendErrorResultAsync(message, error);
         } catch (Exception ex) {
-            if (!Subscriptions.Contains(message.Id, dummyDisposer))
+            if (!Subscriptions.Contains(messageId, dummyDisposer))
                 return;
             var error = await HandleErrorDuringSubscribeAsync(message, ex);
             await SendErrorResultAsync(message, error);
