@@ -118,7 +118,6 @@ namespace GraphQL.AspNetCore3
         protected virtual System.Threading.Tasks.ValueTask<bool> HandleDeserializationErrorAsync(Microsoft.AspNetCore.Http.HttpContext context, Microsoft.AspNetCore.Http.RequestDelegate next, System.Exception exception) { }
         protected virtual System.Threading.Tasks.Task HandleInvalidContentTypeErrorAsync(Microsoft.AspNetCore.Http.HttpContext context, Microsoft.AspNetCore.Http.RequestDelegate next) { }
         protected virtual System.Threading.Tasks.Task HandleInvalidHttpMethodErrorAsync(Microsoft.AspNetCore.Http.HttpContext context, Microsoft.AspNetCore.Http.RequestDelegate next) { }
-        protected virtual System.Threading.Tasks.Task HandleNoQueryErrorAsync(Microsoft.AspNetCore.Http.HttpContext context, Microsoft.AspNetCore.Http.RequestDelegate next) { }
         protected virtual System.Threading.Tasks.Task HandleNotAuthenticatedAsync(Microsoft.AspNetCore.Http.HttpContext context, Microsoft.AspNetCore.Http.RequestDelegate next) { }
         protected virtual System.Threading.Tasks.Task HandleNotAuthorizedPolicyAsync(Microsoft.AspNetCore.Http.HttpContext context, Microsoft.AspNetCore.Http.RequestDelegate next, Microsoft.AspNetCore.Authorization.AuthorizationResult authorizationResult) { }
         protected virtual System.Threading.Tasks.Task HandleNotAuthorizedRoleAsync(Microsoft.AspNetCore.Http.HttpContext context, Microsoft.AspNetCore.Http.RequestDelegate next) { }
@@ -134,6 +133,7 @@ namespace GraphQL.AspNetCore3
     public class GraphQLHttpMiddlewareOptions
     {
         public GraphQLHttpMiddlewareOptions() { }
+        public bool AllowEmptyQuery { get; set; }
         public bool AuthorizationRequired { get; set; }
         public string? AuthorizedPolicy { get; set; }
         public System.Collections.Generic.List<string> AuthorizedRoles { get; set; }

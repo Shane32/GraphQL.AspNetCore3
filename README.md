@@ -445,6 +445,7 @@ endpoint; the WebSocket handler options are configured globally via `AddWebSocke
 
 | Property                           | Description     | Default value |
 |------------------------------------|-----------------|---------------|
+| `AllowEmptyQuery`                  | If set, allows requests with no 'query' to be executed; useful when supporting Automatic Persisted Queries. | False |
 | `AuthorizationRequired`            | Requires `HttpContext.User` to represent an authenticated user. | False |
 | `AuthorizedPolicy`                 | If set, requires `HttpContext.User` to pass authorization of the specified policy. | |
 | `AuthorizedRoles`                  | If set, requires `HttpContext.User` to be a member of any one of a list of roles. | |
@@ -524,7 +525,6 @@ A list of methods are as follows:
 | `HandleDeserializationErrorAsync`             | Writes a '400 JSON body text could not be parsed.' message to the output. |
 | `HandleInvalidContentTypeErrorAsync`          | Writes a '415 Invalid Content-Type header: non-supported type.' message to the output. |
 | `HandleInvalidHttpMethodErrorAsync`           | Indicates that an unsupported HTTP method was requested. Executes the next delegate in the chain by default. |
-| `HandleNoQueryErrorAsync`                     | Writes a '400 GraphQL query is missing.' message to the output. |
 | `HandleWebSocketSubProtocolNotSupportedAsync` | Writes a '400 Invalid WebSocket sub-protocol.' message to the output. |
 
 #### WebSocket handler classes
