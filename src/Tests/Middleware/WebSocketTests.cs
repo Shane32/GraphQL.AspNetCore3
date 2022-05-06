@@ -118,10 +118,10 @@ public class WebSocketTests : IDisposable
             return mock.Object;
         }
 
-        protected override Task<ExecutionResult> ExecuteRequestAsync(HttpContext context, GraphQLRequest request, IServiceProvider serviceProvider, IDictionary<string, object?> userContext)
+        protected override Task<ExecutionResult> ExecuteRequestAsync(HttpContext context, GraphQLRequest? request, IServiceProvider serviceProvider, IDictionary<string, object?> userContext)
             => throw new NotImplementedException();
 
-        protected override Task<ExecutionResult> ExecuteScopedRequestAsync(HttpContext context, GraphQLRequest request, IDictionary<string, object?> userContext)
+        protected override Task<ExecutionResult> ExecuteScopedRequestAsync(HttpContext context, GraphQLRequest? request, IDictionary<string, object?> userContext)
             => throw new NotImplementedException();
     }
 
@@ -144,8 +144,8 @@ public class WebSocketTests : IDisposable
         {
         }
 
-        protected override Task<ExecutionResult> ExecuteRequestAsync(HttpContext context, GraphQLRequest request, IServiceProvider serviceProvider, IDictionary<string, object?> userContext) => throw new NotImplementedException();
-        protected override Task<ExecutionResult> ExecuteScopedRequestAsync(HttpContext context, GraphQLRequest request, IDictionary<string, object?> userContext) => throw new NotImplementedException();
+        protected override Task<ExecutionResult> ExecuteRequestAsync(HttpContext context, GraphQLRequest? request, IServiceProvider serviceProvider, IDictionary<string, object?> userContext) => throw new NotImplementedException();
+        protected override Task<ExecutionResult> ExecuteScopedRequestAsync(HttpContext context, GraphQLRequest? request, IDictionary<string, object?> userContext) => throw new NotImplementedException();
     }
 
 }
