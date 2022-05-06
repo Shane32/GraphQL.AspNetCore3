@@ -87,12 +87,14 @@ public class ReusableMemoryReaderStreamTests
         _stream.ReadByte().ShouldBe(3);
         _stream.ReadByte().ShouldBe(-1);
 
+#if !NET48
         buf = new byte[5];
         var mem = new Memory<byte>(buf);
         _stream.Position = 1;
         (await _stream.ReadAsync(mem)).ShouldBe(2);
         _stream.Position.ShouldBe(3);
         buf.ShouldBe(new byte[] { 2, 3, 0, 0, 0 });
+#endif
 
         buf = new byte[5];
         _stream.Position = 1;
@@ -159,10 +161,14 @@ public class ReusableMemoryReaderStreamTests
     public async Task NotSupported()
     {
         Should.Throw<NotSupportedException>(() => _stream.Write(new byte[1], 0, 1));
+#if !NET48
         Should.Throw<NotSupportedException>(() => _stream.Write(new Span<byte>(new byte[1], 0, 1)));
+#endif
         await Should.ThrowAsync<NotSupportedException>(() => _stream.WriteAsync(new byte[1], 0, 1));
         await Should.ThrowAsync<NotSupportedException>(() => _stream.WriteAsync(new byte[1], 0, 1, default));
+#if !NET48
         await Should.ThrowAsync<NotSupportedException>(async () => await _stream.WriteAsync(new Memory<byte>(new byte[1], 0, 1)));
+#endif
         Should.Throw<NotSupportedException>(() => _stream.Flush());
         await Should.ThrowAsync<NotSupportedException>(() => _stream.FlushAsync());
         await Should.ThrowAsync<NotSupportedException>(() => _stream.FlushAsync(default));
@@ -183,11 +189,13 @@ public class ReusableMemoryReaderStreamTests
         await _stream.CopyToAsync(s);
         s.ToArray().ShouldBe(new byte[] { 2, 3, 4, 5 });
 
+#if !NET48
         _stream.SetLength(5);
         _stream.Position = 1;
         s = new MemoryStream();
         await _stream.CopyToAsync(s, default(CancellationToken));
         s.ToArray().ShouldBe(new byte[] { 2, 3, 4, 5 });
+#endif
 
         _stream.SetLength(5);
         _stream.Position = 1;

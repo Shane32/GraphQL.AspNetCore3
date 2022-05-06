@@ -36,11 +36,16 @@ public class AuthorizationTests
                     policyConfig.RequireAuthenticatedUser();
                 });
             });
+#if NETCOREAPP2_1 || NET48
+            services.AddHostApplicationLifetime();
+#endif
         });
         hostBuilder.Configure(app => {
             app.UseWebSockets();
             app.UseAuthentication();
+#if !NETCOREAPP2_1 && !NET48
             app.UseAuthorization();
+#endif
             app.UseGraphQL("/graphql", opts => {
                 _options = opts;
             });
@@ -109,6 +114,9 @@ public class AuthorizationTests
             services.AddGraphQL(b => b
                 .AddAutoSchema<Chat.Schema.Query>()
                 .AddSystemTextJson());
+#if NETCOREAPP2_1 || NET48
+            services.AddHostApplicationLifetime();
+#endif
         });
         hostBuilder.Configure(app => {
             app.UseWebSockets();
@@ -134,7 +142,7 @@ public class AuthorizationTests
 
         protected override async ValueTask<bool> HandleAuthorizeWebSocketConnectionAsync(HttpContext context, RequestDelegate next)
         {
-            await WriteErrorResponseAsync(context, HttpStatusCode.UnprocessableEntity, "Access deined");
+            await WriteErrorResponseAsync(context, (HttpStatusCode)422 /* HttpStatusCode.UnprocessableEntity */, "Access deined");
             return true;
         }
     }
@@ -239,7 +247,7 @@ public class AuthorizationTests
                 return info;
             if (executionError is AccessDeniedError accessDeniedError) {
                 if (accessDeniedError.RolesRequired != null) {
-                    info.Message = $"Access denied; roles required {string.Join('/', accessDeniedError.RolesRequired.Select(x => $"'{x}'"))}.";
+                    info.Message = $"Access denied; roles required {string.Join("/", accessDeniedError.RolesRequired.Select(x => $"'{x}'"))}.";
                 } else if (accessDeniedError.PolicyRequired != null) {
                     info.Message = $"Access denied; policy required '{accessDeniedError.PolicyRequired}'.";
                     accessDeniedError.PolicyAuthorizationResult.ShouldNotBeNull();

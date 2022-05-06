@@ -80,7 +80,11 @@ public class WebSocketConnection : IWebSocketConnection
             // set up a 16KB data block
             byte[] buffer = new byte[16384];
             // prep a Memory instance pointing to the block
+#if NETSTANDARD2_0
+            var bufferMemory = new ArraySegment<byte>(buffer);
+#else
             var bufferMemory = new Memory<byte>(buffer);
+#endif
             // prep a reader stream
             var bufferStream = new ReusableMemoryReaderStream(buffer);
             // read messages until an exception occurs, the cancellation token is signaled, or a 'close' message is received

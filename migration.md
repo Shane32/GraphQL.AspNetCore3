@@ -5,6 +5,14 @@
 Supports building user contexts after authentication has occurred for WebSocket
 connections; supports and returns media type of `application/graphql+json` by default.
 
+Support for ASP.NET Core 2.1 added, tested with .NET Core 2.1 and .NET Framework 4.8.
+
+Removed `HandleNoQueryErrorAsync` method; validation for this scenario already
+exists within `ExecuteRequestAsync`.
+
+Added `AllowEmptyQuery` option to allow for Automatic Persisted Queries if configured
+through a custom `IDocumentExecuter`.
+
 ## 2.1.0
 
 Authentication validation rule and support

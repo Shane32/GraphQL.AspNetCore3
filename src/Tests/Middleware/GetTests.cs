@@ -6,6 +6,7 @@ public class GetTests : IDisposable
 {
     private GraphQLHttpMiddlewareOptions _options = null!;
     private GraphQLHttpMiddlewareOptions _options2 = null!;
+    private Action<ExecutionOptions> _configureExecution = _ => { };
     private readonly TestServer _server;
 
     public GetTests()
@@ -18,7 +19,11 @@ public class GetTests : IDisposable
                     .WithMutation<Chat.Schema.Mutation>()
                     .WithSubscription<Chat.Schema.Subscription>())
                 .AddSchema<Schema2>()
-                .AddSystemTextJson());
+                .AddSystemTextJson()
+                .ConfigureExecutionOptions(o => _configureExecution(o)));
+#if NETCOREAPP2_1 || NET48
+            services.AddHostApplicationLifetime();
+#endif
         });
         hostBuilder.Configure(app => {
             app.UseWebSockets();
@@ -96,6 +101,19 @@ public class GetTests : IDisposable
         var client = _server.CreateClient();
         using var response = await client.GetAsync("/graphql");
         await response.ShouldBeAsync(badRequest, @"{""errors"":[{""message"":""GraphQL query is missing."",""extensions"":{""code"":""QUERY_MISSING"",""codes"":[""QUERY_MISSING""]}}]}");
+    }
+
+    [Fact]
+    public async Task NoQuery_Allowed()
+    {
+        _configureExecution = o => {
+            if (string.IsNullOrEmpty(o.Query))
+                o.Query = "{count}";
+        };
+        _options.AllowEmptyQuery = true;
+        var client = _server.CreateClient();
+        using var response = await client.GetAsync("/graphql");
+        await response.ShouldBeAsync(false, @"{""data"":{""count"":0}}");
     }
 
     [Theory]

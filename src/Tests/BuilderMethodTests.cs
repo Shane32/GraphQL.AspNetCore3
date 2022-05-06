@@ -15,6 +15,9 @@ public class BuilderMethodTests
                     .WithSubscription<Chat.Schema.Subscription>())
                 .AddSchema<Schema2>()
                 .AddSystemTextJson());
+#if NETCOREAPP2_1 || NET48
+            services.AddHostApplicationLifetime();
+#endif
         });
     }
 
@@ -131,6 +134,7 @@ public class BuilderMethodTests
         await VerifyAsync();
     }
 
+#if !NETCOREAPP2_1 && !NET48
     [Fact]
     public async Task EndpointRouting()
     {
@@ -172,6 +176,7 @@ public class BuilderMethodTests
         });
         await VerifyAsync();
     }
+#endif
 
     [Fact]
     public async Task UserContextBuilder_Configure1()

@@ -14,15 +14,27 @@ public class ExecutionResultActionResultTests
                 .AddAutoSchema<Chat.Schema.Query>()
                 .AddSystemTextJson());
             services.AddRouting();
+#if NETCOREAPP2_1 || NET48
+            services.AddMvc();
+#else
             services.AddControllers();
+#endif
         });
         _hostBuilder.Configure(app => {
+#if NETCOREAPP2_1 || NET48
+            app.UseMvc(routes => {
+                routes.MapRoute(
+                    name: "default",
+                    template: "{controller=Home}/{action=Index}/{id?}");
+            });
+#else
             app.UseRouting();
             app.UseEndpoints(endpoints => {
                 endpoints.MapControllerRoute(
                     name: "default",
                     pattern: "{controller=Home}/{action=Index}/{id?}");
             });
+#endif
         });
         var server = new TestServer(_hostBuilder);
         var str = await server.ExecuteGet("/graphql?query={count}");

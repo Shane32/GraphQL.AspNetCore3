@@ -24,6 +24,7 @@ public class WebSocketWriterStreamTests
         _mockWebSocket.VerifyNoOtherCalls();
     }
 
+#if !NET48
     [Fact]
     public async Task WriteAsync_2()
     {
@@ -36,6 +37,7 @@ public class WebSocketWriterStreamTests
         _mockWebSocket.Verify();
         _mockWebSocket.VerifyNoOtherCalls();
     }
+#endif
 
     [Fact]
     public void Write()
