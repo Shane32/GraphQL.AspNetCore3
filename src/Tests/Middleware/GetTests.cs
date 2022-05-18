@@ -6,7 +6,7 @@ public class GetTests : IDisposable
 {
     private GraphQLHttpMiddlewareOptions _options = null!;
     private GraphQLHttpMiddlewareOptions _options2 = null!;
-    private Action<ExecutionOptions> _configureExecution = _ => { };
+    private readonly Action<ExecutionOptions> _configureExecution = _ => { };
     private readonly TestServer _server;
 
     public GetTests()
@@ -103,19 +103,6 @@ public class GetTests : IDisposable
         await response.ShouldBeAsync(badRequest, @"{""errors"":[{""message"":""GraphQL query is missing."",""extensions"":{""code"":""QUERY_MISSING"",""codes"":[""QUERY_MISSING""]}}]}");
     }
 
-    [Fact]
-    public async Task NoQuery_Allowed()
-    {
-        _configureExecution = o => {
-            if (string.IsNullOrEmpty(o.Query))
-                o.Query = "{count}";
-        };
-        _options.AllowEmptyQuery = true;
-        var client = _server.CreateClient();
-        using var response = await client.GetAsync("/graphql");
-        await response.ShouldBeAsync(false, @"{""data"":{""count"":0}}");
-    }
-
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -124,7 +111,7 @@ public class GetTests : IDisposable
         _options.ValidationErrorsReturnBadRequest = badRequest;
         var client = _server.CreateClient();
         using var response = await client.GetAsync("/graphql?query=");
-        await response.ShouldBeAsync(badRequest, @"{""errors"":[{""message"":""GraphQL query is missing."",""extensions"":{""code"":""QUERY_MISSING"",""codes"":[""QUERY_MISSING""]}}]}");
+        await response.ShouldBeAsync(badRequest, @"{""errors"":[{""message"":""Document does not contain any operations."",""extensions"":{""code"":""NO_OPERATION"",""codes"":[""NO_OPERATION""]}}]}");
     }
 
     [Theory]

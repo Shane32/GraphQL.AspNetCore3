@@ -4,7 +4,7 @@ public class BatchTests : IDisposable
 {
     private GraphQLHttpMiddlewareOptions _options = null!;
     private GraphQLHttpMiddlewareOptions _options2 = null!;
-    private Action<ExecutionOptions> _configureExecution = _ => { };
+    private readonly Action<ExecutionOptions> _configureExecution = _ => { };
     private readonly TestServer _server;
 
     public BatchTests()
@@ -117,18 +117,6 @@ public class BatchTests : IDisposable
         using var response = await PostBatchRequestAsync(new GraphQLRequest() { Query = "{" });
         // validation errors do not return 400 within a batch request
         await response.ShouldBeAsync(false, @"[{""errors"":[{""message"":""Error parsing query: Expected Name, found EOF; for more information see http://spec.graphql.org/October2021/#Field"",""locations"":[{""line"":1,""column"":2}],""extensions"":{""code"":""SYNTAX_ERROR"",""codes"":[""SYNTAX_ERROR""]}}]}]");
-    }
-
-    [Fact]
-    public async Task NoQuery_Allowed()
-    {
-        _configureExecution = o => {
-            if (string.IsNullOrEmpty(o.Query))
-                o.Query = "{count}";
-        };
-        _options.AllowEmptyQuery = true;
-        using var response = await PostJsonAsync(@"[{}]");
-        await response.ShouldBeAsync(false, @"[{""data"":{""count"":0}}]");
     }
 
     [Theory]

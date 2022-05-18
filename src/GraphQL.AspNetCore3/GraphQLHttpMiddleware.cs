@@ -93,14 +93,6 @@ public class GraphQLHttpMiddleware<TSchema> : GraphQLHttpMiddleware
     /// <inheritdoc/>
     protected override async Task<ExecutionResult> ExecuteRequestAsync(HttpContext context, GraphQLRequest? request, IServiceProvider serviceProvider, IDictionary<string, object?> userContext)
     {
-        if (!Options.AllowEmptyQuery && string.IsNullOrEmpty(request?.Query)) {
-            return new ExecutionResult {
-                Errors = new ExecutionErrors {
-                    new QueryMissingError()
-                }
-            };
-        }
-
         var opts = new ExecutionOptions {
             Query = request?.Query,
             Variables = request?.Variables,
