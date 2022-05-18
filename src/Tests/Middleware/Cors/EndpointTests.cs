@@ -13,7 +13,8 @@ public class EndpointTests
         Action<CorsPolicyBuilder>? configureCorsPolicy,
         Action<GraphQLHttpMiddlewareOptions> configureGraphQl,
         Action<GraphQLEndpointConventionBuilder> configureGraphQlEndpoint,
-        Action<HttpRequestHeaders> configureHeaders)
+        Action<HttpRequestHeaders> configureHeaders,
+        string url)
     {
         var hostBuilder = new WebHostBuilder();
         hostBuilder.ConfigureServices(services => {
@@ -36,7 +37,7 @@ public class EndpointTests
         });
         using var server = new TestServer(hostBuilder);
         using var client = server.CreateClient();
-        var request = new HttpRequestMessage(method, "/graphql");
+        var request = new HttpRequestMessage(method, url);
         if (method == HttpMethod.Post) {
             var content = new StringContent("{hello}");
             content.Headers.ContentType = new("application/graphql");
@@ -72,19 +73,21 @@ public class EndpointTests
     }
 
     [Theory]
-    [InlineData("POST")]
-    [InlineData("OPTIONS")]
-    public async Task NoCorsConfig(string httpMethod)
+    [InlineData("GET", "/graphql?query={hello}")]
+    [InlineData("POST", "/graphql")]
+    [InlineData("OPTIONS", "/graphql")]
+    public async Task NoCorsConfig(string httpMethod, string url)
     {
         var ret = await ExecuteEndpoint(
-            httpMethod == "POST" ? HttpMethod.Post : httpMethod == "OPTIONS" ? HttpMethod.Options : throw new ArgumentOutOfRangeException(nameof(httpMethod)),
+            httpMethod == "POST" ? HttpMethod.Post : httpMethod == "OPTIONS" ? HttpMethod.Options : httpMethod == "GET" ? HttpMethod.Get : throw new ArgumentOutOfRangeException(nameof(httpMethod)),
             configureCors: _ => { },
             configureCorsPolicy: _ => { },
             configureGraphQl: _ => { },
             configureGraphQlEndpoint: _ => { },
             configureHeaders: headers => {
                 headers.Add("Origin", "http://www.example.com");
-            });
+            },
+            url);
 
         ret.AllowCredentials.ShouldBeNull();
         ret.AllowHeaders.ShouldBeNull();
@@ -110,7 +113,8 @@ public class EndpointTests
             configureGraphQlEndpoint: _ => { },
             configureHeaders: headers => {
                 headers.Add("Origin", pass ? "http://www.example.com" : "http://www.dummy.com");
-            });
+            },
+            "/graphql");
 
         ret.AllowHeaders.ShouldBeNull();
         ret.AllowMethods.ShouldBeNull();
@@ -143,7 +147,8 @@ public class EndpointTests
             configureGraphQlEndpoint: ep => ep.RequireCors("MyCorsPolicy"),
             configureHeaders: headers => {
                 headers.Add("Origin", pass ? "http://www.example.com" : "http://www.dummy.com");
-            });
+            },
+            "/graphql");
 
         ret.AllowHeaders.ShouldBeNull();
         ret.AllowMethods.ShouldBeNull();
@@ -179,7 +184,8 @@ public class EndpointTests
             configureGraphQlEndpoint: ep => ep.RequireCors("MyCorsPolicy"),
             configureHeaders: headers => {
                 headers.Add("Origin", pass ? "http://www.example.com" : "http://www.dummy.com");
-            });
+            },
+            "/graphql");
 
         ret.AllowHeaders.ShouldBeNull();
         ret.AllowMethods.ShouldBeNull();

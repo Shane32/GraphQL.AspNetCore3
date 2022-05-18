@@ -58,7 +58,7 @@ public static class GraphQLHttpApplicationBuilderExtensions
         var opts = new GraphQLHttpMiddlewareOptions();
         configureMiddleware?.Invoke(opts);
         return builder.UseWhen(
-            context => context.Request.Path.StartsWithSegments(path, out var remaining) && string.IsNullOrEmpty(remaining),
+            context => context.Request.Path.Equals(path),
             b => b.UseMiddleware<GraphQLHttpMiddleware<TSchema>>(opts));
     }
 
@@ -86,7 +86,7 @@ public static class GraphQLHttpApplicationBuilderExtensions
         where TMiddleware : GraphQLHttpMiddleware
     {
         return builder.UseWhen(
-            context => context.Request.Path.StartsWithSegments(path, out var remaining) && string.IsNullOrEmpty(remaining),
+            context => context.Request.Path.Equals(path),
             b => b.UseMiddleware<TMiddleware>(args));
     }
 }
