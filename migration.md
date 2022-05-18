@@ -1,6 +1,11 @@
 # Version history / migration notes
 
-## 3.0.0 (in progress)
+## 4.0.0 (in progress)
+
+Remove `AllowEmptyQuery` option, as this error condition is now handled by the
+GraphQL.NET 5.3.0 `DocumentExecuter`, as well as the error classes that relate.
+
+## 3.0.0
 
 Supports building user contexts after authentication has occurred for WebSocket
 connections; supports and returns media type of `application/graphql+json` by default.
