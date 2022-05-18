@@ -93,11 +93,4 @@ public class GraphQLHttpMiddlewareOptions
     /// Returns an options class for WebSocket connections.
     /// </summary>
     public GraphQLWebSocketOptions WebSockets { get; set; } = new();
-
-    /// <summary>
-    /// If set, allows requests with no 'query' to execute.  This is useful when
-    /// supporting Automatic Persisted Queries (either by a custom <see cref="IDocumentExecuter"/>,
-    /// or by overriding <see cref="GraphQLHttpMiddleware.ExecuteRequestAsync(HttpContext, GraphQLRequest, IServiceProvider, IDictionary{string, object?})">ExecuteRequestAsync</see>).
-    /// </summary>
-    public bool AllowEmptyQuery { get; set; }
 }

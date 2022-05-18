@@ -45,13 +45,6 @@ namespace GraphQL.AspNetCore3
                 public GraphQL.Types.IProvideMetadata Obj { get; set; }
                 public GraphQL.Types.IFieldType? ParentFieldType { get; set; }
                 public GraphQL.Types.IGraphType? ParentGraphType { get; set; }
-                public void Deconstruct(out GraphQL.Types.IProvideMetadata Obj, out GraphQLParser.AST.ASTNode? Node, out GraphQL.Types.IFieldType? ParentFieldType, out GraphQL.Types.IGraphType? ParentGraphType, out GraphQL.Validation.ValidationContext Context) { }
-                public bool Equals(GraphQL.AspNetCore3.AuthorizationValidationRule.AuthorizationVisitor.ValidationInfo other) { }
-                public override bool Equals(object obj) { }
-                public override int GetHashCode() { }
-                public override string ToString() { }
-                public static bool operator !=(GraphQL.AspNetCore3.AuthorizationValidationRule.AuthorizationVisitor.ValidationInfo left, GraphQL.AspNetCore3.AuthorizationValidationRule.AuthorizationVisitor.ValidationInfo right) { }
-                public static bool operator ==(GraphQL.AspNetCore3.AuthorizationValidationRule.AuthorizationVisitor.ValidationInfo left, GraphQL.AspNetCore3.AuthorizationValidationRule.AuthorizationVisitor.ValidationInfo right) { }
             }
         }
     }
@@ -133,7 +126,6 @@ namespace GraphQL.AspNetCore3
     public class GraphQLHttpMiddlewareOptions
     {
         public GraphQLHttpMiddlewareOptions() { }
-        public bool AllowEmptyQuery { get; set; }
         public bool AuthorizationRequired { get; set; }
         public string? AuthorizedPolicy { get; set; }
         public System.Collections.Generic.List<string> AuthorizedRoles { get; set; }
@@ -197,7 +189,7 @@ namespace GraphQL.AspNetCore3.Errors
         public string? PolicyRequired { get; set; }
         public System.Collections.Generic.List<string>? RolesRequired { get; set; }
     }
-    public class BatchedRequestsNotSupportedError : GraphQL.AspNetCore3.Errors.RequestError
+    public class BatchedRequestsNotSupportedError : GraphQL.Execution.RequestError
     {
         public BatchedRequestsNotSupportedError() { }
     }
@@ -205,26 +197,17 @@ namespace GraphQL.AspNetCore3.Errors
     {
         public HttpMethodValidationError(GraphQLParser.ROM originalQuery, GraphQLParser.AST.ASTNode node, string message) { }
     }
-    public class InvalidContentTypeError : GraphQL.AspNetCore3.Errors.RequestError
+    public class InvalidContentTypeError : GraphQL.Execution.RequestError
     {
         public InvalidContentTypeError() { }
         public InvalidContentTypeError(string message) { }
     }
-    public class JsonInvalidError : GraphQL.AspNetCore3.Errors.RequestError
+    public class JsonInvalidError : GraphQL.Execution.RequestError
     {
         public JsonInvalidError() { }
         public JsonInvalidError(System.Exception innerException) { }
     }
-    public class QueryMissingError : GraphQL.AspNetCore3.Errors.RequestError
-    {
-        public QueryMissingError() { }
-    }
-    public class RequestError : GraphQL.ExecutionError
-    {
-        public RequestError(string message) { }
-        public RequestError(string message, System.Exception? innerException) { }
-    }
-    public class WebSocketSubProtocolNotSupportedError : GraphQL.AspNetCore3.Errors.RequestError
+    public class WebSocketSubProtocolNotSupportedError : GraphQL.Execution.RequestError
     {
         public WebSocketSubProtocolNotSupportedError(System.Collections.Generic.IEnumerable<string> requestedSubProtocols) { }
     }
