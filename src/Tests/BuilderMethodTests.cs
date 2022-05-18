@@ -74,12 +74,60 @@ public class BuilderMethodTests
         public Task AuthenticateAsync(IWebSocketConnection connection, string subProtocol, OperationMessage operationMessage) => throw new NotImplementedException();
     }
 
-    [Fact]
-    public async Task Basic()
+    [Theory]
+    [InlineData("/graphql")]
+    [InlineData("/graphql2")]
+    public async Task Basic(string url)
     {
         _hostBuilder.Configure(app => {
             app.UseWebSockets();
-            app.UseGraphQL("/graphql");
+            app.UseGraphQL(url);
+        });
+        await VerifyAsync(url);
+    }
+
+    [Theory]
+    [InlineData("/graphql/")]
+    [InlineData("/graphql/more")]
+    public async Task Basic_FailedConnection(string url)
+    {
+        _hostBuilder.Configure(app => {
+            app.UseWebSockets();
+            app.UseGraphQL();
+        });
+        using var server = new TestServer(_hostBuilder);
+        using var client = server.CreateClient();
+        using var response = await client.GetAsync(url);
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Basic_NoGet()
+    {
+        _hostBuilder.Configure(app => {
+            app.UseWebSockets();
+            app.UseGraphQL(configureMiddleware: b => b.HandleGet = false);
+            app.Use(next => context => {
+                if (context.Request.Path.Equals(new PathString("/graphql")) && context.Request.Method == HttpMethods.Get) {
+                    context.Response.StatusCode = StatusCodes.Status202Accepted;
+                    return Task.CompletedTask;
+                } else {
+                    return next(context);
+                }
+            });
+        });
+        using var server = new TestServer(_hostBuilder);
+        using var client = server.CreateClient();
+        using var response = await client.GetAsync("/graphql");
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.Accepted);
+    }
+
+    [Fact]
+    public async Task Basic_CaseInsensitive()
+    {
+        _hostBuilder.Configure(app => {
+            app.UseWebSockets();
+            app.UseGraphQL("/GRAPHQL");
         });
         await VerifyAsync();
     }
@@ -135,18 +183,60 @@ public class BuilderMethodTests
     }
 
 #if !NETCOREAPP2_1 && !NET48
-    [Fact]
-    public async Task EndpointRouting()
+    [Theory]
+    [InlineData("graphql", "/graphql")]
+    [InlineData("graphql", "/graphql/")]
+    [InlineData("graphql", "/GRAPHQL")] // verify case insensitive matching
+    public async Task EndpointRouting(string pattern, string url)
     {
         _hostBuilder.ConfigureServices(services => services.AddRouting());
         _hostBuilder.Configure(app => {
             app.UseWebSockets();
             app.UseRouting();
             app.UseEndpoints(endpoints => {
-                endpoints.MapGraphQL("graphql");
+                endpoints.MapGraphQL(pattern);
             });
         });
-        await VerifyAsync();
+        await VerifyAsync(url);
+    }
+
+    public async Task EndpointRouting_Invalid()
+    {
+        _hostBuilder.ConfigureServices(services => services.AddRouting());
+        _hostBuilder.Configure(app => {
+            app.UseWebSockets();
+            app.UseRouting();
+            app.UseEndpoints(endpoints => {
+                endpoints.MapGraphQL<ISchema>("graphql");
+            });
+        });
+        using var server = new TestServer(_hostBuilder);
+        using var client = server.CreateClient();
+        using var response = await client.GetAsync("/graphql/more");
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task EndpointRouting_NoGet()
+    {
+        _hostBuilder.ConfigureServices(services => services.AddRouting());
+        _hostBuilder.Configure(app => {
+            app.UseWebSockets();
+            app.UseRouting();
+            app.UseEndpoints(endpoints => {
+                endpoints.MapGraphQL<ISchema>("graphql", configureMiddleware: b => b.HandleGet = false);
+                endpoints.MapGet("/graphql", context => {
+                    context.Response.StatusCode = StatusCodes.Status202Accepted;
+                    return Task.CompletedTask;
+                });
+            });
+        });
+        using var server = new TestServer(_hostBuilder);
+        using var client = server.CreateClient();
+        using var response = await client.PostAsync("/graphql", new StringContent(@"{""query"":""{count}""}", Encoding.UTF8, "application/json"));
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
+        using var response2 = await client.GetAsync("/graphql");
+        response2.StatusCode.ShouldBe(System.Net.HttpStatusCode.Accepted);
     }
 
     [Fact]
@@ -222,10 +312,10 @@ public class BuilderMethodTests
         str.ShouldBe(@"{""data"":{""userInfo"":""" + value + @"""}}");
     }
 
-    private async Task VerifyAsync()
+    private async Task VerifyAsync(string url = "/graphql")
     {
         using var server = new TestServer(_hostBuilder);
 
-        await server.VerifyChatSubscriptionAsync();
+        await server.VerifyChatSubscriptionAsync(url);
     }
 }

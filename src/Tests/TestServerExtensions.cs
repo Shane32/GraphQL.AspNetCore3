@@ -22,7 +22,7 @@ internal static class TestServerExtensions
         return str;
     }
 
-    public static async Task VerifyChatSubscriptionAsync(this TestServer server)
+    public static async Task VerifyChatSubscriptionAsync(this TestServer server, string url = "/graphql")
     {
         // create websocket connection
         var webSocketClient = server.CreateWebSocketClient();
@@ -30,7 +30,7 @@ internal static class TestServerExtensions
             request.Headers["Sec-WebSocket-Protocol"] = "graphql-transport-ws";
         };
         webSocketClient.SubProtocols.Add("graphql-transport-ws");
-        using var webSocket = await webSocketClient.ConnectAsync(new Uri(server.BaseAddress, "/graphql"), default);
+        using var webSocket = await webSocketClient.ConnectAsync(new Uri(server.BaseAddress, url), default);
 
         // send CONNECTION_INIT
         await webSocket.SendMessageAsync(new OperationMessage {
@@ -55,7 +55,7 @@ internal static class TestServerExtensions
         // post a new message
         {
             var str = await server.ExecutePost(
-                "/graphql",
+                url,
                 "mutation {addMessage(message:{message:\"hello\",from:\"John Doe\"}){id}}");
             str.ShouldBe("{\"data\":{\"addMessage\":{\"id\":\"1\"}}}");
         }
