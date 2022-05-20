@@ -1,4 +1,6 @@
 using GraphQL;
+using GraphQL.AspNetCore3;
+using GraphQL.AspNetCore3.WebSockets;
 using GraphQL.MicrosoftDI;
 using GraphQL.SystemTextJson;
 
@@ -11,9 +13,12 @@ builder.Services.AddGraphQL(b => b
         .WithMutation<Chat.Schema.Mutation>()
         .WithSubscription<Chat.Schema.Subscription>())
     .AddSystemTextJson());
+builder.Services.AddSingleton(typeof(IWebSocketHandler<>), typeof(WebSocketHandler<>));
+builder.Services.AddSingleton(new GraphQLHttpMiddlewareOptions()); // for the websocket handler
 
 var app = builder.Build();
 app.UseDeveloperExceptionPage();
+app.UseWebSockets();
 app.UseRouting();
 
 app.MapControllerRoute(

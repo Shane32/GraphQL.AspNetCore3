@@ -11,11 +11,15 @@ public class HomeController : Controller
 {
     private readonly IDocumentExecuter<ISchema> _executer;
     private readonly IGraphQLTextSerializer _serializer;
+    private readonly IWebSocketHandler _websocketHandler;
+    private readonly IUserContextBuilder _websocketUserContextBuilder;
 
-    public HomeController(IDocumentExecuter<ISchema> executer, IGraphQLTextSerializer serializer)
+    public HomeController(IDocumentExecuter<ISchema> executer, IGraphQLTextSerializer serializer, IWebSocketHandler<ISchema> websocketHandler)
     {
         _executer = executer;
         _serializer = serializer;
+        _websocketHandler = websocketHandler;
+        _websocketUserContextBuilder = new UserContextBuilder<IDictionary<string, object?>>((_, _) => new Dictionary<string, object?>());
     }
 
     public IActionResult Index()
@@ -24,7 +28,13 @@ public class HomeController : Controller
     [HttpGet]
     [ActionName("graphql")]
     public Task<IActionResult> GraphQLGetAsync(string query, string? operationName)
-        => ExecuteGraphQLRequestAsync(ParseRequest(query, operationName));
+    {
+        if (HttpContext.WebSockets.IsWebSocketRequest) {
+            return HandleWebSocketRequestAsync();
+        } else {
+            return ExecuteGraphQLRequestAsync(ParseRequest(query, operationName));
+        }
+    }
 
     [HttpPost]
     [ActionName("graphql")]
@@ -66,5 +76,19 @@ public class HomeController : Controller
         } catch {
             return BadRequest();
         }
+    }
+
+    private async Task<IActionResult> HandleWebSocketRequestAsync()
+    {
+        foreach (var protocol in HttpContext.WebSockets.WebSocketRequestedProtocols) {
+            if (_websocketHandler.SupportedSubProtocols.Contains(protocol)) {
+                var socket = await HttpContext.WebSockets.AcceptWebSocketAsync(protocol);
+                await _websocketHandler.ExecuteAsync(HttpContext, socket, protocol,
+                    HttpContext.RequestServices.GetService<IUserContextBuilder>()
+                    ?? _websocketUserContextBuilder);
+                return NoContent();
+            }
+        }
+        return BadRequest();
     }
 }
