@@ -42,22 +42,20 @@ public class HomeController : Controller
 
     private GraphQLRequest ParseRequest(string query, string? operationName, string? variables = null, string? extensions = null)
         => new GraphQLRequest {
-            Query = query,
-            OperationName = operationName,
+            Query = query == "" ? null : query,
+            OperationName = operationName == "" ? null : operationName,
             Variables = _serializer.Deserialize<Inputs>(variables == "" ? null : variables),
             Extensions = _serializer.Deserialize<Inputs>(extensions == "" ? null : extensions),
         };
 
     private async Task<IActionResult> ExecuteGraphQLRequestAsync(GraphQLRequest? request)
     {
-        if (string.IsNullOrWhiteSpace(request?.Query))
-            return BadRequest();
         try {
             var opts = new ExecutionOptions {
-                Query = request.Query,
-                OperationName = request.OperationName,
-                Variables = request.Variables,
-                Extensions = request.Extensions,
+                Query = request?.Query,
+                OperationName = request?.OperationName,
+                Variables = request?.Variables,
+                Extensions = request?.Extensions,
                 CancellationToken = HttpContext.RequestAborted,
                 RequestServices = HttpContext.RequestServices,
             };
