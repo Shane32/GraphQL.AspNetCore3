@@ -506,11 +506,9 @@ public class AuthorizationTests
     public void Constructors()
     {
         Should.Throw<ArgumentNullException>(() => new AuthorizationValidationRule(null!));
-        Should.Throw<ArgumentNullException>(() => new AuthorizationValidationRule.AuthorizationVisitor(null!, _principal, Mock.Of<IAuthorizationService>()));
-        Should.Throw<ArgumentNullException>(() => new AuthorizationValidationRule.AuthorizationVisitor(new ValidationContext(), null!, Mock.Of<IAuthorizationService>()));
-        Should.Throw<ArgumentNullException>(() => new AuthorizationValidationRule.AuthorizationVisitor(new ValidationContext(), _principal, null!));
-        Should.Throw<InvalidOperationException>(() => new AuthorizationValidationRule.AuthorizationVisitor(new ValidationContext(), new ClaimsPrincipal(), Mock.Of<IAuthorizationService>()))
-            .Message.ShouldBe("claimsPrincipal.Identity cannot be null.");
+        Should.Throw<ArgumentNullException>(() => new AuthorizationVisitor(null!, _principal, Mock.Of<IAuthorizationService>()));
+        Should.Throw<ArgumentNullException>(() => new AuthorizationVisitor(new ValidationContext(), null!, Mock.Of<IAuthorizationService>()));
+        Should.Throw<ArgumentNullException>(() => new AuthorizationVisitor(new ValidationContext(), _principal, null!));
     }
 
     [Theory]
@@ -557,6 +555,34 @@ public class AuthorizationTests
 
         if (noAuthenticationService)
             err.ShouldBeOfType<InvalidOperationException>().Message.ShouldBe("An instance of IAuthorizationService could not be pulled from the dependency injection framework.");
+    }
+
+    [Fact]
+    public void NullIdentity()
+    {
+        var mockAuthorizationService = new Mock<IAuthorizationService>(MockBehavior.Strict);
+        var mockServices = new Mock<IServiceProvider>(MockBehavior.Strict);
+        mockServices.Setup(x => x.GetService(typeof(IAuthorizationService))).Returns(mockAuthorizationService.Object);
+        var mockHttpContext = new Mock<HttpContext>(MockBehavior.Strict);
+        mockHttpContext.Setup(x => x.User).Returns(new ClaimsPrincipal());
+        var mockContextAccessor = new Mock<IHttpContextAccessor>(MockBehavior.Strict);
+        mockContextAccessor.Setup(x => x.HttpContext).Returns(mockHttpContext.Object);
+        var document = GraphQLParser.Parser.Parse("{ __typename }");
+        var validator = new DocumentValidator();
+        _schema.Authorize();
+
+        var (result, _) = validator.ValidateAsync(new ValidationOptions {
+            Document = document,
+            Extensions = Inputs.Empty,
+            Operation = (GraphQLOperationDefinition)document.Definitions.Single(x => x.Kind == ASTNodeKind.OperationDefinition),
+            Rules = new IValidationRule[] { new AuthorizationValidationRule(mockContextAccessor.Object) },
+            Schema = _schema,
+            UserContext = new Dictionary<string, object?>(),
+            Variables = Inputs.Empty,
+            RequestServices = mockServices.Object,
+        }).GetAwaiter().GetResult(); // there is no async code being tested
+
+        result.Errors.ShouldHaveSingleItem().ShouldBeOfType<AccessDeniedError>().Message.ShouldBe("Access denied for schema.");
     }
 
     [Theory]
