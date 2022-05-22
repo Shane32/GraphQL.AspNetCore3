@@ -12,11 +12,11 @@ public abstract partial class AuthorizationVisitorBase : INodeVisitor
     }
 
     private bool _checkTree; // used to skip processing fragments or operations that do not apply
-    private ASTNode? _checkUntil;
+    private ASTNode? _checkUntil; // used to resume processing after a skipped field (skipped by a directive)
     private readonly List<GraphQLFragmentDefinition>? _fragmentDefinitionsToCheck; // contains a list of fragments to process, or null if none
     private readonly Stack<TypeInfo> _onlyAnonymousSelected = new();
     private Dictionary<string, TypeInfo>? _fragments;
-    private List<TodoInfo>? _todo;
+    private List<TodoInfo>? _todos;
 
     /// <inheritdoc/>
     public virtual void Enter(ASTNode node, ValidationContext context)
@@ -141,8 +141,8 @@ public abstract partial class AuthorizationVisitorBase : INodeVisitor
             if (info.AnyAuthenticated || (!info.AnyAnonymous && (info.WaitingOnFragments?.Count ?? 0) == 0)) {
                 Validate(type, node, context);
             } else if (info.WaitingOnFragments?.Count > 0) {
-                _todo ??= new();
-                _todo.Add(new(BuildValidationInfo(type, node, context), info));
+                _todos ??= new();
+                _todos.Add(new(BuildValidationInfo(type, node, context), info));
             }
         }
     }
@@ -212,15 +212,15 @@ public abstract partial class AuthorizationVisitorBase : INodeVisitor
         }
         // then, if this fragment is fully resolved, check to see if any nodes are waiting for this fragment
         if ((ti.WaitingOnFragments?.Count ?? 0) == 0) {
-            if (_todo != null) {
-                var count = _todo.Count;
+            if (_todos != null) {
+                var count = _todos.Count;
                 for (var i = 0; i < count; i++) {
-                    var todo = _todo[i];
+                    var todo = _todos[i];
                     if (todo.WaitingOnFragments.Remove(fragmentName)) {
                         todo.AnyAuthenticated |= ti.AnyAuthenticated;
                         todo.AnyAnonymous |= ti.AnyAnonymous;
                         if (todo.WaitingOnFragments.Count == 0) {
-                            _todo.RemoveAt(i);
+                            _todos.RemoveAt(i);
                             count--;
                             if (todo.AnyAuthenticated || !todo.AnyAnonymous) {
                                 Validate(todo.ValidationInfo);
@@ -232,8 +232,6 @@ public abstract partial class AuthorizationVisitorBase : INodeVisitor
         }
     }
 
-    // note: having TypeInfo a class causes a heap allocation for each node; struct is possible
-    // but requires a lot of changes to the code; todo in separate PR
     private struct TypeInfo
     {
         public bool AnyAuthenticated;
@@ -241,14 +239,12 @@ public abstract partial class AuthorizationVisitorBase : INodeVisitor
         public List<string>? WaitingOnFragments;
     }
 
-    // an allocation for TodoInfo only occurs when a field references a fragment that has not
-    // yet been encountered
     private class TodoInfo
     {
-        public ValidationInfo ValidationInfo { get; }
+        public readonly ValidationInfo ValidationInfo;
         public bool AnyAuthenticated;
         public bool AnyAnonymous;
-        public List<string> WaitingOnFragments;
+        public readonly List<string> WaitingOnFragments;
 
         public TodoInfo(ValidationInfo vi, TypeInfo ti)
         {
