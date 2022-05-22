@@ -4,16 +4,16 @@ namespace GraphQL.AspNetCore3
     {
         public static System.Threading.Tasks.ValueTask<bool> AuthorizeAsync<TState>(GraphQL.AspNetCore3.AuthorizationParameters<TState> options, TState state) { }
     }
-    public struct AuthorizationParameters<T>
+    public struct AuthorizationParameters<TState>
     {
-        public AuthorizationParameters(Microsoft.AspNetCore.Http.HttpContext httpContext, GraphQL.AspNetCore3.GraphQLHttpMiddlewareOptions middlewareOptions, System.Func<T, System.Threading.Tasks.Task>? onNotAuthenticated, System.Func<T, System.Threading.Tasks.Task>? onNotAuthorizedRole, System.Func<T, Microsoft.AspNetCore.Authorization.AuthorizationResult, System.Threading.Tasks.Task>? onNotAuthorizedPolicy) { }
+        public AuthorizationParameters(Microsoft.AspNetCore.Http.HttpContext httpContext, GraphQL.AspNetCore3.GraphQLHttpMiddlewareOptions middlewareOptions, System.Func<TState, System.Threading.Tasks.Task>? onNotAuthenticated, System.Func<TState, System.Threading.Tasks.Task>? onNotAuthorizedRole, System.Func<TState, Microsoft.AspNetCore.Authorization.AuthorizationResult, System.Threading.Tasks.Task>? onNotAuthorizedPolicy) { }
         public bool AuthorizationRequired { get; set; }
         public string? AuthorizedPolicy { get; set; }
         public System.Collections.Generic.List<string>? AuthorizedRoles { get; set; }
         public Microsoft.AspNetCore.Http.HttpContext HttpContext { get; set; }
-        public System.Func<T, System.Threading.Tasks.Task>? OnNotAuthenticated { get; set; }
-        public System.Func<T, Microsoft.AspNetCore.Authorization.AuthorizationResult, System.Threading.Tasks.Task>? OnNotAuthorizedPolicy { get; set; }
-        public System.Func<T, System.Threading.Tasks.Task>? OnNotAuthorizedRole { get; set; }
+        public System.Func<TState, System.Threading.Tasks.Task>? OnNotAuthenticated { get; set; }
+        public System.Func<TState, Microsoft.AspNetCore.Authorization.AuthorizationResult, System.Threading.Tasks.Task>? OnNotAuthorizedPolicy { get; set; }
+        public System.Func<TState, System.Threading.Tasks.Task>? OnNotAuthorizedRole { get; set; }
     }
     public class AuthorizationValidationRule : GraphQL.Validation.IValidationRule
     {
