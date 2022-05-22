@@ -5,6 +5,12 @@
 Remove `AllowEmptyQuery` option, as this error condition is now handled by the
 GraphQL.NET 5.3.0 `DocumentExecuter`, as well as the error classes that relate.
 
+Move `GraphQL.AspNetCore3.AuthorizationRule.AuthorizationVisitor` class to
+`GraphQL.AspNetCore3.AuthorizationVisitor` and add `AuthorizationVisitorBase`
+class to easier override functionality when validating nodes.
+
+Drastically reduce allocations within AuthorizationVisitor.
+
 ## 3.0.0
 
 Supports building user contexts after authentication has occurred for WebSocket

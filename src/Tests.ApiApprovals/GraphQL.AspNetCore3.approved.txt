@@ -4,48 +4,54 @@ namespace GraphQL.AspNetCore3
     {
         public static System.Threading.Tasks.ValueTask<bool> AuthorizeAsync<TState>(GraphQL.AspNetCore3.AuthorizationParameters<TState> options, TState state) { }
     }
-    public struct AuthorizationParameters<T>
+    public struct AuthorizationParameters<TState>
     {
-        public AuthorizationParameters(Microsoft.AspNetCore.Http.HttpContext httpContext, GraphQL.AspNetCore3.GraphQLHttpMiddlewareOptions middlewareOptions, System.Func<T, System.Threading.Tasks.Task>? onNotAuthenticated, System.Func<T, System.Threading.Tasks.Task>? onNotAuthorizedRole, System.Func<T, Microsoft.AspNetCore.Authorization.AuthorizationResult, System.Threading.Tasks.Task>? onNotAuthorizedPolicy) { }
+        public AuthorizationParameters(Microsoft.AspNetCore.Http.HttpContext httpContext, GraphQL.AspNetCore3.GraphQLHttpMiddlewareOptions middlewareOptions, System.Func<TState, System.Threading.Tasks.Task>? onNotAuthenticated, System.Func<TState, System.Threading.Tasks.Task>? onNotAuthorizedRole, System.Func<TState, Microsoft.AspNetCore.Authorization.AuthorizationResult, System.Threading.Tasks.Task>? onNotAuthorizedPolicy) { }
         public bool AuthorizationRequired { get; set; }
         public string? AuthorizedPolicy { get; set; }
         public System.Collections.Generic.List<string>? AuthorizedRoles { get; set; }
         public Microsoft.AspNetCore.Http.HttpContext HttpContext { get; set; }
-        public System.Func<T, System.Threading.Tasks.Task>? OnNotAuthenticated { get; set; }
-        public System.Func<T, Microsoft.AspNetCore.Authorization.AuthorizationResult, System.Threading.Tasks.Task>? OnNotAuthorizedPolicy { get; set; }
-        public System.Func<T, System.Threading.Tasks.Task>? OnNotAuthorizedRole { get; set; }
+        public System.Func<TState, System.Threading.Tasks.Task>? OnNotAuthenticated { get; set; }
+        public System.Func<TState, Microsoft.AspNetCore.Authorization.AuthorizationResult, System.Threading.Tasks.Task>? OnNotAuthorizedPolicy { get; set; }
+        public System.Func<TState, System.Threading.Tasks.Task>? OnNotAuthorizedRole { get; set; }
     }
     public class AuthorizationValidationRule : GraphQL.Validation.IValidationRule
     {
         public AuthorizationValidationRule(Microsoft.AspNetCore.Http.IHttpContextAccessor httpContextAccessor) { }
         public System.Threading.Tasks.ValueTask<GraphQL.Validation.INodeVisitor?> ValidateAsync(GraphQL.Validation.ValidationContext context) { }
-        public class AuthorizationVisitor : GraphQL.Validation.INodeVisitor
+    }
+    public class AuthorizationVisitor : GraphQL.AspNetCore3.AuthorizationVisitorBase
+    {
+        public AuthorizationVisitor(GraphQL.Validation.ValidationContext context, System.Security.Claims.ClaimsPrincipal claimsPrincipal, Microsoft.AspNetCore.Authorization.IAuthorizationService authorizationService) { }
+        protected Microsoft.AspNetCore.Authorization.IAuthorizationService AuthorizationService { get; }
+        protected System.Security.Claims.ClaimsPrincipal ClaimsPrincipal { get; }
+        protected override bool Authorize() { }
+        protected override Microsoft.AspNetCore.Authorization.AuthorizationResult AuthorizePolicy(string policy) { }
+        protected override bool AuthorizeRole(string role) { }
+    }
+    public abstract class AuthorizationVisitorBase : GraphQL.Validation.INodeVisitor
+    {
+        public AuthorizationVisitorBase(GraphQL.Validation.ValidationContext context) { }
+        protected abstract bool Authorize();
+        protected abstract Microsoft.AspNetCore.Authorization.AuthorizationResult AuthorizePolicy(string policy);
+        protected abstract bool AuthorizeRole(string role);
+        public virtual void Enter(GraphQLParser.AST.ASTNode node, GraphQL.Validation.ValidationContext context) { }
+        protected virtual string GenerateResourceDescription(GraphQL.AspNetCore3.AuthorizationVisitorBase.ValidationInfo info) { }
+        protected virtual void HandleNodeNotAuthorized(GraphQL.AspNetCore3.AuthorizationVisitorBase.ValidationInfo info) { }
+        protected virtual void HandleNodeNotInPolicy(GraphQL.AspNetCore3.AuthorizationVisitorBase.ValidationInfo info, string policy, Microsoft.AspNetCore.Authorization.AuthorizationResult authorizationResult) { }
+        protected virtual void HandleNodeNotInRoles(GraphQL.AspNetCore3.AuthorizationVisitorBase.ValidationInfo info, System.Collections.Generic.List<string> roles) { }
+        public virtual void Leave(GraphQLParser.AST.ASTNode node, GraphQL.Validation.ValidationContext context) { }
+        protected virtual bool SkipField(GraphQLParser.AST.GraphQLField node, GraphQL.Validation.ValidationContext context) { }
+        protected virtual bool Validate(GraphQL.AspNetCore3.AuthorizationVisitorBase.ValidationInfo info) { }
+        public virtual bool ValidateSchema(GraphQL.Validation.ValidationContext context) { }
+        public readonly struct ValidationInfo : System.IEquatable<GraphQL.AspNetCore3.AuthorizationVisitorBase.ValidationInfo>
         {
-            public AuthorizationVisitor(GraphQL.Validation.ValidationContext context, System.Security.Claims.ClaimsPrincipal claimsPrincipal, Microsoft.AspNetCore.Authorization.IAuthorizationService authorizationService) { }
-            public Microsoft.AspNetCore.Authorization.IAuthorizationService AuthorizationService { get; }
-            public System.Security.Claims.ClaimsPrincipal ClaimsPrincipal { get; }
-            protected virtual bool Authorize() { }
-            protected virtual Microsoft.AspNetCore.Authorization.AuthorizationResult AuthorizePolicy(string policy) { }
-            protected virtual System.Threading.Tasks.Task<Microsoft.AspNetCore.Authorization.AuthorizationResult> AuthorizePolicyAsync(string policy) { }
-            protected virtual bool AuthorizeRole(string role) { }
-            public virtual void Enter(GraphQLParser.AST.ASTNode node, GraphQL.Validation.ValidationContext context) { }
-            protected virtual string GenerateResourceDescription(GraphQL.AspNetCore3.AuthorizationValidationRule.AuthorizationVisitor.ValidationInfo info) { }
-            protected virtual void HandleNodeNotAuthorized(GraphQL.AspNetCore3.AuthorizationValidationRule.AuthorizationVisitor.ValidationInfo info) { }
-            protected virtual void HandleNodeNotInPolicy(GraphQL.AspNetCore3.AuthorizationValidationRule.AuthorizationVisitor.ValidationInfo info, string policy, Microsoft.AspNetCore.Authorization.AuthorizationResult authorizationResult) { }
-            protected virtual void HandleNodeNotInRoles(GraphQL.AspNetCore3.AuthorizationValidationRule.AuthorizationVisitor.ValidationInfo info, System.Collections.Generic.List<string> roles) { }
-            public virtual void Leave(GraphQLParser.AST.ASTNode node, GraphQL.Validation.ValidationContext context) { }
-            protected virtual bool SkipField(GraphQLParser.AST.GraphQLField node, GraphQL.Validation.ValidationContext context) { }
-            protected virtual bool Validate(GraphQL.AspNetCore3.AuthorizationValidationRule.AuthorizationVisitor.ValidationInfo info) { }
-            public virtual bool ValidateSchema(GraphQL.Validation.ValidationContext context) { }
-            public struct ValidationInfo : System.IEquatable<GraphQL.AspNetCore3.AuthorizationValidationRule.AuthorizationVisitor.ValidationInfo>
-            {
-                public ValidationInfo(GraphQL.Types.IProvideMetadata Obj, GraphQLParser.AST.ASTNode? Node, GraphQL.Types.IFieldType? ParentFieldType, GraphQL.Types.IGraphType? ParentGraphType, GraphQL.Validation.ValidationContext Context) { }
-                public GraphQL.Validation.ValidationContext Context { get; set; }
-                public GraphQLParser.AST.ASTNode? Node { get; set; }
-                public GraphQL.Types.IProvideMetadata Obj { get; set; }
-                public GraphQL.Types.IFieldType? ParentFieldType { get; set; }
-                public GraphQL.Types.IGraphType? ParentGraphType { get; set; }
-            }
+            public ValidationInfo(GraphQL.Types.IProvideMetadata Obj, GraphQLParser.AST.ASTNode? Node, GraphQL.Types.IFieldType? ParentFieldType, GraphQL.Types.IGraphType? ParentGraphType, GraphQL.Validation.ValidationContext Context) { }
+            public GraphQL.Validation.ValidationContext Context { get; set; }
+            public GraphQLParser.AST.ASTNode? Node { get; set; }
+            public GraphQL.Types.IProvideMetadata Obj { get; set; }
+            public GraphQL.Types.IFieldType? ParentFieldType { get; set; }
+            public GraphQL.Types.IGraphType? ParentGraphType { get; set; }
         }
     }
     public class ExecutionResultActionResult : Microsoft.AspNetCore.Mvc.IActionResult
