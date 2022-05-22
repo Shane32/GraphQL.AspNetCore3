@@ -9,6 +9,8 @@ Move `GraphQL.AspNetCore3.AuthorizationRule.AuthorizationVisitor` class to
 `GraphQL.AspNetCore3.AuthorizationVisitor` and add `AuthorizationVisitorBase`
 class to easier override functionality when validating nodes.
 
+Drastically reduce allocations within AuthorizationVisitor.
+
 ## 3.0.0
 
 Supports building user contexts after authentication has occurred for WebSocket
