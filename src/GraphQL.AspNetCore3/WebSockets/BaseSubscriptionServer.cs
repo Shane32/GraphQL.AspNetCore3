@@ -28,7 +28,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     /// <summary>
     /// Returns a synchronized list of subscriptions.
     /// </summary>
-    protected SubscriptionList Subscriptions { get; }
+    protected SubscriptionList Subscriptions { get; } = new();
 
     /// <summary>
     /// Returns the default keep-alive timeout.
@@ -65,7 +65,6 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
         Client = sendStream ?? throw new ArgumentNullException(nameof(sendStream));
         _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(Client.RequestAborted);
         CancellationToken = _cancellationTokenSource.Token;
-        Subscriptions = new();
     }
 
     /// <inheritdoc/>
