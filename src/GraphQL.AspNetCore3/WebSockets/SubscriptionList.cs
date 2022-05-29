@@ -12,17 +12,8 @@ namespace GraphQL.AspNetCore3.WebSockets;
 /// </summary>
 public sealed class SubscriptionList : IDisposable
 {
-    private readonly CancellationToken _cancellationToken;
-    private readonly Dictionary<string, IDisposable> _subscriptions = new();
+    private Dictionary<string, IDisposable>? _subscriptions = new();
     private readonly object _lock = new();
-
-    /// <summary>
-    /// Initializes a new instance.
-    /// </summary>
-    public SubscriptionList(CancellationToken cancellationToken)
-    {
-        _cancellationToken = cancellationToken;
-    }
 
     /// <summary>
     /// Disposes of all active subscriptions.
@@ -31,11 +22,15 @@ public sealed class SubscriptionList : IDisposable
     {
         List<IDisposable> subscriptionsToDispose;
         lock (_lock) {
+            if (_subscriptions == null)
+                return;
             subscriptionsToDispose = _subscriptions.Values.ToList();
-            _subscriptions.Clear();
+            _subscriptions = null;
         }
         foreach (var disposer in subscriptionsToDispose) {
-            disposer.Dispose();
+            try {
+                disposer.Dispose();
+            } catch { }
         }
     }
 
@@ -52,7 +47,8 @@ public sealed class SubscriptionList : IDisposable
             throw new ArgumentNullException(nameof(subscription));
 
         lock (_lock) {
-            _cancellationToken.ThrowIfCancellationRequested();
+            if (_subscriptions == null)
+                throw new ObjectDisposedException(nameof(SubscriptionList));
             return _subscriptions.TryAdd(id, subscription);
         }
     }
@@ -74,7 +70,8 @@ public sealed class SubscriptionList : IDisposable
             IDisposable? oldDisposable = null;
             try {
                 lock (_lock) {
-                    _cancellationToken.ThrowIfCancellationRequested();
+                    if (_subscriptions == null)
+                        throw new ObjectDisposedException(nameof(SubscriptionList));
                     _subscriptions.TryGetValue(id, out oldDisposable);
                     _subscriptions[id] = value;
                 }
@@ -97,7 +94,8 @@ public sealed class SubscriptionList : IDisposable
             throw new ArgumentNullException(nameof(subscription));
 
         lock (_lock) {
-            _cancellationToken.ThrowIfCancellationRequested();
+            if (_subscriptions == null)
+                throw new ObjectDisposedException(nameof(SubscriptionList));
             return _subscriptions.TryGetValue(id, out var value) && value == subscription;
         }
     }
@@ -113,7 +111,8 @@ public sealed class SubscriptionList : IDisposable
             throw new ArgumentNullException(nameof(id));
 
         lock (_lock) {
-            _cancellationToken.ThrowIfCancellationRequested();
+            if (_subscriptions == null)
+                throw new ObjectDisposedException(nameof(SubscriptionList));
             return _subscriptions.ContainsKey(id);
         }
     }
@@ -137,7 +136,8 @@ public sealed class SubscriptionList : IDisposable
         bool dispose = false;
         try {
             lock (_lock) {
-                _cancellationToken.ThrowIfCancellationRequested();
+                if (_subscriptions == null)
+                    throw new ObjectDisposedException(nameof(SubscriptionList));
                 if (!_subscriptions.TryGetValue(id, out var value) || value != oldSubscription)
                     return false;
                 _subscriptions[id] = newSubscription;
@@ -163,7 +163,8 @@ public sealed class SubscriptionList : IDisposable
         IDisposable? subscription = null;
         try {
             lock (_lock) {
-                _cancellationToken.ThrowIfCancellationRequested();
+                if (_subscriptions == null)
+                    throw new ObjectDisposedException(nameof(SubscriptionList));
                 if (_subscriptions.TryGetValue(id, out subscription)) {
                     _subscriptions.Remove(id);
                     return true;
@@ -190,7 +191,8 @@ public sealed class SubscriptionList : IDisposable
         bool dispose = false;
         try {
             lock (_lock) {
-                _cancellationToken.ThrowIfCancellationRequested();
+                if (_subscriptions == null)
+                    throw new ObjectDisposedException(nameof(SubscriptionList));
                 if (!_subscriptions.TryGetValue(id, out var value) || value != oldSubscription)
                     return false;
                 _subscriptions.Remove(id);
