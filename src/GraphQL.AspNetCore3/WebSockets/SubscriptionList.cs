@@ -30,8 +30,7 @@ public sealed class SubscriptionList : IDisposable
         foreach (var disposer in subscriptionsToDispose) {
             try {
                 disposer.Dispose();
-            }
-            catch { }
+            } catch { }
         }
     }
 
