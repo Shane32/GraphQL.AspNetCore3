@@ -63,9 +63,9 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
 #pragma warning restore CA2208 // Instantiate argument exceptions correctly
         }
         Client = sendStream ?? throw new ArgumentNullException(nameof(sendStream));
-        _cancellationTokenSource = new();
+        _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(Client.RequestAborted);
         CancellationToken = _cancellationTokenSource.Token;
-        Subscriptions = new(CancellationToken);
+        Subscriptions = new();
     }
 
     /// <inheritdoc/>
@@ -337,6 +337,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
             }
 
             var result = await ExecuteRequestAsync(message);
+            CancellationToken.ThrowIfCancellationRequested();
             if (!Subscriptions.Contains(messageId, dummyDisposer))
                 return;
             if (result.Streams?.Count == 1) {

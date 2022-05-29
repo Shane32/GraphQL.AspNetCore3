@@ -15,6 +15,7 @@ public class BaseSubscriptionServerTests : IDisposable
 
     public BaseSubscriptionServerTests()
     {
+        _mockStream.Setup(x => x.RequestAborted).Returns(default(CancellationToken));
         _stream = _mockStream.Object;
         _mockServer = new(_stream, _options);
         _mockServer.CallBase = true;

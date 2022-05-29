@@ -1,28 +1,20 @@
 namespace Tests.WebSockets;
 
-public class SubscriptionListTests : IDisposable
+public class SubscriptionListTests
 {
     private readonly SubscriptionList _subList;
-    private readonly CancellationTokenSource _cts;
     private readonly Mock<IDisposable> _mockDisposable = new();
     private IDisposable _disposable => _mockDisposable.Object;
 
     public SubscriptionListTests()
     {
-        _cts = new();
-        _subList = new(_cts.Token);
+        _subList = new();
     }
 
-    public void Dispose() => _cts.Dispose();
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void Dispose_Works(bool canceled)
+    [Fact]
+    public void Dispose_Works()
     {
         _subList.TryAdd("abc", _disposable);
-        if (canceled)
-            _cts.Cancel();
         _subList.Dispose();
         _mockDisposable.Verify(x => x.Dispose(), Times.Once);
         _subList.Dispose();
@@ -34,8 +26,8 @@ public class SubscriptionListTests : IDisposable
     {
         Should.Throw<ArgumentNullException>(() => _subList.TryAdd(null!, _disposable));
         Should.Throw<ArgumentNullException>(() => _subList.TryAdd("abc", null!));
-        _cts.Cancel();
-        Should.Throw<OperationCanceledException>(() => _subList.TryAdd("abc", _disposable));
+        _subList.Dispose();
+        Should.Throw<ObjectDisposedException>(() => _subList.TryAdd("abc", _disposable));
         _mockDisposable.VerifyNoOtherCalls();
     }
 
@@ -60,8 +52,8 @@ public class SubscriptionListTests : IDisposable
     {
         Should.Throw<ArgumentNullException>(() => _subList[null!] = _disposable);
         Should.Throw<ArgumentNullException>(() => _subList["abc"] = null!);
-        _cts.Cancel();
-        Should.Throw<OperationCanceledException>(() => _subList["abc"] = _disposable);
+        _subList.Dispose();
+        Should.Throw<ObjectDisposedException>(() => _subList["abc"] = _disposable);
         _mockDisposable.VerifyNoOtherCalls();
     }
 
@@ -99,9 +91,9 @@ public class SubscriptionListTests : IDisposable
         Should.Throw<ArgumentNullException>(() => _subList.Contains(null!));
         Should.Throw<ArgumentNullException>(() => _subList.Contains(null!, _disposable));
         Should.Throw<ArgumentNullException>(() => _subList.Contains("abc", null!));
-        _cts.Cancel();
-        Should.Throw<OperationCanceledException>(() => _subList.Contains("abc"));
-        Should.Throw<OperationCanceledException>(() => _subList.Contains("abc", _disposable));
+        _subList.Dispose();
+        Should.Throw<ObjectDisposedException>(() => _subList.Contains("abc"));
+        Should.Throw<ObjectDisposedException>(() => _subList.Contains("abc", _disposable));
         _mockDisposable.VerifyNoOtherCalls();
     }
 
@@ -111,9 +103,9 @@ public class SubscriptionListTests : IDisposable
         Should.Throw<ArgumentNullException>(() => _subList.TryRemove(null!));
         Should.Throw<ArgumentNullException>(() => _subList.TryRemove(null!, _disposable));
         Should.Throw<ArgumentNullException>(() => _subList.TryRemove("abc", null!));
-        _cts.Cancel();
-        Should.Throw<OperationCanceledException>(() => _subList.TryRemove("abc"));
-        Should.Throw<OperationCanceledException>(() => _subList.TryRemove("abc", _disposable));
+        _subList.Dispose();
+        Should.Throw<ObjectDisposedException>(() => _subList.TryRemove("abc"));
+        Should.Throw<ObjectDisposedException>(() => _subList.TryRemove("abc", _disposable));
         _mockDisposable.VerifyNoOtherCalls();
     }
 
@@ -123,8 +115,8 @@ public class SubscriptionListTests : IDisposable
         Should.Throw<ArgumentNullException>(() => _subList.CompareExchange(null!, _disposable, _disposable));
         Should.Throw<ArgumentNullException>(() => _subList.CompareExchange("abc", null!, _disposable));
         Should.Throw<ArgumentNullException>(() => _subList.CompareExchange("abc", _disposable, null!));
-        _cts.Cancel();
-        Should.Throw<OperationCanceledException>(() => _subList.CompareExchange("abc", _disposable, _disposable));
+        _subList.Dispose();
+        Should.Throw<ObjectDisposedException>(() => _subList.CompareExchange("abc", _disposable, _disposable));
         _mockDisposable.VerifyNoOtherCalls();
     }
 
