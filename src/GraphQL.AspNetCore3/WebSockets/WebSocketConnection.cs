@@ -98,7 +98,7 @@ public class WebSocketConnection : IWebSocketConnection
                         // queue the closure
                         _ = CloseConnectionAsync();
                         // wait until the close has been sent
-                        var completedTask = Task.WhenAny(
+                        await Task.WhenAny(
                             _outputClosed.Task,
                             Task.Delay(_closeTimeoutMs, RequestAborted));
                     }
@@ -180,8 +180,8 @@ public class WebSocketConnection : IWebSocketConnection
         if (message.OperationMessage != null) {
             await OnSendMessageAsync(message.OperationMessage);
         } else {
-            _outputClosed.TrySetResult(true);
             await OnCloseOutputAsync(message.CloseStatus, message.CloseDescription);
+            _outputClosed.TrySetResult(true);
         }
     }
 

@@ -1,4 +1,4 @@
-namespace Tests.AsyncResetEventTests;
+namespace Tests.WebSockets;
 
 public class AsyncMessagePumpTests
 {
