@@ -137,7 +137,7 @@ public class WebSocketConnection : IWebSocketConnection
                         receiveStream.Write(buffer, 0, result.Count);
                 }
             }
-        } catch (WebSocketException) {
+        } catch (WebSocketException) when (RequestAborted.IsCancellationRequested) {
         } finally {
             // prevent any more messages from being sent
             _outputClosed.TrySetResult(false);
