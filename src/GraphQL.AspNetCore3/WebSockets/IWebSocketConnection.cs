@@ -8,7 +8,7 @@ namespace GraphQL.AspNetCore3.WebSockets;
 /// <see cref="ExecuteAsync(IOperationMessageProcessor)"/> may be only called once.
 /// All members must be thread-safe.
 /// </summary>
-public interface IWebSocketConnection
+public interface IWebSocketConnection : IDisposable
 {
     /// <summary>
     /// Listens to incoming messages over the WebSocket connection,
