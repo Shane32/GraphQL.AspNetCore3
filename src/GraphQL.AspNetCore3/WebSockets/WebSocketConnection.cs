@@ -63,6 +63,10 @@ public class WebSocketConnection : IWebSocketConnection
         RequestAborted = cancellationToken;
     }
 
+    /// <inheritdoc/>
+    public virtual void Dispose()
+        => GC.SuppressFinalize(this);
+
     /// <summary>
     /// Listens to incoming messages on the WebSocket specified in the constructor,
     /// dispatching the messages to the specified <paramref name="operationMessageProcessor"/>.

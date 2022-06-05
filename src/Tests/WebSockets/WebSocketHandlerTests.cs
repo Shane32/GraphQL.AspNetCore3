@@ -99,6 +99,7 @@ public class WebSocketHandlerTests : IDisposable
             .Returns(subServer).Verifiable();
         mockSubServer.Setup(x => x.Dispose()).Verifiable();
         mockWebSocketConnection.Setup(x => x.ExecuteAsync(subServer)).Returns(Task.CompletedTask).Verifiable();
+        mockWebSocketConnection.Setup(x => x.Dispose()).Verifiable();
         await _handler.ExecuteAsync(_httpContext, _webSocket, subProtocol, _userContextBuilder);
         mockWebSocketConnection.Verify();
         mockSubServer.Verify();
@@ -130,6 +131,7 @@ public class WebSocketHandlerTests : IDisposable
             token2.ThrowIfCancellationRequested();
             return Task.CompletedTask;
         }).Verifiable();
+        mockWebSocketConnection.Setup(x => x.Dispose()).Verifiable();
         await _handler.ExecuteAsync(_httpContext, _webSocket, subProtocol, _userContextBuilder);
         mockWebSocketConnection.Verify();
         mockSubServer.Verify();
@@ -161,6 +163,7 @@ public class WebSocketHandlerTests : IDisposable
             token2.ThrowIfCancellationRequested();
             return Task.CompletedTask;
         }).Verifiable();
+        mockWebSocketConnection.Setup(x => x.Dispose()).Verifiable();
         await Should.ThrowAsync<OperationCanceledException>(() => _handler.ExecuteAsync(_httpContext, _webSocket, subProtocol, _userContextBuilder));
         mockWebSocketConnection.Verify();
         mockSubServer.Verify();

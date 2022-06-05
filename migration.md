@@ -11,6 +11,8 @@ class to easier override functionality when validating nodes.
 
 Drastically reduce allocations within AuthorizationVisitor.
 
+Change `IWebSocketConnection` to inherit `IDisposable`.
+
 ## 3.0.0
 
 Supports building user contexts after authentication has occurred for WebSocket

@@ -91,7 +91,7 @@ public class WebSocketHandler : IWebSocketHandler
         if (cts.Token.IsCancellationRequested)
             return;
         try {
-            var webSocketConnection = CreateWebSocketConnection(httpContext, webSocket, cts.Token);
+            using var webSocketConnection = CreateWebSocketConnection(httpContext, webSocket, cts.Token);
             using var operationMessageReceiveStream = CreateReceiveStream(webSocketConnection, subProtocol, userContextBuilder);
             await webSocketConnection.ExecuteAsync(operationMessageReceiveStream);
         } catch (OperationCanceledException) when (appStoppingToken.IsCancellationRequested) {
