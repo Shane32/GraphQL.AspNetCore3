@@ -52,13 +52,6 @@ namespace GraphQL.AspNetCore3
             public GraphQL.Types.IProvideMetadata Obj { get; set; }
             public GraphQL.Types.IFieldType? ParentFieldType { get; set; }
             public GraphQL.Types.IGraphType? ParentGraphType { get; set; }
-            public void Deconstruct(out GraphQL.Types.IProvideMetadata Obj, out GraphQLParser.AST.ASTNode? Node, out GraphQL.Types.IFieldType? ParentFieldType, out GraphQL.Types.IGraphType? ParentGraphType, out GraphQL.Validation.ValidationContext Context) { }
-            public bool Equals(GraphQL.AspNetCore3.AuthorizationVisitorBase.ValidationInfo other) { }
-            public override bool Equals(object obj) { }
-            public override int GetHashCode() { }
-            public override string ToString() { }
-            public static bool operator !=(GraphQL.AspNetCore3.AuthorizationVisitorBase.ValidationInfo left, GraphQL.AspNetCore3.AuthorizationVisitorBase.ValidationInfo right) { }
-            public static bool operator ==(GraphQL.AspNetCore3.AuthorizationVisitorBase.ValidationInfo left, GraphQL.AspNetCore3.AuthorizationVisitorBase.ValidationInfo right) { }
         }
     }
     public class ExecutionResultActionResult : Microsoft.AspNetCore.Mvc.IActionResult
