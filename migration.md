@@ -13,6 +13,8 @@ Drastically reduce allocations within AuthorizationVisitor.
 
 Change `IWebSocketConnection` to inherit `IDisposable`.
 
+Rename `BatchedRequestsExecuteInParallel` to `ExecuteBatchedRequestsInParallel`.
+
 ## 3.0.0
 
 Supports building user contexts after authentication has occurred for WebSocket
