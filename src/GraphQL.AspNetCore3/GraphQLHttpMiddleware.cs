@@ -345,7 +345,7 @@ public abstract class GraphQLHttpMiddleware
             results[0] = await ExecuteRequestAsync(context, gqlRequests[0], context.RequestServices, userContext);
         } else {
             // Batched execution with multiple graphql requests
-            if (!Options.BatchedRequestsExecuteInParallel) {
+            if (!Options.ExecuteBatchedRequestsInParallel) {
                 for (int i = 0; i < gqlRequests.Count; i++) {
                     results[i] = await ExecuteRequestAsync(context, gqlRequests[i], context.RequestServices, userContext);
                 }

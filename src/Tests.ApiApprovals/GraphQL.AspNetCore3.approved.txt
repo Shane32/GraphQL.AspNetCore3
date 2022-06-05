@@ -135,8 +135,8 @@ namespace GraphQL.AspNetCore3
         public bool AuthorizationRequired { get; set; }
         public string? AuthorizedPolicy { get; set; }
         public System.Collections.Generic.List<string> AuthorizedRoles { get; set; }
-        public bool BatchedRequestsExecuteInParallel { get; set; }
         public bool EnableBatchedRequests { get; set; }
+        public bool ExecuteBatchedRequestsInParallel { get; set; }
         public bool HandleGet { get; set; }
         public bool HandlePost { get; set; }
         public bool HandleWebSockets { get; set; }
