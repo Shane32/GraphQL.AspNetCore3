@@ -66,7 +66,7 @@ public class FileUploadTests : IDisposable
             _serializer = serializer;
         }
 
-        protected override async Task<(GraphQLRequest? SingleRequest, IList<GraphQLRequest?>? BatchRequest)?> ReadFormContentAsync(
+        protected override async Task<(GraphQLRequest? SingleRequest, IList<GraphQLRequest?>? BatchRequest)?> ReadPostContentAsync(
             HttpContext context, RequestDelegate next, string? mediaType, Encoding? sourceEncoding)
         {
             if (context.Request.HasFormContentType) {
