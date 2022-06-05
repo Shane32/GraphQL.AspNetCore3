@@ -23,12 +23,14 @@ public interface IWebSocketConnection
     Task SendMessageAsync(OperationMessage message);
 
     /// <summary>
-    /// Closes the WebSocket connection.
+    /// Closes the WebSocket connection, and
+    /// prevents further incoming messages from being dispatched through <see cref="IOperationMessageProcessor"/>.
     /// </summary>
     Task CloseConnectionAsync();
 
     /// <summary>
-    /// Closes the WebSocket connection with the specified error information.
+    /// Closes the WebSocket connection with the specified error information, and
+    /// prevents further incoming messages from being dispatched through <see cref="IOperationMessageProcessor"/>.
     /// </summary>
     Task CloseConnectionAsync(int eventId, string? description);
 

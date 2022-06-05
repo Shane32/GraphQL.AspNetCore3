@@ -178,6 +178,36 @@ public class WebSocketConnectionTests : IDisposable
     }
 
     [Fact]
+    public async Task ExecuteAsync_MessagesNotProcessedAfterClose()
+    {
+        _mockConnection.CallBase = true;
+        var mockReceiveStream = new Mock<IOperationMessageProcessor>(MockBehavior.Strict);
+        var message = new OperationMessage();
+        var message2 = new OperationMessage();
+        mockReceiveStream.Setup(x => x.InitializeConnectionAsync()).Returns(Task.CompletedTask).Verifiable();
+        mockReceiveStream.Setup(x => x.OnMessageReceivedAsync(message)).Returns(() => {
+            return _connection.CloseConnectionAsync();
+        }).Verifiable();
+        mockReceiveStream.Setup(x => x.Dispose()).Verifiable();
+        SetupWebSocketReceive(new byte[] { 1, 2, 3 }, new ValueWebSocketReceiveResult(3, WebSocketMessageType.Text, true));
+        SetupWebSocketReceive(new byte[] { 4, 5 }, new ValueWebSocketReceiveResult(2, WebSocketMessageType.Text, true));
+        SetupWebSocketReceive(new byte[] { }, new ValueWebSocketReceiveResult(0, WebSocketMessageType.Close, true));
+        _mockSerializer.Setup(x => x.ReadAsync<OperationMessage?>(It.IsAny<Stream>(), _token))
+            .Returns<Stream, CancellationToken>((stream, _) => {
+                var buf = StreamToArray(stream);
+                if (buf.Length == 3) {
+                    buf.ShouldBe(new byte[] { 1, 2, 3 });
+                    return new ValueTask<OperationMessage?>(message);
+                } else {
+                    buf.ShouldBe(new byte[] { 4, 5 });
+                    return new ValueTask<OperationMessage?>(message2);
+                }
+            })
+            .Verifiable();
+        await _connection.ExecuteAsync(mockReceiveStream.Object);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_DecodeMultipartMessage()
     {
         _mockConnection.CallBase = true;
