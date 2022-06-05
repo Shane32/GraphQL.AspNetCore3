@@ -23,6 +23,7 @@ public class WebSocketConnection : IWebSocketConnection
     private readonly WebSocketWriterStream _stream;
     private readonly TaskCompletionSource<bool> _outputClosed = new();
     private readonly int _closeTimeoutMs;
+    private volatile bool _closeRequested;
     private int _executed;
 
     /// <inheritdoc/>
@@ -88,7 +89,7 @@ public class WebSocketConnection : IWebSocketConnection
             // prep a reader stream
             var bufferStream = new ReusableMemoryReaderStream(buffer);
             // read messages until an exception occurs, the cancellation token is signaled, or a 'close' message is received
-            while (true) {
+            while (!RequestAborted.IsCancellationRequested) {
                 var result = await _webSocket.ReceiveAsync(bufferMemory, RequestAborted);
                 if (result.MessageType == WebSocketMessageType.Close) {
                     // prevent any more messages from being queued
@@ -105,6 +106,9 @@ public class WebSocketConnection : IWebSocketConnection
                     // quit
                     return;
                 }
+                // if close has been requested, ignore incoming messages
+                if (_closeRequested)
+                    continue;
                 // if this is the last block terminating a message
                 if (result.EndOfMessage) {
                     // if only one block of data was sent for this message
@@ -154,6 +158,7 @@ public class WebSocketConnection : IWebSocketConnection
     public Task CloseConnectionAsync(int eventId, string? description)
     {
         _pump.Post(new Message { CloseStatus = (WebSocketCloseStatus)eventId, CloseDescription = description });
+        _closeRequested = true;
         return Task.CompletedTask;
     }
 
