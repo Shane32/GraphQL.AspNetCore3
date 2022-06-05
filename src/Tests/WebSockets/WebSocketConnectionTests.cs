@@ -186,7 +186,7 @@ public class WebSocketConnectionTests : IDisposable
         var message2 = new OperationMessage();
         mockReceiveStream.Setup(x => x.InitializeConnectionAsync()).Returns(Task.CompletedTask).Verifiable();
         mockReceiveStream.Setup(x => x.OnMessageReceivedAsync(message)).Returns(() => {
-            return _connection.CloseConnectionAsync();
+            return _connection.CloseAsync();
         }).Verifiable();
         mockReceiveStream.Setup(x => x.Dispose()).Verifiable();
         SetupWebSocketReceive(new byte[] { 1, 2, 3 }, new ValueWebSocketReceiveResult(3, WebSocketMessageType.Text, true));
@@ -442,7 +442,7 @@ public class WebSocketConnectionTests : IDisposable
     {
         _mockConnection.Protected().Setup<Task>("OnCloseOutputAsync", WebSocketCloseStatus.NormalClosure, ItExpr.IsNull<string>())
             .Returns(Task.CompletedTask).Verifiable();
-        await _connection.CloseConnectionAsync();
+        await _connection.CloseAsync();
         _mockConnection.Verify();
     }
 
@@ -451,7 +451,7 @@ public class WebSocketConnectionTests : IDisposable
     {
         _mockConnection.Protected().Setup<Task>("OnCloseOutputAsync", WebSocketCloseStatus.InternalServerError, "test")
             .Returns(Task.CompletedTask).Verifiable();
-        await _connection.CloseConnectionAsync(1011, "test");
+        await _connection.CloseAsync(1011, "test");
         _mockConnection.Verify();
     }
 
@@ -492,7 +492,7 @@ public class WebSocketConnectionTests : IDisposable
             .Returns(Task.CompletedTask).Verifiable();
         await _connection.SendMessageAsync(message);
         // close the output
-        await _connection.CloseConnectionAsync();
+        await _connection.CloseAsync();
         // send another message -- OnSendMessageAsync should not be called for the new message
         await _connection.SendMessageAsync(new OperationMessage());
         _mockConnection.Verify();

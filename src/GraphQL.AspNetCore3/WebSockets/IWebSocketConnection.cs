@@ -26,13 +26,13 @@ public interface IWebSocketConnection : IDisposable
     /// Closes the WebSocket connection, and
     /// prevents further incoming messages from being dispatched through <see cref="IOperationMessageProcessor"/>.
     /// </summary>
-    Task CloseConnectionAsync();
+    Task CloseAsync();
 
     /// <summary>
     /// Closes the WebSocket connection with the specified error information, and
     /// prevents further incoming messages from being dispatched through <see cref="IOperationMessageProcessor"/>.
     /// </summary>
-    Task CloseConnectionAsync(int eventId, string? description);
+    Task CloseAsync(int eventId, string? description);
 
     /// <summary>
     /// Returns the last UTC time that a message was sent.

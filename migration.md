@@ -15,6 +15,8 @@ Change `IWebSocketConnection` to inherit `IDisposable`.
 
 Rename option `BatchedRequestsExecuteInParallel` to `ExecuteBatchedRequestsInParallel`.
 
+Rename `IWebSocketConnection.CloseConnectionAsync` to `CloseAsync`.
+
 ## 3.0.0
 
 Supports building user contexts after authentication has occurred for WebSocket
