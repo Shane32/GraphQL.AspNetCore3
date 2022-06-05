@@ -85,7 +85,7 @@ public class BaseSubscriptionServerTests : IDisposable
     [Fact]
     public async Task OnCloseConnection()
     {
-        _mockStream.Setup(x => x.CloseConnectionAsync()).Returns(Task.CompletedTask).Verifiable();
+        _mockStream.Setup(x => x.CloseAsync()).Returns(Task.CompletedTask).Verifiable();
         await _server.Do_OnCloseConnectionAsync();
         _mockStream.Verify();
     }
@@ -93,7 +93,7 @@ public class BaseSubscriptionServerTests : IDisposable
     [Fact]
     public async Task ErrorConnectionInitializationTimeoutAsync()
     {
-        _mockStream.Setup(x => x.CloseConnectionAsync(4408, "Connection initialization timeout")).Returns(Task.CompletedTask).Verifiable();
+        _mockStream.Setup(x => x.CloseAsync(4408, "Connection initialization timeout")).Returns(Task.CompletedTask).Verifiable();
         await _server.Do_ErrorConnectionInitializationTimeoutAsync();
         _mockStream.Verify();
     }
@@ -101,7 +101,7 @@ public class BaseSubscriptionServerTests : IDisposable
     [Fact]
     public async Task ErrorTooManyInitializationRequestsAsync()
     {
-        _mockStream.Setup(x => x.CloseConnectionAsync(4429, "Too many initialization requests")).Returns(Task.CompletedTask).Verifiable();
+        _mockStream.Setup(x => x.CloseAsync(4429, "Too many initialization requests")).Returns(Task.CompletedTask).Verifiable();
         await _server.Do_ErrorTooManyInitializationRequestsAsync(new OperationMessage());
         _mockStream.Verify();
     }
@@ -109,7 +109,7 @@ public class BaseSubscriptionServerTests : IDisposable
     [Fact]
     public async Task ErrorNotInitializedAsync()
     {
-        _mockStream.Setup(x => x.CloseConnectionAsync(4401, "Unauthorized")).Returns(Task.CompletedTask).Verifiable();
+        _mockStream.Setup(x => x.CloseAsync(4401, "Unauthorized")).Returns(Task.CompletedTask).Verifiable();
         await _server.Do_ErrorNotInitializedAsync(new OperationMessage());
         _mockStream.Verify();
     }
@@ -117,7 +117,7 @@ public class BaseSubscriptionServerTests : IDisposable
     [Fact]
     public async Task ErrorUnrecognizedMessageAsync()
     {
-        _mockStream.Setup(x => x.CloseConnectionAsync(4400, "Unrecognized message")).Returns(Task.CompletedTask).Verifiable();
+        _mockStream.Setup(x => x.CloseAsync(4400, "Unrecognized message")).Returns(Task.CompletedTask).Verifiable();
         await _server.Do_ErrorUnrecognizedMessageAsync(new OperationMessage());
         _mockStream.Verify();
     }
@@ -125,7 +125,7 @@ public class BaseSubscriptionServerTests : IDisposable
     [Fact]
     public async Task ErrorIdCannotBeBlankAsync()
     {
-        _mockStream.Setup(x => x.CloseConnectionAsync(4400, "Id cannot be blank")).Returns(Task.CompletedTask).Verifiable();
+        _mockStream.Setup(x => x.CloseAsync(4400, "Id cannot be blank")).Returns(Task.CompletedTask).Verifiable();
         await _server.Do_ErrorIdCannotBeBlankAsync(new OperationMessage());
         _mockStream.Verify();
     }
@@ -133,7 +133,7 @@ public class BaseSubscriptionServerTests : IDisposable
     [Fact]
     public async Task ErrorIdAlreadyExistsAsync()
     {
-        _mockStream.Setup(x => x.CloseConnectionAsync(4409, "Subscriber for abc already exists")).Returns(Task.CompletedTask).Verifiable();
+        _mockStream.Setup(x => x.CloseAsync(4409, "Subscriber for abc already exists")).Returns(Task.CompletedTask).Verifiable();
         await _server.Do_ErrorIdAlreadyExistsAsync(new OperationMessage { Id = "abc" });
         _mockStream.Verify();
     }
@@ -141,7 +141,7 @@ public class BaseSubscriptionServerTests : IDisposable
     [Fact]
     public async Task ErrorAccessDeniedAsync()
     {
-        _mockStream.Setup(x => x.CloseConnectionAsync(4401, "Access denied")).Returns(Task.CompletedTask).Verifiable();
+        _mockStream.Setup(x => x.CloseAsync(4401, "Access denied")).Returns(Task.CompletedTask).Verifiable();
         await _server.Do_ErrorAccessDeniedAsync();
         _mockStream.Verify();
     }
@@ -819,7 +819,7 @@ public class BaseSubscriptionServerTests : IDisposable
         if (!authorized) {
             _mockServer.Protected().Setup<Task>("OnNotAuthenticatedAsync", msg).CallBase().Verifiable();
             _mockServer.Protected().Setup<Task>("ErrorAccessDeniedAsync").CallBase().Verifiable();
-            _mockStream.Setup(x => x.CloseConnectionAsync(4401, "Access denied")).Returns(Task.CompletedTask);
+            _mockStream.Setup(x => x.CloseAsync(4401, "Access denied")).Returns(Task.CompletedTask);
         }
         var user = new ClaimsPrincipal(authorized ? new ClaimsIdentity("test") : new ClaimsIdentity());
         var mockContext = new Mock<HttpContext>(MockBehavior.Strict);
@@ -842,7 +842,7 @@ public class BaseSubscriptionServerTests : IDisposable
         if (!authorized) {
             _mockServer.Protected().Setup<Task>("OnNotAuthorizedRoleAsync", msg).CallBase().Verifiable();
             _mockServer.Protected().Setup<Task>("ErrorAccessDeniedAsync").CallBase().Verifiable();
-            _mockStream.Setup(x => x.CloseConnectionAsync(4401, "Access denied")).Returns(Task.CompletedTask);
+            _mockStream.Setup(x => x.CloseAsync(4401, "Access denied")).Returns(Task.CompletedTask);
         }
         var user = new ClaimsPrincipal(authorized ? new ClaimsIdentity(new Claim[] { new Claim(ClaimTypes.Role, "myRole") }) : new ClaimsIdentity());
         var mockContext = new Mock<HttpContext>(MockBehavior.Strict);
@@ -865,7 +865,7 @@ public class BaseSubscriptionServerTests : IDisposable
         if (!authorized) {
             _mockServer.Protected().Setup<Task>("OnNotAuthorizedPolicyAsync", msg, ItExpr.IsAny<AuthorizationResult>()).CallBase().Verifiable();
             _mockServer.Protected().Setup<Task>("ErrorAccessDeniedAsync").CallBase().Verifiable();
-            _mockStream.Setup(x => x.CloseConnectionAsync(4401, "Access denied")).Returns(Task.CompletedTask);
+            _mockStream.Setup(x => x.CloseAsync(4401, "Access denied")).Returns(Task.CompletedTask);
         }
         var user = new ClaimsPrincipal(new ClaimsIdentity());
         var mockAuthorizationService = new Mock<IAuthorizationService>(MockBehavior.Strict);
