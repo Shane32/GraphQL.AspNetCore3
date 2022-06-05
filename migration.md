@@ -13,7 +13,7 @@ Drastically reduce allocations within AuthorizationVisitor.
 
 Change `IWebSocketConnection` to inherit `IDisposable`.
 
-Rename `BatchedRequestsExecuteInParallel` to `ExecuteBatchedRequestsInParallel`.
+Rename option `BatchedRequestsExecuteInParallel` to `ExecuteBatchedRequestsInParallel`.
 
 ## 3.0.0
 
