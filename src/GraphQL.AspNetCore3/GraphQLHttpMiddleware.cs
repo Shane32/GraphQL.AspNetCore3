@@ -163,10 +163,11 @@ public abstract class GraphQLHttpMiddleware
             if (Options.HandleWebSockets) {
                 if (await HandleAuthorizeWebSocketConnectionAsync(context, _next))
                     return;
-                // Process WebSocket request
+
                 await HandleWebSocketAsync(context, _next);
-            } else
+            } else {
                 await HandleInvalidHttpMethodErrorAsync(context, _next);
+            }
             return;
         }
 
@@ -178,10 +179,7 @@ public abstract class GraphQLHttpMiddleware
         // GraphQL HTTP only supports GET and POST methods
         bool isGet = HttpMethods.IsGet(httpRequest.Method);
         bool isPost = HttpMethods.IsPost(httpRequest.Method);
-
-        bool handleResponse = isGet && Options.HandleGet || isPost && Options.HandlePost;
-
-        if (!handleResponse) {
+        if (isGet && !Options.HandleGet || isPost && !Options.HandlePost || !isGet && !isPost) {
             await HandleInvalidHttpMethodErrorAsync(context, _next);
             return;
         }
@@ -199,57 +197,16 @@ public abstract class GraphQLHttpMiddleware
                 return;
             }
 
-            switch (mediaTypeHeader.MediaType?.ToLowerInvariant()) {
-                case MEDIATYPE_GRAPHQLJSON:
-                case MEDIATYPE_JSON:
-                    IList<GraphQLRequest?>? deserializationResult;
-                    try {
-#if NET5_0_OR_GREATER
-                        if (!TryGetEncoding(mediaTypeHeader.CharSet, out var sourceEncoding)) {
-                            await HandleContentTypeCouldNotBeParsedErrorAsync(context, _next);
-                            return;
-                        }
-                        // Wrap content stream into a transcoding stream that buffers the data transcoded from the sourceEncoding to utf-8.
-                        if (sourceEncoding != null && sourceEncoding != System.Text.Encoding.UTF8) {
-                            using var tempStream = System.Text.Encoding.CreateTranscodingStream(httpRequest.Body, innerStreamEncoding: sourceEncoding, outerStreamEncoding: System.Text.Encoding.UTF8, leaveOpen: true);
-                            deserializationResult = await _serializer.ReadAsync<IList<GraphQLRequest?>>(tempStream, context.RequestAborted);
-                        } else {
-                            deserializationResult = await _serializer.ReadAsync<IList<GraphQLRequest?>>(httpRequest.Body, context.RequestAborted);
-                        }
-#else
-                        deserializationResult = await _serializer.ReadAsync<IList<GraphQLRequest?>>(httpRequest.Body, context.RequestAborted);
-#endif
-                    } catch (Exception ex) {
-                        if (!await HandleDeserializationErrorAsync(context, _next, ex))
-                            throw;
-                        return;
-                    }
-                    // https://github.com/graphql-dotnet/server/issues/751
-                    if (deserializationResult is GraphQLRequest[] array && array.Length == 1)
-                        bodyGQLRequest = deserializationResult[0];
-                    else
-                        bodyGQLBatchRequest = deserializationResult;
-                    break;
-
-                case MEDIATYPE_GRAPHQL:
-                    bodyGQLRequest = await DeserializeFromGraphBodyAsync(httpRequest.Body);
-                    break;
-
-                default:
-                    if (httpRequest.HasFormContentType) {
-                        var formCollection = await httpRequest.ReadFormAsync(context.RequestAborted);
-                        try {
-                            bodyGQLRequest = DeserializeFromFormBody(formCollection);
-                        } catch (Exception ex) {
-                            if (!await HandleDeserializationErrorAsync(context, _next, ex))
-                                throw;
-                            return;
-                        }
-                        break;
-                    }
-                    await HandleInvalidContentTypeErrorAsync(context, _next);
-                    return;
+            if (!TryGetEncoding(mediaTypeHeader.CharSet, out var sourceEncoding)) {
+                await HandleContentTypeCouldNotBeParsedErrorAsync(context, _next);
+                return;
             }
+
+            var singleOrBatchRequest = await ReadPostContentAsync(context, _next, mediaTypeHeader.MediaType, sourceEncoding);
+            if (singleOrBatchRequest.HasValue)
+                (bodyGQLRequest, bodyGQLBatchRequest) = singleOrBatchRequest.Value;
+            else
+                return;
         }
 
         if (bodyGQLBatchRequest == null) {
@@ -268,18 +225,75 @@ public abstract class GraphQLHttpMiddleware
             }
 
             gqlRequest = new GraphQLRequest {
-                Query = urlGQLRequest?.Query ?? bodyGQLRequest?.Query!,
+                Query = urlGQLRequest?.Query ?? bodyGQLRequest?.Query,
                 Variables = urlGQLRequest?.Variables ?? bodyGQLRequest?.Variables,
                 Extensions = urlGQLRequest?.Extensions ?? bodyGQLRequest?.Extensions,
                 OperationName = urlGQLRequest?.OperationName ?? bodyGQLRequest?.OperationName
             };
 
-            // Prepare context and execute
             await HandleRequestAsync(context, _next, gqlRequest);
         } else if (Options.EnableBatchedRequests) {
             await HandleBatchRequestAsync(context, _next, bodyGQLBatchRequest);
         } else {
             await HandleBatchedRequestsNotSupportedAsync(context, _next);
+        }
+    }
+
+    /// <summary>
+    /// Parses a request into a single or batch <see cref="GraphQLRequest"/> instance.
+    /// <br/><br/>
+    /// In case of an error, this method will handle the request (e.g. by calling
+    /// <see cref="WriteErrorResponseAsync(HttpContext, HttpStatusCode, ExecutionError)">WriteErrorResponseAsync</see>)
+    /// and return <see langword="null"/>.
+    /// </summary>
+    protected virtual async Task<(GraphQLRequest? SingleRequest, IList<GraphQLRequest?>? BatchRequest)?> ReadPostContentAsync(
+        HttpContext context, RequestDelegate next, string? mediaType, System.Text.Encoding? sourceEncoding)
+    {
+        var httpRequest = context.Request;
+
+        switch (mediaType?.ToLowerInvariant()) {
+            case MEDIATYPE_GRAPHQLJSON:
+            case MEDIATYPE_JSON:
+                IList<GraphQLRequest?>? deserializationResult;
+                try {
+#if NET5_0_OR_GREATER
+                    // Wrap content stream into a transcoding stream that buffers the data transcoded from the sourceEncoding to utf-8.
+                    if (sourceEncoding != null && sourceEncoding != System.Text.Encoding.UTF8) {
+                        using var tempStream = System.Text.Encoding.CreateTranscodingStream(httpRequest.Body, innerStreamEncoding: sourceEncoding, outerStreamEncoding: System.Text.Encoding.UTF8, leaveOpen: true);
+                        deserializationResult = await _serializer.ReadAsync<IList<GraphQLRequest?>>(tempStream, context.RequestAborted);
+                    } else {
+                        deserializationResult = await _serializer.ReadAsync<IList<GraphQLRequest?>>(httpRequest.Body, context.RequestAborted);
+                    }
+#else
+                    deserializationResult = await _serializer.ReadAsync<IList<GraphQLRequest?>>(httpRequest.Body, context.RequestAborted);
+#endif
+                } catch (Exception ex) {
+                    if (!await HandleDeserializationErrorAsync(context, _next, ex))
+                        throw;
+                    return null;
+                }
+                // https://github.com/graphql-dotnet/server/issues/751
+                if (deserializationResult is GraphQLRequest[] array && array.Length == 1)
+                    return (deserializationResult[0], null);
+                else
+                    return (null, deserializationResult);
+
+            case MEDIATYPE_GRAPHQL:
+                return (await DeserializeFromGraphBodyAsync(httpRequest.Body, sourceEncoding), null);
+
+            default:
+                if (httpRequest.HasFormContentType) {
+                    try {
+                        var formCollection = await httpRequest.ReadFormAsync(context.RequestAborted);
+                        return (DeserializeFromFormBody(formCollection), null);
+                    } catch (Exception ex) {
+                        if (!await HandleDeserializationErrorAsync(context, _next, ex))
+                            throw;
+                        return null;
+                    }
+                }
+                await HandleInvalidContentTypeErrorAsync(context, _next);
+                return null;
         }
     }
 
@@ -307,7 +321,7 @@ public abstract class GraphQLHttpMiddleware
     /// request was handled (typically by returning an error message).  If <see langword="false"/>
     /// is returned, the request is processed normally.
     /// <br/><br/>
-    /// By default this does not check authorization rules becuase authentication may take place within
+    /// By default this does not check authorization rules because authentication may take place within
     /// the WebSocket connection during the ConnectionInit message.  Authorization checks for
     /// WebSocket connections occur then, after authorization has taken place.
     /// </summary>
@@ -345,11 +359,7 @@ public abstract class GraphQLHttpMiddleware
             results[0] = await ExecuteRequestAsync(context, gqlRequests[0], context.RequestServices, userContext);
         } else {
             // Batched execution with multiple graphql requests
-            if (!Options.ExecuteBatchedRequestsInParallel) {
-                for (int i = 0; i < gqlRequests.Count; i++) {
-                    results[i] = await ExecuteRequestAsync(context, gqlRequests[i], context.RequestServices, userContext);
-                }
-            } else {
+            if (Options.ExecuteBatchedRequestsInParallel) {
                 var resultTasks = new Task<ExecutionResult>[gqlRequests.Count];
                 for (int i = 0; i < gqlRequests.Count; i++) {
                     resultTasks[i] = ExecuteScopedRequestAsync(context, gqlRequests[i], userContext);
@@ -357,6 +367,10 @@ public abstract class GraphQLHttpMiddleware
                 await Task.WhenAll(resultTasks);
                 for (int i = 0; i < gqlRequests.Count; i++) {
                     results[i] = await resultTasks[i];
+                }
+            } else {
+                for (int i = 0; i < gqlRequests.Count; i++) {
+                    results[i] = await ExecuteRequestAsync(context, gqlRequests[i], context.RequestServices, userContext);
                 }
             }
         }
@@ -429,7 +443,7 @@ public abstract class GraphQLHttpMiddleware
         => CONTENTTYPE_GRAPHQLJSON;
 
     /// <summary>
-    /// Writes the specified object (usually a GraphQL response) as JSON to the HTTP response stream.
+    /// Writes the specified object (usually a GraphQL response represented as an instance of <see cref="ExecutionResult"/>) as JSON to the HTTP response stream.
     /// </summary>
     protected virtual Task WriteJsonResponseAsync<TResult>(HttpContext context, HttpStatusCode httpStatusCode, TResult result)
     {
@@ -501,7 +515,7 @@ public abstract class GraphQLHttpMiddleware
     /// <summary>
     /// Writes a '400 JSON body text could not be parsed.' message to the output.
     /// Return <see langword="false"/> to rethrow the exception or <see langword="true"/>
-    /// if it has been handled.
+    /// if it has been handled.  By default returns <see langword="true"/>.
     /// </summary>
     protected virtual async ValueTask<bool> HandleDeserializationErrorAsync(HttpContext context, RequestDelegate next, Exception exception)
     {
@@ -516,7 +530,7 @@ public abstract class GraphQLHttpMiddleware
         => WriteErrorResponseAsync(context, HttpStatusCode.BadRequest, new BatchedRequestsNotSupportedError());
 
     /// <summary>
-    /// Writes a '400 Invalid WebSocket sub-protocol.' message to the output.
+    /// Writes a '400 Invalid requested WebSocket sub-protocol(s).' message to the output.
     /// </summary>
     protected virtual Task HandleWebSocketSubProtocolNotSupportedAsync(HttpContext context, RequestDelegate next)
         => WriteErrorResponseAsync(context, HttpStatusCode.BadRequest, new WebSocketSubProtocolNotSupportedError(context.WebSockets.WebSocketRequestedProtocols));
@@ -528,7 +542,7 @@ public abstract class GraphQLHttpMiddleware
         => WriteErrorResponseAsync(context, HttpStatusCode.UnsupportedMediaType, new InvalidContentTypeError($"value '{context.Request.ContentType}' could not be parsed."));
 
     /// <summary>
-    /// Writes a '415 Invalid Content-Type header: non-supported type.' message to the output.
+    /// Writes a '415 Invalid Content-Type header: non-supported media type.' message to the output.
     /// </summary>
     protected virtual Task HandleInvalidContentTypeErrorAsync(HttpContext context, RequestDelegate next)
         => WriteErrorResponseAsync(context, HttpStatusCode.UnsupportedMediaType, new InvalidContentTypeError($"non-supported media type '{context.Request.ContentType}'. Must be '{MEDIATYPE_JSON}', '{MEDIATYPE_GRAPHQL}' or a form body."));
@@ -564,15 +578,15 @@ public abstract class GraphQLHttpMiddleware
         return WriteJsonResponseAsync(context, httpStatusCode, result);
     }
 
-    private GraphQLRequest DeserializeFromQueryString(IQueryCollection queryCollection) => new GraphQLRequest {
-        Query = queryCollection.TryGetValue(QUERY_KEY, out var queryValues) ? queryValues[0] : null!,
+    private GraphQLRequest DeserializeFromQueryString(IQueryCollection queryCollection) => new() {
+        Query = queryCollection.TryGetValue(QUERY_KEY, out var queryValues) ? queryValues[0] : null,
         Variables = Options.ReadVariablesFromQueryString && queryCollection.TryGetValue(VARIABLES_KEY, out var variablesValues) ? _serializer.Deserialize<Inputs>(variablesValues[0]) : null,
         Extensions = Options.ReadExtensionsFromQueryString && queryCollection.TryGetValue(EXTENSIONS_KEY, out var extensionsValues) ? _serializer.Deserialize<Inputs>(extensionsValues[0]) : null,
         OperationName = queryCollection.TryGetValue(OPERATION_NAME_KEY, out var operationNameValues) ? operationNameValues[0] : null,
     };
 
-    private GraphQLRequest DeserializeFromFormBody(IFormCollection formCollection) => new GraphQLRequest {
-        Query = formCollection.TryGetValue(QUERY_KEY, out var queryValues) ? queryValues[0] : null!,
+    private GraphQLRequest DeserializeFromFormBody(IFormCollection formCollection) => new() {
+        Query = formCollection.TryGetValue(QUERY_KEY, out var queryValues) ? queryValues[0] : null,
         Variables = formCollection.TryGetValue(VARIABLES_KEY, out var variablesValues) ? _serializer.Deserialize<Inputs>(variablesValues[0]) : null,
         Extensions = formCollection.TryGetValue(EXTENSIONS_KEY, out var extensionsValues) ? _serializer.Deserialize<Inputs>(extensionsValues[0]) : null,
         OperationName = formCollection.TryGetValue(OPERATION_NAME_KEY, out var operationNameValues) ? operationNameValues[0] : null,
@@ -581,30 +595,29 @@ public abstract class GraphQLHttpMiddleware
     /// <summary>
     /// Reads body of content type: application/graphql
     /// </summary>
-    private static async Task<GraphQLRequest> DeserializeFromGraphBodyAsync(Stream bodyStream)
+    private static async Task<GraphQLRequest> DeserializeFromGraphBodyAsync(Stream bodyStream, System.Text.Encoding? encoding)
     {
         // do not close underlying HTTP connection
-        using var streamReader = new StreamReader(bodyStream, System.Text.Encoding.UTF8, true, 1024, leaveOpen: true);
+        using var streamReader = new StreamReader(bodyStream, encoding ?? System.Text.Encoding.UTF8, true, 1024, leaveOpen: true);
 
         // read query text
         string query = await streamReader.ReadToEndAsync();
 
-        // return request
+        // return request; application/graphql MediaType supports only query text
         return new GraphQLRequest { Query = query };
     }
 
-#if NET5_0_OR_GREATER
-    private static bool TryGetEncoding(string? charset, out System.Text.Encoding encoding)
+    private static bool TryGetEncoding(string? charset, out System.Text.Encoding? encoding)
     {
-        encoding = null!;
+        encoding = null;
 
         if (string.IsNullOrEmpty(charset))
             return true;
 
         try {
             // Remove at most a single set of quotes.
-            if (charset.Length > 2 && charset[0] == '\"' && charset[^1] == '\"') {
-                encoding = System.Text.Encoding.GetEncoding(charset[1..^1]);
+            if (charset!.Length > 2 && charset[0] == '\"' && charset[charset.Length - 1] == '\"') {
+                encoding = System.Text.Encoding.GetEncoding(charset.Substring(1, charset.Length - 2));
             } else {
                 encoding = System.Text.Encoding.GetEncoding(charset);
             }
@@ -614,5 +627,4 @@ public abstract class GraphQLHttpMiddleware
 
         return true;
     }
-#endif
 }
