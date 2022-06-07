@@ -20,6 +20,8 @@ Rename `IWebSocketConnection.CloseConnectionAsync` to `CloseAsync`.
 Split POST request parsing code into `ReadPostContentAsync`, to allow overriding
 in derived implementations -- for example, to read form files into variables.
 
+Rename `BaseSubscriptionServer.Client` to `Connection`.
+
 ## 3.0.0
 
 Supports building user contexts after authentication has occurred for WebSocket

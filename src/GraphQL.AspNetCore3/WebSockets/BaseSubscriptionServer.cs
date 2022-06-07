@@ -17,7 +17,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     /// Returns a <see cref="IWebSocketConnection"/> instance that can be used
     /// to send messages to the client.
     /// </summary>
-    protected IWebSocketConnection Client { get; }
+    protected IWebSocketConnection Connection { get; }
 
     /// <summary>
     /// Returns a <see cref="System.Threading.CancellationToken"/> that is signaled
@@ -62,8 +62,8 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
                 throw new ArgumentOutOfRangeException($"{nameof(options)}.{nameof(GraphQLHttpMiddlewareOptions.WebSockets)}.{nameof(GraphQLWebSocketOptions.KeepAliveTimeout)}");
 #pragma warning restore CA2208 // Instantiate argument exceptions correctly
         }
-        Client = sendStream ?? throw new ArgumentNullException(nameof(sendStream));
-        _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(Client.RequestAborted);
+        Connection = sendStream ?? throw new ArgumentNullException(nameof(sendStream));
+        _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(Connection.RequestAborted);
         CancellationToken = _cancellationTokenSource.Token;
     }
 
@@ -126,55 +126,55 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     /// Executes upon a request to close the connection from the client.
     /// </summary>
     protected virtual Task OnCloseConnectionAsync()
-        => Client.CloseAsync();
+        => Connection.CloseAsync();
 
     /// <summary>
     /// Executes upon a request that has failed authorization.
     /// </summary>
     protected virtual Task ErrorAccessDeniedAsync()
-        => Client.CloseAsync(4401, "Access denied");
+        => Connection.CloseAsync(4401, "Access denied");
 
     /// <summary>
     /// Sends a fatal error message indicating that the initialization timeout has expired
     /// without the connection being initialized.
     /// </summary>
     protected virtual Task ErrorConnectionInitializationTimeoutAsync()
-        => Client.CloseAsync(4408, "Connection initialization timeout");
+        => Connection.CloseAsync(4408, "Connection initialization timeout");
 
     /// <summary>
     /// Sends a fatal error message indicating that the client attempted to initialize
     /// the connection more than one time.
     /// </summary>
     protected virtual Task ErrorTooManyInitializationRequestsAsync(OperationMessage message)
-        => Client.CloseAsync(4429, "Too many initialization requests");
+        => Connection.CloseAsync(4429, "Too many initialization requests");
 
     /// <summary>
     /// Sends a fatal error message indicating that the client attempted to subscribe
     /// to an event stream before initialization was complete.
     /// </summary>
     protected virtual Task ErrorNotInitializedAsync(OperationMessage message)
-        => Client.CloseAsync(4401, "Unauthorized");
+        => Connection.CloseAsync(4401, "Unauthorized");
 
     /// <summary>
     /// Sends a fatal error message indicating that the client attempted to use an
     /// unrecognized message type.
     /// </summary>
     protected virtual Task ErrorUnrecognizedMessageAsync(OperationMessage message)
-        => Client.CloseAsync(4400, "Unrecognized message");
+        => Connection.CloseAsync(4400, "Unrecognized message");
 
     /// <summary>
     /// Sends a fatal error message indicating that the client attempted to subscribe
     /// to an event stream with an empty id.
     /// </summary>
     protected virtual Task ErrorIdCannotBeBlankAsync(OperationMessage message)
-        => Client.CloseAsync(4400, "Id cannot be blank");
+        => Connection.CloseAsync(4400, "Id cannot be blank");
 
     /// <summary>
     /// Sends a fatal error message indicating that the client attempted to subscribe
     /// to an event stream with an id that was already in use.
     /// </summary>
     protected virtual Task ErrorIdAlreadyExistsAsync(OperationMessage message)
-        => Client.CloseAsync(4409, $"Subscriber for {message.Id} already exists");
+        => Connection.CloseAsync(4409, $"Subscriber for {message.Id} already exists");
 
     /// <summary>
     /// Authorizes an incoming GraphQL over WebSockets request with the connection initialization message.
@@ -196,7 +196,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
         // allocation-free authorization here
         var success = await AuthorizationHelper.AuthorizeAsync(
             new AuthorizationParameters<(BaseSubscriptionServer Server, OperationMessage Message)>(
-                Client.HttpContext,
+                Connection.HttpContext,
                 _options,
                 static info => info.Server.OnNotAuthenticatedAsync(info.Message),
                 static info => info.Server.OnNotAuthorizedRoleAsync(info.Message),
@@ -283,9 +283,9 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
          */
         async Task StartSmartKeepAliveLoopAsync()
         {
-            var lastKeepAliveSent = Client.LastMessageSentAt;
+            var lastKeepAliveSent = Connection.LastMessageSentAt;
             while (true) {
-                var lastSent = Client.LastMessageSentAt;
+                var lastSent = Connection.LastMessageSentAt;
                 var lastComm = lastKeepAliveSent > lastSent ? lastKeepAliveSent : lastSent;
                 var now = DateTime.UtcNow;
                 var timePassed = now.Subtract(lastComm);
