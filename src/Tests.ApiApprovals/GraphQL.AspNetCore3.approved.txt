@@ -226,7 +226,7 @@ namespace GraphQL.AspNetCore3.WebSockets
 {
     public abstract class BaseSubscriptionServer : GraphQL.AspNetCore3.WebSockets.IOperationMessageProcessor, System.IDisposable
     {
-        public BaseSubscriptionServer(GraphQL.AspNetCore3.WebSockets.IWebSocketConnection sendStream, GraphQL.AspNetCore3.GraphQLHttpMiddlewareOptions options) { }
+        protected BaseSubscriptionServer(GraphQL.AspNetCore3.WebSockets.IWebSocketConnection connection, GraphQL.AspNetCore3.GraphQLHttpMiddlewareOptions options) { }
         protected System.Threading.CancellationToken CancellationToken { get; }
         protected GraphQL.AspNetCore3.WebSockets.IWebSocketConnection Connection { get; }
         protected virtual System.TimeSpan DefaultConnectionTimeout { get; }

@@ -41,12 +41,12 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     protected virtual TimeSpan DefaultConnectionTimeout { get; } = TimeSpan.FromSeconds(10);
 
     /// <summary>
-    /// Initailizes a new instance with the specified parameters.
+    /// Initializes a new instance with the specified parameters.
     /// </summary>
-    /// <param name="sendStream">The WebSockets stream used to send data packets or close the connection.</param>
+    /// <param name="connection">The WebSockets stream used to send data packets or close the connection.</param>
     /// <param name="options">Configuration options for this instance.</param>
-    public BaseSubscriptionServer(
-        IWebSocketConnection sendStream,
+    protected BaseSubscriptionServer(
+        IWebSocketConnection connection,
         GraphQLHttpMiddlewareOptions options)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -62,7 +62,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
                 throw new ArgumentOutOfRangeException($"{nameof(options)}.{nameof(GraphQLHttpMiddlewareOptions.WebSockets)}.{nameof(GraphQLWebSocketOptions.KeepAliveTimeout)}");
 #pragma warning restore CA2208 // Instantiate argument exceptions correctly
         }
-        Connection = sendStream ?? throw new ArgumentNullException(nameof(sendStream));
+        Connection = connection ?? throw new ArgumentNullException(nameof(connection));
         _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(Connection.RequestAborted);
         CancellationToken = _cancellationTokenSource.Token;
     }
@@ -104,7 +104,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     }
 
     /// <summary>
-    /// Indicates if the connection has been initialized yet.
+    /// Indicates if the connection has been already initialized.
     /// </summary>
     protected bool Initialized
         => _initialized == 1;
@@ -238,14 +238,14 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
         => ErrorAccessDeniedAsync();
 
     /// <summary>
-    /// Executes when the client is attempting to initalize the connection.
+    /// Executes when the client is attempting to initialize the connection.
     /// <br/><br/>
     /// By default, this first checks <see cref="AuthorizeAsync(OperationMessage)"/> to validate that the
     /// request has passed authentication.  If validation fails, the connection is closed with an Access
     /// Denied message.
     /// <br/><br/>
     /// Otherwise, the connection is acknowledged via <see cref="OnConnectionAcknowledgeAsync(OperationMessage)"/>,
-    /// <see cref="TryInitialize"/> is called to indicate that this WebSocket connection is ready to accept requests, 
+    /// <see cref="TryInitialize"/> is called to indicate that this WebSocket connection is ready to accept requests,
     /// and keep-alive messages are sent via <see cref="OnSendKeepAliveAsync"/> if configured to do so.
     /// Keep-alive messages are only sent if no messages have been sent over the WebSockets connection for the
     /// length of time configured in <see cref="GraphQLWebSocketOptions.KeepAliveTimeout"/>.
@@ -268,7 +268,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
 
         async Task StartKeepAliveLoopAsync()
         {
-            while (true) {
+            while (!CancellationToken.IsCancellationRequested) {
                 await Task.Delay(keepAliveTimeout, CancellationToken);
                 await OnSendKeepAliveAsync();
             }
@@ -278,17 +278,17 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
          * This 'smart' keep-alive logic doesn't work with subscription-transport-ws because the client will
          * terminate a connection 20 seconds after the last keep-alive was received (or it will never
          * terminate if no keep-alive was ever received).
-         * 
+         *
          * See: https://github.com/graphql/graphql-playground/issues/1247
          */
         async Task StartSmartKeepAliveLoopAsync()
         {
             var lastKeepAliveSent = Connection.LastMessageSentAt;
-            while (true) {
+            while (!CancellationToken.IsCancellationRequested) {
                 var lastSent = Connection.LastMessageSentAt;
-                var lastComm = lastKeepAliveSent > lastSent ? lastKeepAliveSent : lastSent;
+                var lastCommunication = lastKeepAliveSent > lastSent ? lastKeepAliveSent : lastSent;
                 var now = DateTime.UtcNow;
-                var timePassed = now.Subtract(lastComm);
+                var timePassed = now.Subtract(lastCommunication);
                 if (timePassed >= keepAliveTimeout) {
                     await OnSendKeepAliveAsync();
                     lastKeepAliveSent = now;
@@ -312,7 +312,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     protected abstract Task OnConnectionAcknowledgeAsync(OperationMessage message);
 
     /// <summary>
-    /// Executes when a new subscription request has occurred.
+    /// Executes when a new GraphQL request (typically subscription) has occurred.
     /// Optionally disconnects any existing subscription associated with the same id.
     /// </summary>
     protected virtual async Task SubscribeAsync(OperationMessage message, bool overwrite)
@@ -377,7 +377,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
         => Task.FromResult<ExecutionError>(new UnhandledError("Unable to set up subscription for the requested field.", ex));
 
     /// <summary>
-    /// Sends a single result to the client for a subscription or request, along with a notice
+    /// Sends a single result to the client for a query or mutation request, along with a notice
     /// that it was the last result in the event stream.
     /// </summary>
     protected virtual async Task SendSingleResultAsync(OperationMessage message, ExecutionResult result)
@@ -387,35 +387,29 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     }
 
     /// <summary>
-    /// Sends an execution error to the client during set-up of a subscription.
+    /// Sends an execution error to the client during set-up of a GraphQL request (typically subscription).
     /// </summary>
     protected virtual Task SendErrorResultAsync(OperationMessage message, ExecutionError executionError)
         => SendErrorResultAsync(message.Id!, executionError);
 
-    /// <summary>
-    /// Sends an execution error to the client during set-up of a subscription.
-    /// </summary>
+    /// <inheritdoc cref="SendErrorResultAsync(OperationMessage, ExecutionError)"/>
     protected virtual Task SendErrorResultAsync(string id, ExecutionError executionError)
         => SendErrorResultAsync(id, new ExecutionResult { Errors = new ExecutionErrors { executionError } });
 
-    /// <summary>
-    /// Sends an error result to the client during set-up of a subscription.
-    /// </summary>
+    /// <inheritdoc cref="SendErrorResultAsync(OperationMessage, ExecutionError)"/>
     protected virtual Task SendErrorResultAsync(OperationMessage message, ExecutionResult result)
         => SendErrorResultAsync(message.Id!, result);
 
-    /// <summary>
-    /// Sends an error result to the client during set-up of a subscription.
-    /// </summary>
+    /// <inheritdoc cref="SendErrorResultAsync(OperationMessage, ExecutionError)"/>
     protected abstract Task SendErrorResultAsync(string id, ExecutionResult result);
 
     /// <summary>
-    /// Sends a data packet to the client for a subscription event.
+    /// Sends a data packet to the client for a GraphQL request (typically a subscription event).
     /// </summary>
     protected abstract Task SendDataAsync(string id, ExecutionResult result);
 
     /// <summary>
-    /// Sends a notice that a subscription has completed and no more data packets will be sent.
+    /// Sends a notice that a GraphQL request has completed (typically a subscription) and no more data packets will be sent.
     /// </summary>
     protected abstract Task SendCompletedAsync(string id);
 
@@ -447,15 +441,15 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     /// </summary>
     private class Observer : IObserver<ExecutionResult>
     {
-        private readonly BaseSubscriptionServer _handler;
+        private readonly BaseSubscriptionServer _server;
         private readonly string _id;
         private readonly bool _closeAfterOnError;
         private readonly bool _closeAfterAnyError;
         private int _done;
 
-        public Observer(BaseSubscriptionServer handler, string id, bool closeAfterOnError, bool closeAfterAnyError)
+        public Observer(BaseSubscriptionServer server, string id, bool closeAfterOnError, bool closeAfterAnyError)
         {
-            _handler = handler;
+            _server = server;
             _id = id;
             _closeAfterOnError = closeAfterOnError;
             _closeAfterAnyError = closeAfterAnyError;
@@ -466,46 +460,41 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
             if (Interlocked.Exchange(ref _done, 1) == 1)
                 return;
             try {
-                _ = _handler.SendCompletedAsync(_id);
+                _ = _server.SendCompletedAsync(_id);
             } catch { }
         }
 
         public async void OnError(Exception error)
         {
-            if (_closeAfterOnError) {
-                if (Interlocked.Exchange(ref _done, 1) == 1)
-                    return;
-            } else {
-                if (Interlocked.CompareExchange(ref _done, 0, 0) == 1)
-                    return;
-            }
+            if (Thread.VolatileRead(ref _done) == 1)
+                return;
+            if (_closeAfterOnError && Interlocked.Exchange(ref _done, 1) == 1)
+                return;
             try {
                 if (error != null) {
-                    var executionError = error is ExecutionError ee ? ee : await _handler.HandleErrorFromSourceAsync(error);
+                    var executionError = error is ExecutionError ee ? ee : await _server.HandleErrorFromSourceAsync(error);
                     if (executionError != null) {
                         var result = new ExecutionResult {
                             Errors = new ExecutionErrors { executionError },
                         };
-                        await _handler.SendDataAsync(_id, result);
+                        await _server.SendDataAsync(_id, result);
                     }
                 }
             } catch { }
             try {
                 if (_closeAfterOnError)
-                    await _handler.SendCompletedAsync(_id);
+                    await _server.SendCompletedAsync(_id);
             } catch { }
         }
 
         public async void OnNext(ExecutionResult value)
         {
-            if (Interlocked.CompareExchange(ref _done, 0, 0) == 1)
-                return;
-            if (value == null)
+            if (value == null || Thread.VolatileRead(ref _done) == 1)
                 return;
             try {
-                await _handler.SendDataAsync(_id, value);
-                if (_closeAfterAnyError && value.Errors != null && value.Errors.Count > 0) {
-                    await _handler.SendCompletedAsync(_id);
+                await _server.SendDataAsync(_id, value);
+                if (_closeAfterAnyError && value.Errors?.Count > 0) {
+                    await _server.SendCompletedAsync(_id);
                 }
             } catch { }
         }
