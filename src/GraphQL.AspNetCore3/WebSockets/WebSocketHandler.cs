@@ -114,6 +114,7 @@ public class WebSocketHandler : IWebSocketHandler
             case GraphQLWs.SubscriptionServer.SubProtocol: {
                 var server = new GraphQLWs.SubscriptionServer(
                     webSocketConnection,
+                    Options.WebSockets,
                     Options,
                     _executer,
                     _serializer,
@@ -125,6 +126,7 @@ public class WebSocketHandler : IWebSocketHandler
             case SubscriptionsTransportWs.SubscriptionServer.SubProtocol: {
                 var server = new SubscriptionsTransportWs.SubscriptionServer(
                     webSocketConnection,
+                    Options.WebSockets,
                     Options,
                     _executer,
                     _serializer,

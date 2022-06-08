@@ -3,7 +3,7 @@ namespace Tests.WebSockets;
 public class TestBaseSubscriptionServer : BaseSubscriptionServer
 {
     public TestBaseSubscriptionServer(IWebSocketConnection sendStream, GraphQLHttpMiddlewareOptions options)
-        : base(sendStream, options) { }
+        : base(sendStream, options.WebSockets, options) { }
 
     public override Task OnMessageReceivedAsync(OperationMessage message) => throw new NotImplementedException();
     protected override Task<ExecutionResult> ExecuteRequestAsync(OperationMessage message) => throw new NotImplementedException();

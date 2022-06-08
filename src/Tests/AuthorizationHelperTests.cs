@@ -12,7 +12,7 @@ public class AuthorizationHelperTests
         var ret = await AuthorizationHelper.AuthorizeAsync<object?>(default, null);
         ret.ShouldBeTrue();
 
-        ret = await AuthorizationHelper.AuthorizeAsync(new AuthorizationParameters<object?>(Mock.Of<HttpContext>(MockBehavior.Strict), new(), null, null, null), null);
+        ret = await AuthorizationHelper.AuthorizeAsync(new AuthorizationParameters<object?>(Mock.Of<HttpContext>(MockBehavior.Strict), new GraphQLHttpMiddlewareOptions(), null, null, null), null);
         ret.ShouldBeTrue();
     }
 

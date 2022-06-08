@@ -11,7 +11,8 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
 {
     private volatile int _initialized;
     private CancellationTokenSource? _cancellationTokenSource;
-    private readonly GraphQLHttpMiddlewareOptions _options;
+    private readonly GraphQLWebSocketOptions _options;
+    private readonly IAuthorizationOptions _authorizationOptions;
 
     /// <summary>
     /// Returns a <see cref="IWebSocketConnection"/> instance that can be used
@@ -45,32 +46,35 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     /// </summary>
     /// <param name="connection">The WebSockets stream used to send data packets or close the connection.</param>
     /// <param name="options">Configuration options for this instance.</param>
+    /// <param name="authorizationOptions">Authorization options for this instance.</param>
     protected BaseSubscriptionServer(
         IWebSocketConnection connection,
-        GraphQLHttpMiddlewareOptions options)
+        GraphQLWebSocketOptions options,
+        IAuthorizationOptions authorizationOptions)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
-        if (options.WebSockets.ConnectionInitWaitTimeout.HasValue) {
-            if (options.WebSockets.ConnectionInitWaitTimeout.Value != Timeout.InfiniteTimeSpan && options.WebSockets.ConnectionInitWaitTimeout.Value <= TimeSpan.Zero || options.WebSockets.ConnectionInitWaitTimeout.Value > TimeSpan.FromMilliseconds(int.MaxValue))
+        _authorizationOptions = authorizationOptions ?? throw new ArgumentNullException(nameof(authorizationOptions));
+        if (options.ConnectionInitWaitTimeout.HasValue) {
+            if (options.ConnectionInitWaitTimeout.Value != Timeout.InfiniteTimeSpan && options.ConnectionInitWaitTimeout.Value <= TimeSpan.Zero || options.ConnectionInitWaitTimeout.Value > TimeSpan.FromMilliseconds(int.MaxValue))
 #pragma warning disable CA2208 // Instantiate argument exceptions correctly
                 throw new ArgumentOutOfRangeException($"{nameof(options)}.{nameof(GraphQLHttpMiddlewareOptions.WebSockets)}.{nameof(GraphQLWebSocketOptions.ConnectionInitWaitTimeout)}");
 #pragma warning restore CA2208 // Instantiate argument exceptions correctly
         }
-        if (options.WebSockets.KeepAliveTimeout.HasValue) {
-            if (options.WebSockets.KeepAliveTimeout.Value != Timeout.InfiniteTimeSpan && options.WebSockets.KeepAliveTimeout.Value <= TimeSpan.Zero || options.WebSockets.KeepAliveTimeout.Value > TimeSpan.FromMilliseconds(int.MaxValue))
+        if (options.KeepAliveTimeout.HasValue) {
+            if (options.KeepAliveTimeout.Value != Timeout.InfiniteTimeSpan && options.KeepAliveTimeout.Value <= TimeSpan.Zero || options.KeepAliveTimeout.Value > TimeSpan.FromMilliseconds(int.MaxValue))
 #pragma warning disable CA2208 // Instantiate argument exceptions correctly
                 throw new ArgumentOutOfRangeException($"{nameof(options)}.{nameof(GraphQLHttpMiddlewareOptions.WebSockets)}.{nameof(GraphQLWebSocketOptions.KeepAliveTimeout)}");
 #pragma warning restore CA2208 // Instantiate argument exceptions correctly
         }
         Connection = connection ?? throw new ArgumentNullException(nameof(connection));
-        _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(Connection.RequestAborted);
+        _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(connection.RequestAborted);
         CancellationToken = _cancellationTokenSource.Token;
     }
 
     /// <inheritdoc/>
     public virtual Task InitializeConnectionAsync()
     {
-        var connectInitWaitTimeout = _options.WebSockets.ConnectionInitWaitTimeout ?? DefaultConnectionTimeout;
+        var connectInitWaitTimeout = _options.ConnectionInitWaitTimeout ?? DefaultConnectionTimeout;
         if (connectInitWaitTimeout != Timeout.InfiniteTimeSpan) {
             _ = Task.Run(async () => {
                 await Task.Delay(connectInitWaitTimeout, CancellationToken); // CancellationToken is set when this class is disposed
@@ -197,7 +201,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
         var success = await AuthorizationHelper.AuthorizeAsync(
             new AuthorizationParameters<(BaseSubscriptionServer Server, OperationMessage Message)>(
                 Connection.HttpContext,
-                _options,
+                _authorizationOptions,
                 static info => info.Server.OnNotAuthenticatedAsync(info.Message),
                 static info => info.Server.OnNotAuthorizedRoleAsync(info.Message),
                 static (info, result) => info.Server.OnNotAuthorizedPolicyAsync(info.Message, result)),
@@ -258,7 +262,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
         await OnConnectionAcknowledgeAsync(message);
         TryInitialize();
 
-        var keepAliveTimeout = _options.WebSockets.KeepAliveTimeout ?? DefaultKeepAliveTimeout;
+        var keepAliveTimeout = _options.KeepAliveTimeout ?? DefaultKeepAliveTimeout;
         if (keepAliveTimeout > TimeSpan.Zero) {
             if (smartKeepAlive)
                 _ = StartSmartKeepAliveLoopAsync();
@@ -351,7 +355,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
                 // do not return a result, but set up a subscription
                 var stream = result.Streams!.Single().Value;
                 // note that this may immediately trigger some notifications
-                var disposer = stream.Subscribe(new Observer(this, messageId, _options.WebSockets.DisconnectAfterErrorEvent, _options.WebSockets.DisconnectAfterAnyError));
+                var disposer = stream.Subscribe(new Observer(this, messageId, _options.DisconnectAfterErrorEvent, _options.DisconnectAfterAnyError));
                 try {
                     if (Subscriptions.CompareExchange(messageId, dummyDisposer, disposer)) {
                         disposer = null;
