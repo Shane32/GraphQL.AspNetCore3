@@ -10,6 +10,11 @@ public class SubscriptionServer : BaseSubscriptionServer
     /// <summary>
     /// The WebSocket sub-protocol used for this protocol.
     /// </summary>
+    /// <remarks>
+    /// Please note that the correct sub-protocol for the
+    /// <see href="https://github.com/apollographql/subscriptions-transport-ws">subscriptions-transport-ws</see>
+    /// protocol is <c>graphql-ws</c> as is defined here.
+    /// </remarks>
     public const string SubProtocol = "graphql-ws";
 
     /// <summary>
@@ -98,12 +103,12 @@ public class SubscriptionServer : BaseSubscriptionServer
     private static readonly OperationMessage _keepAliveMessage = new() { Type = MessageType.GQL_CONNECTION_KEEP_ALIVE };
     /// <inheritdoc/>
     protected override Task OnSendKeepAliveAsync()
-        => Client.SendMessageAsync(_keepAliveMessage);
+        => Connection.SendMessageAsync(_keepAliveMessage);
 
     private static readonly OperationMessage _connectionAckMessage = new() { Type = MessageType.GQL_CONNECTION_ACK };
     /// <inheritdoc/>
     protected override Task OnConnectionAcknowledgeAsync(OperationMessage message)
-        => Client.SendMessageAsync(_connectionAckMessage);
+        => Connection.SendMessageAsync(_connectionAckMessage);
 
     /// <summary>
     /// Executes when a request is received to start a subscription.
@@ -121,7 +126,7 @@ public class SubscriptionServer : BaseSubscriptionServer
     protected override async Task SendErrorResultAsync(string id, ExecutionResult result)
     {
         if (Subscriptions.TryRemove(id)) {
-            await Client.SendMessageAsync(new OperationMessage {
+            await Connection.SendMessageAsync(new OperationMessage {
                 Id = id,
                 Type = MessageType.GQL_ERROR,
                 Payload = result,
@@ -133,7 +138,7 @@ public class SubscriptionServer : BaseSubscriptionServer
     protected override async Task SendDataAsync(string id, ExecutionResult result)
     {
         if (Subscriptions.Contains(id)) {
-            await Client.SendMessageAsync(new OperationMessage {
+            await Connection.SendMessageAsync(new OperationMessage {
                 Id = id,
                 Type = MessageType.GQL_DATA,
                 Payload = result,
@@ -145,7 +150,7 @@ public class SubscriptionServer : BaseSubscriptionServer
     protected override async Task SendCompletedAsync(string id)
     {
         if (Subscriptions.TryRemove(id)) {
-            await Client.SendMessageAsync(new OperationMessage {
+            await Connection.SendMessageAsync(new OperationMessage {
                 Id = id,
                 Type = MessageType.GQL_COMPLETE,
             });
@@ -178,7 +183,7 @@ public class SubscriptionServer : BaseSubscriptionServer
     /// <inheritdoc/>
     protected override async Task ErrorAccessDeniedAsync()
     {
-        await Client.SendMessageAsync(new OperationMessage {
+        await Connection.SendMessageAsync(new OperationMessage {
             Type = MessageType.GQL_CONNECTION_ERROR,
             Payload = "Access denied",
         });
@@ -205,12 +210,12 @@ public class SubscriptionServer : BaseSubscriptionServer
     protected override async ValueTask<bool> AuthorizeAsync(OperationMessage message)
     {
         if (_authenticationService != null)
-            await _authenticationService.AuthenticateAsync(Client, SubProtocol, message);
+            await _authenticationService.AuthenticateAsync(Connection, SubProtocol, message);
 
         var success = await base.AuthorizeAsync(message);
 
         if (success) {
-            UserContext = await UserContextBuilder.BuildUserContextAsync(Client.HttpContext, message.Payload);
+            UserContext = await UserContextBuilder.BuildUserContextAsync(Connection.HttpContext, message.Payload);
         }
 
         return success;
