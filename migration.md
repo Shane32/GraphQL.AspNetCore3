@@ -22,6 +22,10 @@ in derived implementations -- for example, to read form files into variables.
 
 Rename `BaseSubscriptionServer.Client` to `Connection`.
 
+`BaseSubscriptionServer` now requires `GraphQLWebSocketOptions` and `IAuthorizationOptions`
+rather than `GraphQLHttpMiddlewareOptions`.  Corresponding changes were made to the two
+implementations of this class.
+
 ## 3.0.0
 
 Supports building user contexts after authentication has occurred for WebSocket

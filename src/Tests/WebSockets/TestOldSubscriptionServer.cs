@@ -7,7 +7,7 @@ public class TestOldSubscriptionServer : SubscriptionServer
     public TestOldSubscriptionServer(IWebSocketConnection sendStream, GraphQLHttpMiddlewareOptions options,
         IDocumentExecuter executer, IGraphQLSerializer serializer, IServiceScopeFactory serviceScopeFactory,
         IUserContextBuilder userContextBuilder)
-        : base(sendStream, options, executer, serializer, serviceScopeFactory, userContextBuilder) { }
+        : base(sendStream, options.WebSockets, options, executer, serializer, serviceScopeFactory, userContextBuilder) { }
 
     public bool Do_TryInitialize()
         => TryInitialize();

@@ -27,8 +27,9 @@ public class BaseSubscriptionServerTests : IDisposable
     public void InvalidConstructorArgumentsThrows()
     {
         var options = new GraphQLHttpMiddlewareOptions();
-        Should.Throw<ArgumentNullException>(() => new TestBaseSubscriptionServer(null!, new GraphQLHttpMiddlewareOptions()));
-        Should.Throw<ArgumentNullException>(() => new TestBaseSubscriptionServer(_stream, null!));
+        Should.Throw<ArgumentNullException>(() => new TestBaseSubscriptionServer(null!, new GraphQLWebSocketOptions(), new GraphQLHttpMiddlewareOptions()));
+        Should.Throw<ArgumentNullException>(() => new TestBaseSubscriptionServer(_stream, null!, new GraphQLHttpMiddlewareOptions()));
+        Should.Throw<ArgumentNullException>(() => new TestBaseSubscriptionServer(_stream, new GraphQLWebSocketOptions(), null!));
 
         options = new();
         options.WebSockets.ConnectionInitWaitTimeout = TimeSpan.FromSeconds(-1);

@@ -15,15 +15,15 @@ public struct AuthorizationParameters<TState>
     /// </summary>
     public AuthorizationParameters(
         HttpContext httpContext,
-        GraphQLHttpMiddlewareOptions middlewareOptions,
+        IAuthorizationOptions authorizationOptions,
         Func<TState, Task>? onNotAuthenticated,
         Func<TState, Task>? onNotAuthorizedRole,
         Func<TState, AuthorizationResult, Task>? onNotAuthorizedPolicy)
     {
         HttpContext = httpContext;
-        AuthorizationRequired = middlewareOptions.AuthorizationRequired;
-        AuthorizedRoles = middlewareOptions.AuthorizedRoles;
-        AuthorizedPolicy = middlewareOptions.AuthorizedPolicy;
+        AuthorizationRequired = authorizationOptions.AuthorizationRequired;
+        AuthorizedRoles = authorizationOptions.AuthorizedRoles;
+        AuthorizedPolicy = authorizationOptions.AuthorizedPolicy;
         OnNotAuthenticated = onNotAuthenticated;
         OnNotAuthorizedRole = onNotAuthorizedRole;
         OnNotAuthorizedPolicy = onNotAuthorizedPolicy;
@@ -38,7 +38,7 @@ public struct AuthorizationParameters<TState>
     public bool AuthorizationRequired { get; set; }
 
     /// <inheritdoc cref="GraphQLHttpMiddlewareOptions.AuthorizedRoles"/>
-    public List<string>? AuthorizedRoles { get; set; }
+    public IEnumerable<string>? AuthorizedRoles { get; set; }
 
     /// <inheritdoc cref="GraphQLHttpMiddlewareOptions.AuthorizedPolicy"/>
     public string? AuthorizedPolicy { get; set; }
