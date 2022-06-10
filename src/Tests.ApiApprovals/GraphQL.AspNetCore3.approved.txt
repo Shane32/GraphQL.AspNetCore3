@@ -359,13 +359,13 @@ namespace GraphQL.AspNetCore3.WebSockets.GraphQLWs
     }
     public class SubscriptionServer : GraphQL.AspNetCore3.WebSockets.BaseSubscriptionServer
     {
-        public const string SubProtocol = "graphql-transport-ws";
         public SubscriptionServer(GraphQL.AspNetCore3.WebSockets.IWebSocketConnection connection, GraphQL.AspNetCore3.WebSockets.GraphQLWebSocketOptions options, GraphQL.AspNetCore3.IAuthorizationOptions authorizationOptions, GraphQL.IDocumentExecuter executer, GraphQL.IGraphQLSerializer serializer, Microsoft.Extensions.DependencyInjection.IServiceScopeFactory serviceScopeFactory, GraphQL.AspNetCore3.IUserContextBuilder userContextBuilder, GraphQL.AspNetCore3.WebSockets.IWebSocketAuthenticationService? authenticationService = null) { }
         protected GraphQL.IDocumentExecuter DocumentExecuter { get; }
         protected GraphQL.IGraphQLSerializer Serializer { get; }
         protected Microsoft.Extensions.DependencyInjection.IServiceScopeFactory ServiceScopeFactory { get; }
         protected System.Collections.Generic.IDictionary<string, object?>? UserContext { get; set; }
         protected GraphQL.AspNetCore3.IUserContextBuilder UserContextBuilder { get; }
+        public static string SubProtocol { get; }
         protected override System.Threading.Tasks.ValueTask<bool> AuthorizeAsync(GraphQL.Transport.OperationMessage message) { }
         protected override System.Threading.Tasks.Task<GraphQL.ExecutionResult> ExecuteRequestAsync(GraphQL.Transport.OperationMessage message) { }
         protected virtual System.Threading.Tasks.Task OnCompleteAsync(GraphQL.Transport.OperationMessage message) { }
@@ -397,13 +397,13 @@ namespace GraphQL.AspNetCore3.WebSockets.SubscriptionsTransportWs
     }
     public class SubscriptionServer : GraphQL.AspNetCore3.WebSockets.BaseSubscriptionServer
     {
-        public const string SubProtocol = "graphql-ws";
         public SubscriptionServer(GraphQL.AspNetCore3.WebSockets.IWebSocketConnection connection, GraphQL.AspNetCore3.WebSockets.GraphQLWebSocketOptions options, GraphQL.AspNetCore3.IAuthorizationOptions authorizationOptions, GraphQL.IDocumentExecuter executer, GraphQL.IGraphQLSerializer serializer, Microsoft.Extensions.DependencyInjection.IServiceScopeFactory serviceScopeFactory, GraphQL.AspNetCore3.IUserContextBuilder userContextBuilder, GraphQL.AspNetCore3.WebSockets.IWebSocketAuthenticationService? authenticationService = null) { }
         protected GraphQL.IDocumentExecuter DocumentExecuter { get; }
         protected GraphQL.IGraphQLSerializer Serializer { get; }
         protected Microsoft.Extensions.DependencyInjection.IServiceScopeFactory ServiceScopeFactory { get; }
         protected System.Collections.Generic.IDictionary<string, object?>? UserContext { get; set; }
         protected GraphQL.AspNetCore3.IUserContextBuilder UserContextBuilder { get; }
+        public static string SubProtocol { get; }
         protected override System.Threading.Tasks.ValueTask<bool> AuthorizeAsync(GraphQL.Transport.OperationMessage message) { }
         protected override System.Threading.Tasks.Task ErrorAccessDeniedAsync() { }
         protected override System.Threading.Tasks.Task<GraphQL.ExecutionResult> ExecuteRequestAsync(GraphQL.Transport.OperationMessage message) { }
