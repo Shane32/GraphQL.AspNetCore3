@@ -490,7 +490,7 @@ public class BaseSubscriptionServerTests : IDisposable
             .Verifiable();
         _mockServer.Protected().Setup<Task>("SubscribeAsync", message, false).Verifiable();
         _mockServer.Setup(x => x.Dispose()).CallBase().Verifiable();
-        await Should.ThrowAsync<OperationCanceledException>(() => _server.Do_SubscribeAsync(message, false));
+        await _server.Do_SubscribeAsync(message, false);
         _mockServer.Verify();
         _mockServer.VerifyNoOtherCalls();
     }
@@ -548,7 +548,7 @@ public class BaseSubscriptionServerTests : IDisposable
             .Verifiable();
         _mockServer.Protected().Setup<Task>("SubscribeAsync", message, false).Verifiable();
         _mockServer.Setup(x => x.Dispose()).CallBase().Verifiable();
-        await Should.ThrowAsync<OperationCanceledException>(() => _server.Do_SubscribeAsync(message, false));
+        await _server.Do_SubscribeAsync(message, false);
         _mockServer.Verify();
         _mockServer.VerifyNoOtherCalls();
     }
@@ -569,6 +569,53 @@ public class BaseSubscriptionServerTests : IDisposable
         _mockServer.Protected().Setup<Task>("SubscribeAsync", message, false).Verifiable();
         _mockServer.Protected().Setup<Task>("UnsubscribeAsync", message.Id).Verifiable();
         await _server.Do_SubscribeAsync(message, false);
+        _mockServer.Verify();
+        _mockServer.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task Subscribe_RunsAsynchronously()
+    {
+        var message1 = new OperationMessage { Id = "abc" };
+        var message2 = new OperationMessage { Id = "def" };
+        var result1 = new ExecutionResult {
+            Executed = true,
+        };
+        var result2 = new ExecutionResult {
+            Executed = true,
+        };
+        var waiter = new TaskCompletionSource<bool>();
+        var done = new TaskCompletionSource<bool>();
+        var done2 = new TaskCompletionSource<bool>();
+        _mockServer.Protected().Setup<Task<ExecutionResult>>("ExecuteRequestAsync", message1)
+            .Returns(async () => {
+                await waiter.Task;
+                await done2.Task;
+                return result1;
+            })
+            .Verifiable();
+        _mockServer.Protected().Setup<Task<ExecutionResult>>("ExecuteRequestAsync", message2)
+            .Returns(async () => {
+                await waiter.Task;
+                return result2;
+            })
+            .Verifiable();
+        _mockServer.Protected().Setup<Task>("SubscribeAsync", message1, false).Verifiable();
+        _mockServer.Protected().Setup<Task>("SubscribeAsync", message2, false).Verifiable();
+        _mockServer.Protected().Setup<Task>("SendSingleResultAsync", message1, result1).Returns(() => {
+            done.SetResult(true);
+            return Task.CompletedTask;
+        }).Verifiable();
+        _mockServer.Protected().Setup<Task>("SendSingleResultAsync", message2, result2).Returns(() => {
+            done2.SetResult(true);
+            return Task.CompletedTask;
+        }).Verifiable();
+        await _server.Do_SubscribeAsync(message1, false);
+        await _server.Do_SubscribeAsync(message2, false);
+        done.Task.IsCompleted.ShouldBeFalse();
+        waiter.SetResult(true);
+        await done.Task;
+        await done2.Task;
         _mockServer.Verify();
         _mockServer.VerifyNoOtherCalls();
     }

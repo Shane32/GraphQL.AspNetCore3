@@ -7,6 +7,11 @@ namespace GraphQL.AspNetCore3.WebSockets;
 /// <summary>
 /// Manages a WebSocket message stream.
 /// </summary>
+/// <remarks>
+/// All methods except <see cref="OnMessageReceivedAsync">OnMessageReceivedAsync</see> should be thread-safe.
+/// <see cref="OnMessageReceivedAsync(OperationMessage)">OnMessageReceivedAsync</see> will receive an ordered
+/// sequence of messages from the client.
+/// </remarks>
 public abstract class BaseSubscriptionServer : IOperationMessageProcessor
 {
     private int _initialized;
@@ -331,56 +336,62 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
 
         var dummyDisposer = new DummyDisposer();
 
-        try {
-            if (overwrite) {
-                Subscriptions[messageId] = dummyDisposer;
-            } else {
-                if (!Subscriptions.TryAdd(messageId, dummyDisposer)) {
-                    await ErrorIdAlreadyExistsAsync(message);
+        if (overwrite) {
+            Subscriptions[messageId] = dummyDisposer;
+        } else {
+            if (!Subscriptions.TryAdd(messageId, dummyDisposer)) {
+                await ErrorIdAlreadyExistsAsync(message);
+                return;
+            }
+        }
+
+        // start executing the request without blocking the message loop
+        _ = StartSubscribeAsync();
+
+        async Task StartSubscribeAsync()
+        {
+            try {
+                var result = await ExecuteRequestAsync(message);
+                CancellationToken.ThrowIfCancellationRequested();
+                if (!Subscriptions.Contains(messageId, dummyDisposer))
                     return;
-                }
-            }
 
-            var result = await ExecuteRequestAsync(message);
-            CancellationToken.ThrowIfCancellationRequested();
-            if (!Subscriptions.Contains(messageId, dummyDisposer))
-                return;
-
-            // There is no support within the GraphQL spec for multiple streams to be returned.
-            // GraphQL.NET has validation rules to prevent this, but technically the execution
-            // strategy still allows for it (if the validation rule were not used).  Regardless, the
-            // protocol does not support such a scenario as there would need to be separate
-            // IDs for each stream.  So, if there were to be more than one stream returned,
-            // execution would fall through to SendErrorResultAsync -- but so long as the
-            // validation rules are in place, that should not be possible.
-            if (result.Streams?.Count == 1) {
-                // do not return a result, but set up a subscription
-                var stream = result.Streams!.Single().Value;
-                // note that this may immediately trigger some notifications
-                var disposer = stream.Subscribe(new Observer(this, messageId, _options.DisconnectAfterErrorEvent, _options.DisconnectAfterAnyError));
-                try {
-                    if (Subscriptions.CompareExchange(messageId, dummyDisposer, disposer)) {
-                        disposer = null;
+                // There is no support within the GraphQL spec for multiple streams to be returned.
+                // GraphQL.NET has validation rules to prevent this, but technically the execution
+                // strategy still allows for it (if the validation rule were not used).  Regardless, the
+                // protocol does not support such a scenario as there would need to be separate
+                // IDs for each stream.  So, if there were to be more than one stream returned,
+                // execution would fall through to SendErrorResultAsync -- but so long as the
+                // validation rules are in place, that should not be possible.
+                if (result.Streams?.Count == 1) {
+                    // do not return a result, but set up a subscription
+                    var stream = result.Streams!.Single().Value;
+                    // note that this may immediately trigger some notifications
+                    var disposer = stream.Subscribe(new Observer(this, messageId, _options.DisconnectAfterErrorEvent, _options.DisconnectAfterAnyError));
+                    try {
+                        if (Subscriptions.CompareExchange(messageId, dummyDisposer, disposer)) {
+                            disposer = null;
+                        }
+                    } finally {
+                        disposer?.Dispose();
                     }
-                } finally {
-                    disposer?.Dispose();
+                } else if (result.Executed) {
+                    await SendSingleResultAsync(message, result);
+                } else {
+                    await SendErrorResultAsync(message, result);
                 }
-            } else if (result.Executed) {
-                await SendSingleResultAsync(message, result);
-            } else {
-                await SendErrorResultAsync(message, result);
+            } catch (OperationCanceledException) when (CancellationToken.IsCancellationRequested) {
+                throw;
+            } catch (ExecutionError error) {
+                if (!Subscriptions.Contains(messageId, dummyDisposer))
+                    return;
+                await SendErrorResultAsync(message, error);
+            } catch (Exception ex) {
+                if (!Subscriptions.Contains(messageId, dummyDisposer))
+                    return;
+                var error = await HandleErrorDuringSubscribeAsync(message, ex);
+                await SendErrorResultAsync(message, error);
             }
-        } catch (OperationCanceledException) when (CancellationToken.IsCancellationRequested) {
-            throw;
-        } catch (ExecutionError error) {
-            if (!Subscriptions.Contains(messageId, dummyDisposer))
-                return;
-            await SendErrorResultAsync(message, error);
-        } catch (Exception ex) {
-            if (!Subscriptions.Contains(messageId, dummyDisposer))
-                return;
-            var error = await HandleErrorDuringSubscribeAsync(message, ex);
-            await SendErrorResultAsync(message, error);
         }
     }
 
@@ -428,10 +439,13 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     protected abstract Task SendCompletedAsync(string id);
 
     /// <summary>
-    /// Executes a GraphQL request. The request is inside <see cref="OperationMessage.Payload"/>
+    /// Executes a GraphQL request.  The request is inside <see cref="OperationMessage.Payload"/>
     /// and will need to be deserialized by <see cref="IGraphQLSerializer.ReadNode{T}(object?)"/>
     /// into a <see cref="GraphQLRequest"/> instance.
     /// </summary>
+    /// <remarks>
+    /// This call must be thread-safe and may be called concurrently with other code in this class.
+    /// </remarks>
     protected abstract Task<ExecutionResult> ExecuteRequestAsync(OperationMessage message);
 
     /// <summary>
