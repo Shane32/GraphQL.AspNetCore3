@@ -110,32 +110,28 @@ public class WebSocketHandler : IWebSocketHandler
     /// </summary>
     protected virtual IOperationMessageProcessor CreateReceiveStream(IWebSocketConnection webSocketConnection, string subProtocol, IUserContextBuilder userContextBuilder)
     {
-        switch (subProtocol) {
-            case GraphQLWs.SubscriptionServer.SubProtocol: {
-                var server = new GraphQLWs.SubscriptionServer(
-                    webSocketConnection,
-                    Options.WebSockets,
-                    Options,
-                    _executer,
-                    _serializer,
-                    _serviceScopeFactory,
-                    userContextBuilder,
-                    _authorizationService);
-                return server;
-            }
-            case SubscriptionsTransportWs.SubscriptionServer.SubProtocol: {
-                var server = new SubscriptionsTransportWs.SubscriptionServer(
-                    webSocketConnection,
-                    Options.WebSockets,
-                    Options,
-                    _executer,
-                    _serializer,
-                    _serviceScopeFactory,
-                    userContextBuilder,
-                    _authorizationService);
-                return server;
-            }
+        if (subProtocol == GraphQLWs.SubscriptionServer.SubProtocol) {
+            return new GraphQLWs.SubscriptionServer(
+                webSocketConnection,
+                Options.WebSockets,
+                Options,
+                _executer,
+                _serializer,
+                _serviceScopeFactory,
+                userContextBuilder,
+                _authorizationService);
+        } else if (subProtocol == SubscriptionsTransportWs.SubscriptionServer.SubProtocol) {
+            return new SubscriptionsTransportWs.SubscriptionServer(
+                webSocketConnection,
+                Options.WebSockets,
+                Options,
+                _executer,
+                _serializer,
+                _serviceScopeFactory,
+                userContextBuilder,
+                _authorizationService);
         }
+
         throw new ArgumentOutOfRangeException(nameof(subProtocol));
     }
 }
