@@ -10,7 +10,7 @@ namespace GraphQL.AspNetCore3.WebSockets;
 /// <remarks>
 /// All methods except <see cref="OnMessageReceivedAsync">OnMessageReceivedAsync</see> should be thread-safe.
 /// <see cref="OnMessageReceivedAsync(OperationMessage)">OnMessageReceivedAsync</see> will receive an ordered
-/// sequence of messages from the client.
+/// sequence of messages from the client, dispatched by <see cref="IWebSocketConnection"/>.
 /// </remarks>
 public abstract class BaseSubscriptionServer : IOperationMessageProcessor
 {
