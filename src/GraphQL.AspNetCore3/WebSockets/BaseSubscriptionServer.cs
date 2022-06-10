@@ -9,7 +9,7 @@ namespace GraphQL.AspNetCore3.WebSockets;
 /// </summary>
 public abstract class BaseSubscriptionServer : IOperationMessageProcessor
 {
-    private volatile int _initialized;
+    private int _initialized;
     private CancellationTokenSource? _cancellationTokenSource;
     private readonly GraphQLWebSocketOptions _options;
     private readonly IAuthorizationOptions _authorizationOptions;
@@ -78,7 +78,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
         if (connectInitWaitTimeout != Timeout.InfiniteTimeSpan) {
             _ = Task.Run(async () => {
                 await Task.Delay(connectInitWaitTimeout, CancellationToken); // CancellationToken is set when this class is disposed
-                if (_initialized == 0)
+                if (!Initialized)
                     await OnConnectionInitWaitTimeoutAsync();
             });
         }
@@ -111,7 +111,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     /// Indicates if the connection has been already initialized.
     /// </summary>
     protected bool Initialized
-        => _initialized == 1;
+        => Thread.VolatileRead(ref _initialized) == 1;
 
     /// <summary>
     /// Sets the initialized flag if it has not already been set.
@@ -122,6 +122,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
 
     /// <summary>
     /// Executes when a message has been received from the client.
+    /// This method should essentially implement a state machine for the implemented protocol.
     /// </summary>
     /// <exception cref="OperationCanceledException"/>
     public abstract Task OnMessageReceivedAsync(OperationMessage message);
@@ -260,7 +261,8 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
             return;
         }
         await OnConnectionAcknowledgeAsync(message);
-        TryInitialize();
+        if (TryInitialize() == false)
+            return;
 
         var keepAliveTimeout = _options.KeepAliveTimeout ?? DefaultKeepAliveTimeout;
         if (keepAliveTimeout > TimeSpan.Zero) {
@@ -438,7 +440,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     protected virtual Task UnsubscribeAsync(string? id)
     {
         if (id != null)
-            Subscriptions.TryRemove(id);
+            _ = Subscriptions.TryRemove(id);
         return Task.CompletedTask;
     }
 
