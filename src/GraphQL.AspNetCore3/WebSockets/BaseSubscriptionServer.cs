@@ -443,9 +443,6 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     /// and will need to be deserialized by <see cref="IGraphQLSerializer.ReadNode{T}(object?)"/>
     /// into a <see cref="GraphQLRequest"/> instance.
     /// </summary>
-    /// <remarks>
-    /// This call must be thread-safe and may be called concurrently with other code in this class.
-    /// </remarks>
     protected abstract Task<ExecutionResult> ExecuteRequestAsync(OperationMessage message);
 
     /// <summary>
