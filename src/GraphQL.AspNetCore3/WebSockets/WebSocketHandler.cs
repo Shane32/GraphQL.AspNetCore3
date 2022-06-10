@@ -96,6 +96,10 @@ public class WebSocketHandler : IWebSocketHandler
             await webSocketConnection.ExecuteAsync(operationMessageReceiveStream);
         } catch (OperationCanceledException) when (appStoppingToken.IsCancellationRequested) {
             // terminate all pending WebSockets connections when the application is in the process of stopping
+
+            // note: we are consuming OCE in this case because ASP.NET Core does not consider the task as canceled when
+            // an OCE occurs that is not due to httpContext.RequestAborted; so to prevent ASP.NET Core from considering
+            // this a "regular" exception, we consume it here
         }
     }
 
@@ -110,32 +114,28 @@ public class WebSocketHandler : IWebSocketHandler
     /// </summary>
     protected virtual IOperationMessageProcessor CreateReceiveStream(IWebSocketConnection webSocketConnection, string subProtocol, IUserContextBuilder userContextBuilder)
     {
-        switch (subProtocol) {
-            case GraphQLWs.SubscriptionServer.SubProtocol: {
-                var server = new GraphQLWs.SubscriptionServer(
-                    webSocketConnection,
-                    Options.WebSockets,
-                    Options,
-                    _executer,
-                    _serializer,
-                    _serviceScopeFactory,
-                    userContextBuilder,
-                    _authorizationService);
-                return server;
-            }
-            case SubscriptionsTransportWs.SubscriptionServer.SubProtocol: {
-                var server = new SubscriptionsTransportWs.SubscriptionServer(
-                    webSocketConnection,
-                    Options.WebSockets,
-                    Options,
-                    _executer,
-                    _serializer,
-                    _serviceScopeFactory,
-                    userContextBuilder,
-                    _authorizationService);
-                return server;
-            }
+        if (subProtocol == GraphQLWs.SubscriptionServer.SubProtocol) {
+            return new GraphQLWs.SubscriptionServer(
+                webSocketConnection,
+                Options.WebSockets,
+                Options,
+                _executer,
+                _serializer,
+                _serviceScopeFactory,
+                userContextBuilder,
+                _authorizationService);
+        } else if (subProtocol == SubscriptionsTransportWs.SubscriptionServer.SubProtocol) {
+            return new SubscriptionsTransportWs.SubscriptionServer(
+                webSocketConnection,
+                Options.WebSockets,
+                Options,
+                _executer,
+                _serializer,
+                _serviceScopeFactory,
+                userContextBuilder,
+                _authorizationService);
         }
+
         throw new ArgumentOutOfRangeException(nameof(subProtocol));
     }
 }

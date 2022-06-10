@@ -15,7 +15,7 @@ public class SubscriptionServer : BaseSubscriptionServer
     /// <see href="https://github.com/enisdenjo/graphql-ws">graphql-ws</see>
     /// protocol is <c>graphql-transport-ws</c> as is defined here.
     /// </remarks>
-    public const string SubProtocol = "graphql-transport-ws";
+    public static string SubProtocol => "graphql-transport-ws";
 
     /// <summary>
     /// Returns the <see cref="IDocumentExecuter"/> used to execute requests.
@@ -43,9 +43,9 @@ public class SubscriptionServer : BaseSubscriptionServer
     protected IGraphQLSerializer Serializer { get; }
 
     /// <summary>
-    /// Initailizes a new instance with the specified parameters.
+    /// Initializes a new instance with the specified parameters.
     /// </summary>
-    /// <param name="sendStream">The WebSockets stream used to send data packets or close the connection.</param>
+    /// <param name="connection">The WebSockets stream used to send data packets or close the connection.</param>
     /// <param name="options">Configuration options for this instance.</param>
     /// <param name="authorizationOptions">Authorization options for this instance.</param>
     /// <param name="executer">The <see cref="IDocumentExecuter"/> to use to execute GraphQL requests.</param>
@@ -54,7 +54,7 @@ public class SubscriptionServer : BaseSubscriptionServer
     /// <param name="userContextBuilder">The user context builder used during connection initialization.</param>
     /// <param name="authenticationService">An optional service to authenticate connections.</param>
     public SubscriptionServer(
-        IWebSocketConnection sendStream,
+        IWebSocketConnection connection,
         GraphQLWebSocketOptions options,
         IAuthorizationOptions authorizationOptions,
         IDocumentExecuter executer,
@@ -62,7 +62,7 @@ public class SubscriptionServer : BaseSubscriptionServer
         IServiceScopeFactory serviceScopeFactory,
         IUserContextBuilder userContextBuilder,
         IWebSocketAuthenticationService? authenticationService = null)
-        : base(sendStream, options, authorizationOptions)
+        : base(connection, options, authorizationOptions)
     {
         DocumentExecuter = executer ?? throw new ArgumentNullException(nameof(executer));
         ServiceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
@@ -106,8 +106,8 @@ public class SubscriptionServer : BaseSubscriptionServer
     }
 
     /// <summary>
-    /// GQL_PONG is a requrired response to a ping, and also a unidirectional keep-alive packet,
-    /// whereas GQL_PING is a bidirectional keep-alive packet.
+    /// Pong is a required response to a ping, and also a unidirectional keep-alive packet,
+    /// whereas ping is a bidirectional keep-alive packet.
     /// </summary>
     private static readonly OperationMessage _pongMessage = new() { Type = MessageType.Pong };
 
@@ -182,7 +182,11 @@ public class SubscriptionServer : BaseSubscriptionServer
     /// <inheritdoc/>
     protected override async Task<ExecutionResult> ExecuteRequestAsync(OperationMessage message)
     {
-        var request = Serializer.ReadNode<GraphQLRequest>(message.Payload)!;
+        var request = Serializer.ReadNode<GraphQLRequest>(message.Payload);
+#pragma warning disable CA2208 // Instantiate argument exceptions correctly
+        if (request == null)
+            throw new ArgumentNullException(nameof(message) + "." + nameof(OperationMessage.Payload));
+#pragma warning restore CA2208 // Instantiate argument exceptions correctly
         using var scope = ServiceScopeFactory.CreateScope();
         try {
             var options = new ExecutionOptions {
@@ -206,7 +210,8 @@ public class SubscriptionServer : BaseSubscriptionServer
     /// Authorizes an incoming GraphQL over WebSockets request with the connection initialization message and initializes the <see cref="UserContext"/>.
     /// <br/><br/>
     /// The default implementation calls the <see cref="IWebSocketAuthenticationService.AuthenticateAsync(IWebSocketConnection, string, OperationMessage)"/>
-    /// method to authenticate the request, checks the authorization rules set in <see cref="GraphQLHttpMiddlewareOptions"/>,
+    /// method to authenticate the request (if <see cref="IWebSocketAuthenticationService"/> was specified),
+    /// checks the authorization rules set in <see cref="GraphQLHttpMiddlewareOptions"/>,
     /// if any, against <see cref="HttpContext.User"/>.  If validation fails, control is passed
     /// to <see cref="BaseSubscriptionServer.OnNotAuthenticatedAsync(OperationMessage)">OnNotAuthenticatedAsync</see>,
     /// <see cref="BaseSubscriptionServer.OnNotAuthorizedRoleAsync(OperationMessage)">OnNotAuthorizedRoleAsync</see>
@@ -224,7 +229,7 @@ public class SubscriptionServer : BaseSubscriptionServer
         if (_authenticationService != null)
             await _authenticationService.AuthenticateAsync(Connection, SubProtocol, message);
 
-        var success = await base.AuthorizeAsync(message);
+        bool success = await base.AuthorizeAsync(message);
 
         if (success) {
             UserContext = await UserContextBuilder.BuildUserContextAsync(Connection.HttpContext, message.Payload);

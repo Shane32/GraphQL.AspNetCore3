@@ -36,9 +36,6 @@ public static class MessageType
     ///     client connection alive.
     ///     The client starts to consider the keep alive message only upon the first received keep alive message from the
     ///     server.
-    ///     <remarks>
-    ///         NOTE: This one here don't follow the standard due to connection optimization
-    ///     </remarks>
     /// </summary>
     public const string GQL_CONNECTION_KEEP_ALIVE = "ka"; // Server -> Client
 
