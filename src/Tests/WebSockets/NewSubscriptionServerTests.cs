@@ -373,4 +373,21 @@ public class NewSubscriptionServerTests : IDisposable
         mockServiceProvider.Verify();
         mockScope.Verify();
     }
+
+    [Fact]
+    public async Task ExecuteRequestAsync_Null()
+    {
+        var message = new OperationMessage();
+        _mockSerializer.Setup(x => x.ReadNode<GraphQLRequest>(null))
+            .Returns((GraphQLRequest?)null)
+            .Verifiable();
+        var result = Mock.Of<ExecutionResult>(MockBehavior.Strict);
+        var mockUserContext = new Mock<IDictionary<string, object?>>(MockBehavior.Strict);
+        _server.Set_UserContext(mockUserContext.Object);
+        await Should.ThrowAsync<ArgumentNullException>(() => _server.Do_ExecuteRequestAsync(message));
+        _mockDocumentExecuter.Verify();
+        _mockSerializer.Verify();
+        _mockServiceScopeFactory.Verify();
+        _mockUserContextBuilder.Verify();
+    }
 }
