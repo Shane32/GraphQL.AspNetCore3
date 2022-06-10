@@ -11,7 +11,7 @@ public class TestWebSocketHandler : WebSocketHandler
         IServiceScopeFactory serviceScopeFactory,
         GraphQLHttpMiddlewareOptions options,
         IHostApplicationLifetime hostApplicationLifetime)
-        : base(serializer, executer, serviceScopeFactory, options, hostApplicationLifetime)
+        : base(serializer, executer, serviceScopeFactory, options.WebSockets, options, hostApplicationLifetime)
     {
     }
 
