@@ -66,9 +66,9 @@ public class WebSocketConnectionTests : IDisposable
     public void Constructor()
     {
         var context = Mock.Of<HttpContext>(MockBehavior.Strict);
-        Should.Throw<ArgumentNullException>(() => new WebSocketConnection(null!, _webSocket, _serializer, _options, default));
-        Should.Throw<ArgumentNullException>(() => new WebSocketConnection(context, null!, _serializer, _options, default));
-        Should.Throw<ArgumentNullException>(() => new WebSocketConnection(context, _webSocket, null!, _options, default));
+        Should.Throw<ArgumentNullException>(() => new WebSocketConnection(null!, _webSocket, _serializer, _options.WebSockets, default));
+        Should.Throw<ArgumentNullException>(() => new WebSocketConnection(context, null!, _serializer, _options.WebSockets, default));
+        Should.Throw<ArgumentNullException>(() => new WebSocketConnection(context, _webSocket, null!, _options.WebSockets, default));
         Should.Throw<ArgumentNullException>(() => new WebSocketConnection(context, _webSocket, _serializer, null!, default));
     }
 
@@ -78,7 +78,7 @@ public class WebSocketConnectionTests : IDisposable
     public void Constructor_InvalidTimeout(double ms)
     {
         _options.WebSockets.DisconnectionTimeout = TimeSpan.FromMilliseconds(ms);
-        Should.Throw<ArgumentOutOfRangeException>(() => new WebSocketConnection(Mock.Of<HttpContext>(MockBehavior.Strict), _webSocket, _serializer, _options, default));
+        Should.Throw<ArgumentOutOfRangeException>(() => new WebSocketConnection(Mock.Of<HttpContext>(MockBehavior.Strict), _webSocket, _serializer, _options.WebSockets, default));
     }
 
     [Theory]
@@ -88,7 +88,7 @@ public class WebSocketConnectionTests : IDisposable
     public void Constructor_ValidTimeout(double ms)
     {
         _options.WebSockets.DisconnectionTimeout = TimeSpan.FromMilliseconds(ms);
-        _ = new WebSocketConnection(Mock.Of<HttpContext>(MockBehavior.Strict), _webSocket, _serializer, _options, default);
+        _ = new WebSocketConnection(Mock.Of<HttpContext>(MockBehavior.Strict), _webSocket, _serializer, _options.WebSockets, default);
     }
 
     [Fact]

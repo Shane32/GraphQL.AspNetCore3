@@ -44,15 +44,17 @@ public class WebSocketHandlerTests : IDisposable
     public void Null_Throws()
     {
         Should.Throw<ArgumentNullException>(() => new WebSocketHandler(
-            null!, _executer, _scopeFactory, _options, _appLifetime));
+            null!, _executer, _scopeFactory, _options.WebSockets, _options, _appLifetime));
         Should.Throw<ArgumentNullException>(() => new WebSocketHandler(
-            _serializer, null!, _scopeFactory, _options, _appLifetime));
+            _serializer, null!, _scopeFactory, _options.WebSockets, _options, _appLifetime));
         Should.Throw<ArgumentNullException>(() => new WebSocketHandler(
-            _serializer, _executer, null!, _options, _appLifetime));
+            _serializer, _executer, null!, _options.WebSockets, _options, _appLifetime));
         Should.Throw<ArgumentNullException>(() => new WebSocketHandler(
-            _serializer, _executer, _scopeFactory, null!, _appLifetime));
+            _serializer, _executer, _scopeFactory, null!, _options, _appLifetime));
         Should.Throw<ArgumentNullException>(() => new WebSocketHandler(
-            _serializer, _executer, _scopeFactory, _options, null!));
+            _serializer, _executer, _scopeFactory, _options.WebSockets, null!, _appLifetime));
+        Should.Throw<ArgumentNullException>(() => new WebSocketHandler(
+            _serializer, _executer, _scopeFactory, _options.WebSockets, _options, null!));
         Should.Throw<ArgumentNullException>(() => _handler.ExecuteAsync(
             null!, _webSocket, "", _userContextBuilder));
         Should.Throw<ArgumentNullException>(() => _handler.ExecuteAsync(
@@ -206,7 +208,7 @@ public class WebSocketHandlerTests : IDisposable
     [Fact]
     public void DerivedConstructor()
     {
-        _ = new WebSocketHandler<ISchema>(_serializer, Mock.Of<IDocumentExecuter<ISchema>>(MockBehavior.Strict), _scopeFactory, _options, _appLifetime);
+        _ = new WebSocketHandler<ISchema>(_serializer, Mock.Of<IDocumentExecuter<ISchema>>(MockBehavior.Strict), _scopeFactory, _options.WebSockets, _options, _appLifetime);
     }
 
     [Fact]

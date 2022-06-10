@@ -71,9 +71,11 @@ public class GraphQLHttpMiddleware<TSchema> : GraphQLHttpMiddleware
             throw new ArgumentNullException(nameof(hostApplicationLifetime));
         if (provider == null)
             throw new ArgumentNullException(nameof(provider));
+        if (options == null)
+            throw new ArgumentNullException(nameof(options));
 
         return new IWebSocketHandler<TSchema>[] {
-            new WebSocketHandler<TSchema>(serializer, documentExecuter, serviceScopeFactory, options,
+            new WebSocketHandler<TSchema>(serializer, documentExecuter, serviceScopeFactory, options.WebSockets, options,
                 hostApplicationLifetime, provider.GetService<IWebSocketAuthenticationService>()),
         };
     }
