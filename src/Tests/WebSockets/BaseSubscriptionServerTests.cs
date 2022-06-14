@@ -334,7 +334,12 @@ public class BaseSubscriptionServerTests : IDisposable
     {
         var message = new OperationMessage { Id = "abc" };
         var error = new ExecutionError("test");
-        _mockServer.Protected().Setup<Task>("SendErrorResultAsync", message.Id, error).Returns(Task.CompletedTask).Verifiable();
+        _mockServer.Protected().Setup<Task>("SendErrorResultAsync", message.Id, ItExpr.IsAny<ExecutionResult>()).Returns<string, ExecutionResult>((_, result) => {
+            result.ShouldNotBeNull();
+            result.Errors.ShouldNotBeNull();
+            result.Errors.ShouldHaveSingleItem().ShouldBe(error);
+            return Task.CompletedTask;
+        }).Verifiable();
         _mockServer.Protected().Setup<Task>("SendErrorResultAsync", message, error).CallBase().Verifiable();
         await _server.Do_SendErrorResultAsync(message, error);
         _mockServer.Verify();
