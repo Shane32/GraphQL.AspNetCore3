@@ -1,5 +1,6 @@
 using GraphQL;
 using GraphQL.AspNetCore3;
+using GraphQL.AspNetCore3.WebSockets;
 using GraphQL.Transport;
 using GraphQL.Types;
 using GraphQL.Validation;
@@ -11,14 +12,12 @@ public class HomeController : Controller
 {
     private readonly IDocumentExecuter<ISchema> _executer;
     private readonly IGraphQLTextSerializer _serializer;
-    private readonly IWebSocketHandler _websocketHandler;
     private readonly IUserContextBuilder _websocketUserContextBuilder;
 
-    public HomeController(IDocumentExecuter<ISchema> executer, IGraphQLTextSerializer serializer, IWebSocketHandler<ISchema> websocketHandler)
+    public HomeController(IDocumentExecuter<ISchema> executer, IGraphQLTextSerializer serializer)
     {
         _executer = executer;
         _serializer = serializer;
-        _websocketHandler = websocketHandler;
         _websocketUserContextBuilder = new UserContextBuilder<IDictionary<string, object?>>((_, _) => new Dictionary<string, object?>());
     }
 
@@ -30,7 +29,7 @@ public class HomeController : Controller
     public Task<IActionResult> GraphQLGetAsync(string query, string? operationName)
     {
         if (HttpContext.WebSockets.IsWebSocketRequest) {
-            return ExecuteWebSocketRequestAsync();
+            return Task.FromResult<IActionResult>(BadRequest());
         } else {
             return ExecuteGraphQLRequestAsync(ParseRequest(query, operationName));
         }
@@ -76,19 +75,5 @@ public class HomeController : Controller
         } catch {
             return BadRequest();
         }
-    }
-
-    private async Task<IActionResult> ExecuteWebSocketRequestAsync()
-    {
-        foreach (var protocol in HttpContext.WebSockets.WebSocketRequestedProtocols) {
-            if (_websocketHandler.SupportedSubProtocols.Contains(protocol)) {
-                var socket = await HttpContext.WebSockets.AcceptWebSocketAsync(protocol);
-                await _websocketHandler.ExecuteAsync(HttpContext, socket, protocol,
-                    HttpContext.RequestServices.GetService<IUserContextBuilder>()
-                    ?? _websocketUserContextBuilder);
-                return NoContent();
-            }
-        }
-        return BadRequest();
     }
 }
