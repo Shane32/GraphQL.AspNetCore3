@@ -42,7 +42,8 @@ application if you have not already done so.  For best performance, please use t
 Then update your `Program.cs` or `Startup.cs` to register the schema, the serialization engine,
 and optionally the HTTP middleware and WebSocket services.  Configure WebSockets and GraphQL
 in the HTTP pipeline by calling `UseWebSockets` and `UseGraphQL` at the appropriate point.
-Below is a complete sample of a .NET 6 console app that hosts a GraphQL endpoint at `http://localhost:5000/graphql`:
+Below is a complete sample of a .NET 6 console app that hosts a GraphQL endpoint at
+`http://localhost:5000/graphql`:
 
 #### Project file
 
@@ -126,7 +127,8 @@ await app.RunAsync();
 Although not recommended, you may set up a controller action to execute GraphQL
 requests.  You will not need `UseGraphQL` or `MapGraphQL` in the application
 startup.  Below is a very basic sample; a much more complete sample can be found
-in the `ControllerSample` project within this repository.
+in the `ControllerSample` project within this repository.  Although technically
+possible, the sample does not include support for WebSocket requests.
 
 #### HomeController.cs
 
@@ -229,10 +231,11 @@ dependency injection framework.  Below is an example:
 services.AddSingleton<IWebSocketAuthorizationService, MyAuthService>();
 
 app.UseGraphQL("/graphql", config => {
-    config.WebSocketsRequireAuthorization = false;
+    // require that the user be authenticated
+    config.AuthorizationRequired = true;
 });
 
-class MyAuthService : IWebSocketAuthorizationService
+class MyAuthService : IWebSocketAuthenticationService
 {
     private readonly IGraphQLSerializer _serializer;
 
@@ -241,22 +244,21 @@ class MyAuthService : IWebSocketAuthorizationService
         _serializer = serializer;
     }
 
-    public async ValueTask<bool> AuthorizeAsync(IWebSocketConnection connection, OperationMessage operationMessage)
+    public async ValueTask<bool> AuthenticateAsync(IWebSocketConnection connection, OperationMessage operationMessage)
     {
         var payload = _serializer.ReadNode<Inputs>(operationMessage.Payload);
         if (payload?.TryGetValue("Authorization", out var value) ?? false) {
             ClaimsPrincipal user;
             // validate token here and set user
             connection.HttpContext.User = user;
-            return true; // allow request
+            return true; // authentication successful
         }
-        // refuse request
-        return false;
+        return false; // authentication failed
     }
 }
 ```
 
-You may also wish to use `IWebSocketAuthorizationService` to set the `HttpContext.User` property, even
+You may also wish to use `IWebSocketAuthenticationService` to set the `HttpContext.User` property, even
 if you allow anonymous requests.
 
 #### For individual graphs, fields and query arguments
@@ -480,11 +482,65 @@ app.UseGraphQL<CatSchema>("/graphql/cats");
 await app.RunAsync();
 ```
 
+### Different global authorization settings for different transports (GET/POST/WebSockets)
+
+You may register the same endpoint multiple times if necessary to configure GET connections
+with certain authorization options, and POST connections with other authorization options.
+
+```csharp
+var app = builder.Build();
+app.UseDeveloperExceptionPage();
+app.UseGraphQL("/graphql", options => {
+    options.HandleGet = true;
+    options.HandlePost = false;
+    options.HandleWebSockets = false;
+    options.AuthorizationRequired = false;
+});
+app.UseGraphQL("/graphql", options => {
+    options.HandleGet = false;
+    options.HandlePost = true;
+    options.HandleWebSockets = true;
+    options.AuthorizationRequired = true;
+});
+await app.RunAsync();
+```
+
+Since POST and WebSockets can be used for query requests, it is recommended not to do the above,
+but instead add the authorization validation rule and add authorization metadata on the Mutation
+and Subscription portions of your schema, as shown below:
+
+```csharp
+builder.Services.AddGraphQL(b => b
+    .AddSchema<MySchema>()
+    .AddSystemTextJson()
+    .AddAuthorization()); // add authorization validation rule
+
+var app = builder.Build();
+app.UseDeveloperExceptionPage();
+app.UseGraphQL();
+await app.RunAsync();
+
+// demonstration of code-first schema; also possible with schema-first or type-first schemas
+public class MySchema : Schema
+{
+    public MySchema(IServiceProvider provider, MyQuery query, MyMutation mutation) : base(provider)
+    {
+        Query = query;
+        Mutation = mutation;
+
+        mutation.Authorize(); // require authorization for any mutation request
+    }
+}
+```
+
 ### Customizing middleware behavior
 
 GET/POST requests are handled directly by the `GraphQLHttpMiddleware`.
-WebSocket requests are passed from the middleware to an `IWebSocketHandler` instance
-configured for the requested WebSocket sub-protocol.
+For WebSocket requests an `WebSocketConnection` instance is instated to dispatching incoming
+messages and send outgoing messages.  Depending on the WebSocket sub-protocols supported by the
+client, the proper implementation of `IOperationMessageProcessor` is instated to act as a
+state machine, processing incoming messages and sending outgoing messages through the
+`WebSocketConnection` instance.
 
 #### GraphQLHttpMiddleware
 
@@ -531,34 +587,27 @@ The WebSocket handling code is organized as follows:
 
 | Interface / Class                | Description |
 |----------------------------------|-------------|
-| `IWebSocketHandler`              | Handles one or more specific WebSocket sub-protocols, returning once the client has completely disconnected. |
-| `IOperationMessageSendStream`    | Provides methods to a send a message to a client or close the connection. |
-| `IOperationMessageReceiveStream` | Handles incoming messages from the client. |
-| `WebSocketHandler`               | Handles `graphql-ws` and `graphql-transport-ws` sub-protocols, setting up a new `WebSocketConnection` with a `NewSubscriptionServer` or `OldSubscriptionServer` depending on the sub-protocol requested. |
-| `WebSocketHandlerOptions`        | Provides configuration options to a `WebSocketHandler` instance |
-| `WebSocketConnection`            | Standard implementation of a message pump for `OperationMessage` messages across a WebSockets connection.  Implements `IOperationMessageSendStream` and delivers messages to a specified `IOperationMessageReceiveStream`. |
-| `BaseSubscriptionServer`         | Abstract implementation of `IOperationMessageReceiveStream`, a message handler for `OperationMessage` messages.  Provides base functionality for managing subscriptions and requests. |
-| `OldSubscriptionServer`          | Implementation of `IOperationMessageReceiveStream` for the `graphql-ws` sub-protocol. |
-| `NewSubscriptionServer`          | Implementation of `IOperationMessageReceiveStream` for the `graphql-transport-ws` sub-protocol. |
-| `IWebSocketAuthorizationService` | Allows authorization of GraphQL requests for WebSocket connections |
+| `IWebSocketConnection`           | Provides methods to a send a message to a client or close the connection. |
+| `IOperationMessageProcessor`     | Handles incoming messages from the client. |
+| `GraphQLWebSocketOptions`        | Provides configuration options for WebSocket connections. |
+| `WebSocketConnection`            | Standard implementation of a message pump for `OperationMessage` messages across a WebSockets connection.  Implements `IWebSocketConnection` and delivers messages to a specified `IOperationMessageProcessor`. |
+| `BaseSubscriptionServer`         | Abstract implementation of `IOperationMessageProcessor`, a message handler for `OperationMessage` messages.  Provides base functionality for managing subscriptions and requests. |
+| `GraphQLWs.SubscriptionServer`   | Implementation of `IOperationMessageProcessor` for the `graphql-transport-ws` sub-protocol. |
+| `SubscriptionsTransportWs.SubscriptionServer` | Implementation of `IOperationMessageProcessor` for the `graphql-ws` sub-protocol. |
+| `IWebSocketAuthorizationService` | Allows authorization of GraphQL requests for WebSocket connections. |
 
 Typically if you wish to change functionality or support another sub-protocol
 you will need to perform the following:
 
-1. Derive from `NewSubscriptionServer`and/or `OldSubscriptionServer`, modifying functionality as needed.
-2. Write a handler class that implements `IWebSocketHandler`, or derive from `WebSocketHandler`
-   and perform the following:
-   1. If necessary, override the `SupportedSubProtocols` property to return the list of
-      sub-protocols your handler supports.
-   2. Override the `CreateSendStream` method to return your new subscription server class when a
-      request arrives.  If your handler supports multiple sub-protocols, it should return the
-      proper subscription server for the requested sub-protocol.
-3. Register the new WebSocket hander in the DI framework via `.AddWebSocketHandler<T>()`.
-4. Optionally also call `.AddWebSocketHandler()` to register the default WebSocket handler also.
-   WebSocket handlers are prioritized in the order they are registered.
+1. Derive from either `SubscriptionServer` class, modifying functionality as needed, or to support
+   a new protocol, derive from `BaseSubscriptionServer`.
+2. Derive from `GraphQLHttpMiddleware` and override `CreateMessageProcessor` and/or
+   `SupportedWebSocketSubProtocols` as needed.
+3. Change the `app.AddGraphQL()` call to use your custom middleware, being sure to include an instance
+   of the options class that your middleware requires (typically `GraphQLHttpMiddlewareOptions`).
 
 There exists a few additional classes to support the above.  Please refer to the source code
-of `NewSubscriptionServer` if you are attempting to add support for another protocol.
+of `GraphQLWs.SubscriptionServer` if you are attempting to add support for another protocol.
 
 ## Additional notes
 
@@ -610,18 +659,6 @@ are rejected over HTTP GET connections.  Derive from `GraphQLHttpMiddleware` and
 `ExecuteRequestAsync` to prevent injection of the validation rules that enforce this behavior.
 
 As would be expected, subscription requests are only allowed over WebSocket channels.
-
-### Apollo Tracing
-
-To include Apollo Tracing results, be sure to register the `ApolloTracingDocumentExecuter`.
-
-```csharp
-services.AddGraphQL(b => b
-    .AddAutoSchema<Query>()
-    .AddSystemTextJson()
-    .AddMetrics()
-    .AddDocumentExecuter<ApolloTracingDocumentExecuter>());
-```
 
 ## Samples
 

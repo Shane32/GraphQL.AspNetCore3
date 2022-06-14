@@ -22,10 +22,18 @@ in derived implementations -- for example, to read form files into variables.
 
 Rename `BaseSubscriptionServer.Client` to `Connection`.
 
-`BaseSubscriptionServer`, `GraphQLWebSocketOptions` and `WebSocketHandler`
+`WebSocketConnection`, `BaseSubscriptionServer` and both of its implementations
 now requires `GraphQLWebSocketOptions` and `IAuthorizationOptions` rather than
-`GraphQLHttpMiddlewareOptions`.  Corresponding changes were also made to the two
-implementations of `BaseSubscriptionServer`.
+`GraphQLHttpMiddlewareOptions` in their constructors.
+
+`IWebSocketHandler` and `WebSocketHandler` have been removed and their protected
+members moved to `GraphQLHttpMiddleware`.  Override the new members within the
+middleware to add or change WebSocket subprotocol implementations.  The constructor
+of `GraphQLHttpMiddleware` has changed slightly to correspond.
+
+`GraphQLHttpMiddleware` has been refactored slightly so the abstract members now
+have default implementations in the base class.  Additional arguments were added
+to the constructor to accomodate this change.
 
 ## 3.0.0
 
