@@ -424,7 +424,6 @@ contain XML comments to provide assistance while coding with Visual Studio.
 
 | Builder interface | Method | Description |
 |-------------------|--------|-------------|
-| `IGraphQLBuilder` | `AddWebSocketHandler`   | Configures the default WebSocket handler or registers an alternative handler with the dependency injection framework. |
 | `IGraphQLBuilder` | `AddUserContextBuilder` | Sets up a delegate to create the UserContext for each GraphQL request. |
 | `IApplicationBuilder`   | `UseGraphQL`      | Adds the GraphQL middleware to the HTTP request pipeline. |
 | `IEndpointRouteBuilder` | `MapGraphQL`      | Adds the GraphQL middleware to the HTTP request pipeline. |
@@ -439,7 +438,7 @@ comments than shown above.
 Below are descriptions of the options available when registering the HTTP middleware
 or WebSocket handler.  Note that the HTTP middleware options are configured via the
 `UseGraphQL` or `MapGraphQL` methods allowing for different options for each configured
-endpoint; the WebSocket handler options are configured globally via `AddWebSocketHandler`.
+endpoint.
 
 #### GraphQLHttpMiddlewareOptions
 
@@ -457,9 +456,9 @@ endpoint; the WebSocket handler options are configured globally via `AddWebSocke
 | `ReadQueryStringOnPost`            | Enables parsing the query string on POST requests. | True |
 | `ReadVariablesFromQueryString`     | Enables reading variables from the query string. | True |
 | `ValidationErrorsReturnBadRequest` | When enabled, GraphQL requests with validation errors have the HTTP status code set to 400 Bad Request. | True |
-| `WebSocketsRequireAuthorization`   | Applies the three authorization properties listed above to WebSocket connections | True |
+| `WebSockets`                       | Returns a set of configuration properties for WebSocket connections. | |
 
-#### WebSocketHandlerOptions
+#### GraphQLWebSocketOptions
 
 | Property                    | Description          | Default value |
 |-----------------------------|----------------------|---------------|

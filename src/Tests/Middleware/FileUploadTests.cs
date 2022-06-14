@@ -60,8 +60,8 @@ public class FileUploadTests : IDisposable
     {
         private readonly IGraphQLTextSerializer _serializer;
 
-        public MyMiddleware(RequestDelegate next, IGraphQLTextSerializer serializer, IDocumentExecuter<MySchema> documentExecuter, IServiceScopeFactory serviceScopeFactory, GraphQLHttpMiddlewareOptions options, IServiceProvider provider, IHostApplicationLifetime hostApplicationLifetime)
-            : base(next, serializer, documentExecuter, serviceScopeFactory, options, provider, hostApplicationLifetime)
+        public MyMiddleware(RequestDelegate next, IGraphQLTextSerializer serializer, IDocumentExecuter<MySchema> documentExecuter, IServiceScopeFactory serviceScopeFactory, GraphQLHttpMiddlewareOptions options, IHostApplicationLifetime hostApplicationLifetime)
+            : base(next, serializer, documentExecuter, serviceScopeFactory, options, hostApplicationLifetime)
         {
             _serializer = serializer;
         }

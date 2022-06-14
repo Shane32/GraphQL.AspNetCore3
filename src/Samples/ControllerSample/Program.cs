@@ -13,8 +13,6 @@ builder.Services.AddGraphQL(b => b
         .WithMutation<Chat.Schema.Mutation>()
         .WithSubscription<Chat.Schema.Subscription>())
     .AddSystemTextJson());
-builder.Services.AddSingleton(typeof(IWebSocketHandler<>), typeof(WebSocketHandler<>));
-builder.Services.AddSingleton(new GraphQLHttpMiddlewareOptions()); // for the websocket handler
 
 var app = builder.Build();
 app.UseDeveloperExceptionPage();

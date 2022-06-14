@@ -1,4 +1,5 @@
 using System.Net;
+using Microsoft.Extensions.Hosting;
 
 namespace Tests.Middleware;
 
@@ -76,7 +77,7 @@ public class WebSocketTests : IDisposable
 
         hostBuilder.Configure(app => {
             app.UseWebSockets();
-            app.UseGraphQL<MyGraphQLHttpMiddleware>("/graphql");
+            app.UseGraphQL<TestMiddleware>("/graphql", new object[] { new string[] { } });
         });
 
         _server = new TestServer(hostBuilder);
@@ -98,7 +99,7 @@ public class WebSocketTests : IDisposable
         });
         hostBuilder.Configure(app => {
             app.UseWebSockets();
-            app.UseGraphQL<TestMiddleware>("/graphql");
+            app.UseGraphQL<TestMiddleware>("/graphql", new object[] { new string[] { "unsupported" } });
         });
 
         _server = new TestServer(hostBuilder);
@@ -109,20 +110,78 @@ public class WebSocketTests : IDisposable
 
     private class TestMiddleware : GraphQLHttpMiddleware
     {
-        public TestMiddleware(RequestDelegate next) : base(next, new GraphQLSerializer(), new GraphQLHttpMiddlewareOptions(), new IWebSocketHandler[] { GetMockHandler() }) { }
+        private readonly string[] _subprotocols;
 
-        private static IWebSocketHandler GetMockHandler()
+        public TestMiddleware(RequestDelegate next, string[] subprotocols) : base(next, new GraphQLSerializer(), Mock.Of<IDocumentExecuter>(MockBehavior.Strict), Mock.Of<IServiceScopeFactory>(MockBehavior.Strict), new GraphQLHttpMiddlewareOptions(), Mock.Of<IHostApplicationLifetime>(MockBehavior.Strict))
         {
-            var mock = new Mock<IWebSocketHandler>(MockBehavior.Strict);
-            mock.Setup(x => x.SupportedSubProtocols).Returns(new string[] { "unsupportedProtocol" });
-            return mock.Object;
+            _subprotocols = subprotocols;
         }
 
-        protected override Task<ExecutionResult> ExecuteRequestAsync(HttpContext context, GraphQLRequest? request, IServiceProvider serviceProvider, IDictionary<string, object?> userContext)
-            => throw new NotImplementedException();
+        protected override IEnumerable<string> SupportedWebSocketSubProtocols => _subprotocols;
+    }
 
-        protected override Task<ExecutionResult> ExecuteScopedRequestAsync(HttpContext context, GraphQLRequest? request, IDictionary<string, object?> userContext)
-            => throw new NotImplementedException();
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AppShuttingDownReturns(bool beforeConnect)
+    {
+        var tuple = new Tuple<CancellationTokenSource, TaskCompletionSource<bool>>(new(), new());
+
+        var hostBuilder = new WebHostBuilder();
+        hostBuilder.ConfigureServices(services => {
+            services.AddSingleton<Chat.Services.ChatService>();
+            services.AddGraphQL(b => b
+                .AddSchema<Schema2>()
+                .AddSystemTextJson());
+            services.AddSingleton(tuple);
+        });
+
+        hostBuilder.Configure(app => {
+            app.UseWebSockets();
+            var options = new GraphQLHttpMiddlewareOptions();
+            options.WebSockets.ConnectionInitWaitTimeout = Timeout.InfiniteTimeSpan;
+            app.UseGraphQL<TestMiddleware2>("/graphql", options);
+        });
+
+        _server = new TestServer(hostBuilder);
+
+        var webSocketClient = BuildClient();
+        if (beforeConnect) {
+            tuple.Item1.Cancel();
+            using var socket = await webSocketClient.ConnectAsync(new Uri(_server.BaseAddress, "/graphql"), default);
+            await tuple.Item2.Task;
+        } else {
+            using var socket = await webSocketClient.ConnectAsync(new Uri(_server.BaseAddress, "/graphql"), default);
+            await Task.WhenAny(Task.Delay(1000), tuple.Item2.Task);
+            tuple.Item2.Task.IsCompleted.ShouldBeFalse();
+            tuple.Item1.Cancel();
+            await tuple.Item2.Task;
+        }
+    }
+
+    private class TestMiddleware2 : GraphQLHttpMiddleware
+    {
+        private readonly Tuple<CancellationTokenSource, TaskCompletionSource<bool>> _tuple;
+
+        public TestMiddleware2(RequestDelegate next, IGraphQLTextSerializer serializer, IDocumentExecuter<ISchema> documentExecuter, IServiceScopeFactory serviceScopeFactory, GraphQLHttpMiddlewareOptions options, Tuple<CancellationTokenSource, TaskCompletionSource<bool>> tuple)
+            : this(next, serializer, documentExecuter, serviceScopeFactory, options, Mock.Of<IHostApplicationLifetime>(MockBehavior.Strict), tuple)
+        {
+        }
+
+        private TestMiddleware2(RequestDelegate next, IGraphQLTextSerializer serializer, IDocumentExecuter<ISchema> documentExecuter, IServiceScopeFactory serviceScopeFactory, GraphQLHttpMiddlewareOptions options, IHostApplicationLifetime hostApplicationLifetime, Tuple<CancellationTokenSource, TaskCompletionSource<bool>> tuple)
+            : base(next, serializer, documentExecuter, serviceScopeFactory, options, hostApplicationLifetime)
+        {
+            Mock.Get(hostApplicationLifetime).Setup(x => x.ApplicationStopping).Returns(tuple.Item1.Token);
+            _tuple = tuple;
+        }
+
+        protected override async Task HandleWebSocketAsync(HttpContext context, RequestDelegate next)
+        {
+            await base.HandleWebSocketAsync(context, next);
+            // this test also verifies that OCE isn't thrown when the app stopping token is triggered
+            // because otherwise this line wouldn't run
+            _tuple.Item2.SetResult(true);
+        }
     }
 
     [Fact]
@@ -134,18 +193,4 @@ public class WebSocketTests : IDisposable
         var error = await Should.ThrowAsync<InvalidOperationException>(() => webSocketClient.ConnectAsync(new Uri(_server.BaseAddress, "/graphql"), default));
         error.Message.ShouldBe("Incomplete handshake, status code: 404");
     }
-
-    private class MyGraphQLHttpMiddleware : GraphQLHttpMiddleware
-    {
-        public MyGraphQLHttpMiddleware(
-            RequestDelegate next,
-            IGraphQLTextSerializer serializer)
-            : base(next, serializer, new GraphQLHttpMiddlewareOptions(), Array.Empty<IWebSocketHandler<ISchema>>())
-        {
-        }
-
-        protected override Task<ExecutionResult> ExecuteRequestAsync(HttpContext context, GraphQLRequest? request, IServiceProvider serviceProvider, IDictionary<string, object?> userContext) => throw new NotImplementedException();
-        protected override Task<ExecutionResult> ExecuteScopedRequestAsync(HttpContext context, GraphQLRequest? request, IDictionary<string, object?> userContext) => throw new NotImplementedException();
-    }
-
 }

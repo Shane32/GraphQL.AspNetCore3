@@ -135,8 +135,8 @@ public class AuthorizationTests
 
     private class MyMiddleware : GraphQLHttpMiddleware<ISchema>
     {
-        public MyMiddleware(RequestDelegate next, IGraphQLTextSerializer serializer, IDocumentExecuter<ISchema> documentExecuter, IServiceScopeFactory serviceScopeFactory, IServiceProvider provider, IHostApplicationLifetime hostApplicationLifetime)
-            : base(next, serializer, documentExecuter, serviceScopeFactory, new(), provider, hostApplicationLifetime)
+        public MyMiddleware(RequestDelegate next, IGraphQLTextSerializer serializer, IDocumentExecuter<ISchema> documentExecuter, IServiceScopeFactory serviceScopeFactory, IHostApplicationLifetime hostApplicationLifetime)
+            : base(next, serializer, documentExecuter, serviceScopeFactory, new(), hostApplicationLifetime)
         {
         }
 
