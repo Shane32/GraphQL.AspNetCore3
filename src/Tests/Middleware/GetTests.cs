@@ -61,6 +61,27 @@ public class GetTests : IDisposable
         await response.ShouldBeAsync(@"{""data"":{""count"":0}}");
     }
 
+    [Fact]
+    public async Task NoUseWebSockets()
+    {
+        var hostBuilder = new WebHostBuilder();
+        hostBuilder.ConfigureServices(services => {
+            services.AddSingleton<Chat.Services.ChatService>();
+            services.AddGraphQL(b => b
+                .AddAutoSchema<Chat.Schema.Query>()
+                .AddSystemTextJson());
+#if NETCOREAPP2_1 || NET48
+            services.AddHostApplicationLifetime();
+#endif
+        });
+        hostBuilder.Configure(app => app.UseGraphQL());
+        using var server = new TestServer(hostBuilder);
+
+        var client = server.CreateClient();
+        using var response = await client.GetAsync("/graphql?query={count}");
+        await response.ShouldBeAsync(@"{""data"":{""count"":0}}");
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
