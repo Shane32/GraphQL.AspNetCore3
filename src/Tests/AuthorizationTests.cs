@@ -648,6 +648,8 @@ public class AuthorizationTests
     [InlineData(@"{ test { child } }", null, false)]
     [InlineData(@"{ parent { invalid } }", null, true)]
     [InlineData(@"{ parent { child(invalid: true) } }", null, true)]
+    [InlineData(@"query { ...frag1 }", null, true)]
+    [InlineData(@"query { ...frag1 } fragment frag1 on QueryType { ...frag1 }", null, true)]
     public void TestDefective(string query, string variables, bool expectedIsValid)
     {
         _query.AddField(new FieldType { Name = "test", Type = typeof(StringGraphType) }).Authorize();
