@@ -6,16 +6,16 @@ namespace GraphQL.AspNetCore3;
 public partial class AuthorizationVisitorBase
 {
     /// <summary>
-    /// Returns all fragments referenced by the specified operation in the document,
+    /// Returns all fragments referenced by the selected operation in the document,
     /// excluding ones that would be skipped by the @skip or @include directives.
     /// </summary>
     /// <remarks>
     /// <see cref="SkipNode(ASTNode, ValidationContext)"/> is used to determine if the node should be skipped or not.
     /// </remarks>
-    protected List<GraphQLFragmentDefinition>? GetRecursivelyReferencedFragments(GraphQLOperationDefinition operation, ValidationContext validationContext)
+    protected List<GraphQLFragmentDefinition>? GetRecursivelyReferencedFragments(ValidationContext validationContext)
     {
         var context = new GetRecursivelyReferencedFragmentsVisitorContext(this, validationContext);
-        var ret = GetRecursivelyReferencedFragmentsVisitor.Instance.VisitAsync(operation, context);
+        var ret = GetRecursivelyReferencedFragmentsVisitor.Instance.VisitAsync(validationContext.Operation, context);
         if (!ret.IsCompletedSuccessfully) // should always be true unless an exception occurs within SkipNode
             ret.AsTask().GetAwaiter().GetResult();
         return context.FragmentDefinitions;
