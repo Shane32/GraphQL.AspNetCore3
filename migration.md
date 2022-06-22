@@ -35,6 +35,12 @@ of `GraphQLHttpMiddleware` has changed slightly to correspond.
 have default implementations in the base class.  Additional arguments were added
 to the constructor to accomodate this change.
 
+Rename `AuthorizationVisitorBase.SkipField` to `SkipNode` and add support for
+skipping fragment spreads or inline fragments via @skip and @include directives.
+
+Added `AuthorizationVisitorBase.GetRecursivelyReferencedFragments` which will skip
+fragment definitions not referenced due to a @skip or @include directive.
+
 ## 3.0.0
 
 Supports building user contexts after authentication has occurred for WebSocket
