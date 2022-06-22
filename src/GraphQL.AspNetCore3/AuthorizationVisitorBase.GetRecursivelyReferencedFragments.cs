@@ -71,12 +71,10 @@ public partial class AuthorizationVisitorBase
         protected override async ValueTask VisitFragmentSpreadAsync(GraphQLFragmentSpread fragmentSpread, GetRecursivelyReferencedFragmentsVisitorContext context)
         {
             // if we have not encountered this fragment before
-            if (!Contains(fragmentSpread, context))
-            {
+            if (!Contains(fragmentSpread, context)) {
                 // find the fragment definition
                 var fragmentDefinition = context.ValidationContext.Document.FindFragmentDefinition(fragmentSpread.FragmentName.Name);
-                if (fragmentDefinition != null)
-                {
+                if (fragmentDefinition != null) {
                     // add the fragment definition to our known list
                     (context.FragmentDefinitions ??= new()).Add(fragmentDefinition);
                     // walk the fragment definition
@@ -91,8 +89,7 @@ public partial class AuthorizationVisitorBase
             if (fragmentDefinitions == null)
                 return false;
 
-            foreach (var fragmentDefinition in fragmentDefinitions)
-            {
+            foreach (var fragmentDefinition in fragmentDefinitions) {
                 if (fragmentDefinition.FragmentName.Name == fragmentSpread.FragmentName.Name)
                     return true;
             }
