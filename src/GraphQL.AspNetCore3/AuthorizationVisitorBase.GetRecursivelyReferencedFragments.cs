@@ -21,7 +21,7 @@ public partial class AuthorizationVisitorBase
         return context.FragmentDefinitions;
     }
 
-    private class GetRecursivelyReferencedFragmentsVisitorContext : IASTVisitorContext
+    private sealed class GetRecursivelyReferencedFragmentsVisitorContext : IASTVisitorContext
     {
         public GetRecursivelyReferencedFragmentsVisitorContext(AuthorizationVisitorBase authorizationVisitor, ValidationContext validationContext)
         {
