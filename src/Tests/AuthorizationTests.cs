@@ -548,7 +548,7 @@ public class AuthorizationTests
             err.ShouldBeOfType<InvalidOperationException>().Message.ShouldBe("HttpContext could not be retrieved from IHttpContextAccessor.");
 
         if (noClaimsPrincipal)
-            err.ShouldBeOfType<InvalidOperationException>().Message.ShouldBe("ClaimsPrincipal could not be retrieved from HttpContext.User.");
+            err.ShouldBeOfType<InvalidOperationException>().Message.ShouldBe("ClaimsPrincipal could not be retrieved from HttpContext.");
 
         if (noRequestServices)
             err.ShouldBeOfType<MissingRequestServicesException>();
