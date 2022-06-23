@@ -17,9 +17,15 @@ public partial class AuthorizationVisitorBase
     /// Validate a node that is current within the context.
     /// </summary>
     private bool Validate(IProvideMetadata obj, ASTNode? node, ValidationContext context)
-        => Validate(BuildValidationInfo(obj, node, context));
+        => Validate(BuildValidationInfo(node, obj, context));
 
-    private static ValidationInfo BuildValidationInfo(IProvideMetadata obj, ASTNode? node, ValidationContext context)
+    /// <summary>
+    /// Initializes a new <see cref="ValidationInfo"/> instance for the specified node.
+    /// </summary>
+    /// <param name="node">The specified <see cref="ASTNode"/>.</param>
+    /// <param name="obj">The <see cref="IGraphType"/>, <see cref="IFieldType"/> or <see cref="QueryArgument"/> which has been matched to the node specified in <paramref name="node"/>.</param>
+    /// <param name="context">The validation context.</param>
+    private static ValidationInfo BuildValidationInfo(ASTNode? node, IProvideMetadata obj, ValidationContext context)
     {
         IFieldType? parentFieldType = null;
         IGraphType? parentGraphType = null;
@@ -40,7 +46,7 @@ public partial class AuthorizationVisitorBase
     /// <summary>Provides contextual information to the schema, graph, field, or query argument being validated.</summary>
     /// <param name="Obj">The schema, graph type, field type, or query argument being validated. May be an interface type if fragments are in use.</param>
     /// <param name="Node">Null for a schema validation; otherwise the <see cref="GraphQLOperationDefinition"/>, <see cref="GraphQLField"/>, or <see cref="GraphQLArgument"/> being validated.</param>
-    /// <param name="Context">The validaion context; but <see cref="ValidationContext.TypeInfo"/> may not be applicable for node being validated.</param>
+    /// <param name="Context">The validation context; but <see cref="ValidationContext.TypeInfo"/> may not be applicable for node being validated.</param>
     /// <param name="ParentFieldType">For graph types other than operations, the field where this type was referenced; for query arguments, the field to which this argument belongs.</param>
     /// <param name="ParentGraphType">For graph types, the graph type for the field where this type was referenced; for field types, the graph type to which this field belongs; for query arguments, the graph type for the field to which this argument belongs.</param>
     public readonly record struct ValidationInfo(
@@ -74,7 +80,7 @@ public partial class AuthorizationVisitorBase
             _policyResults ??= new Dictionary<string, AuthorizationResult>();
             foreach (var policy in policies) {
                 if (!_policyResults.TryGetValue(policy, out var result)) {
-                    result = AuthorizePolicy(policy);
+                    result = Authorize(policy);
                     _policyResults.Add(policy, result);
                 }
                 if (!result.Succeeded) {
@@ -90,7 +96,7 @@ public partial class AuthorizationVisitorBase
             _roleResults ??= new Dictionary<string, bool>();
             foreach (var role in roles) {
                 if (!_roleResults.TryGetValue(role, out var result)) {
-                    result = AuthorizeRole(role);
+                    result = IsInRole(role);
                     _roleResults.Add(role, result);
                 }
                 if (result)
@@ -102,7 +108,7 @@ public partial class AuthorizationVisitorBase
     PassRoles:
 
         if (requiresAuthorization) {
-            var authorized = _userIsAuthorized ??= Authorize();
+            var authorized = _userIsAuthorized ??= IsAuthenticated;
             if (!authorized) {
                 HandleNodeNotAuthorized(info);
                 success = false;
@@ -113,13 +119,13 @@ public partial class AuthorizationVisitorBase
     }
 
     /// <inheritdoc cref="IIdentity.IsAuthenticated"/>
-    protected abstract bool Authorize();
+    protected abstract bool IsAuthenticated { get; }
 
     /// <inheritdoc cref="ClaimsPrincipal.IsInRole(string)"/>
-    protected abstract bool AuthorizeRole(string role);
+    protected abstract bool IsInRole(string role);
 
     /// <inheritdoc cref="IAuthorizationService.AuthorizeAsync(ClaimsPrincipal, object, string)"/>
-    protected abstract AuthorizationResult AuthorizePolicy(string policy);
+    protected abstract AuthorizationResult Authorize(string policy);
 
     /// <summary>
     /// Adds a error to the validation context indicating that the user is not authenticated
@@ -148,8 +154,8 @@ public partial class AuthorizationVisitorBase
     }
 
     /// <summary>
-    /// Adds a error to the validation context indicating that the user is not a member of any of
-    /// the roles required by this graph, field or query argument.
+    /// Adds a error to the validation context indicating that the user does not meet the
+    /// authorization policy required by this graph, field or query argument.
     /// </summary>
     /// <param name="info">Information about the node being validated.</param>
     /// <param name="policy">The policy which these nodes are being authenticated against.</param>

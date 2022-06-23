@@ -35,6 +35,12 @@ of `GraphQLHttpMiddleware` has changed slightly to correspond.
 have default implementations in the base class.  Additional arguments were added
 to the constructor to accomodate this change.
 
+`AuthorizationVisitor.Authorize` has been renamed to `IsAuthenticated`.
+
+`AuthorizationVisitor.AuthorizeRole` has been renamed to `IsInRole`.
+
+`AuthorizationVisitor.AuthorizePolicy` has been renamed to `Authorize`.
+
 Rename `AuthorizationVisitorBase.SkipField` to `SkipNode` and add support for
 skipping fragment spreads or inline fragments via @skip and @include directives.
 
