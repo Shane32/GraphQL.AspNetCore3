@@ -35,6 +35,12 @@ of `GraphQLHttpMiddleware` has changed slightly to correspond.
 have default implementations in the base class.  Additional arguments were added
 to the constructor to accomodate this change.
 
+`AuthorizationVisitor.Authorize` has been renamed to `IsAuthenticated`.
+
+`AuthorizationVisitor.AuthorizeRole` has been renamed to `IsInRole`.
+
+`AuthorizationVisitor.AuthorizePolicy` has been renamed to `Authorize`.
+
 ## 3.0.0
 
 Supports building user contexts after authentication has occurred for WebSocket
