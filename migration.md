@@ -1,6 +1,6 @@
 # Version history / migration notes
 
-## 4.0.0 (in progress)
+## 4.0.0
 
 Remove `AllowEmptyQuery` option, as this error condition is now handled by the
 GraphQL.NET 5.3.0 `DocumentExecuter`, as well as the error classes that relate.
@@ -51,7 +51,7 @@ Returns 405 Method Not Allowed rather than 400 Bad Request when attempting a mut
 over a HTTP GET connection, or a subscription over a HTTP GET/POST connection.
 
 Specifying an authorization policy or required role(s) will implicitly require
-the user the be authenticated.
+the user to be authenticated.
 
 ## 3.0.0
 
