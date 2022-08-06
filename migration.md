@@ -47,6 +47,9 @@ skipping fragment spreads or inline fragments via @skip and @include directives.
 Added `AuthorizationVisitorBase.GetRecursivelyReferencedFragments` which will skip
 fragment definitions not referenced due to a @skip or @include directive.
 
+Returns 405 Method Not Allowed rather than 400 Bad Request when attempting a mutation
+over a HTTP GET connection, or a subscription over a HTTP GET/POST connection.
+
 ## 3.0.0
 
 Supports building user contexts after authentication has occurred for WebSocket
