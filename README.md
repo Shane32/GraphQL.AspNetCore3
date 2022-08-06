@@ -58,8 +58,8 @@ Below is a complete sample of a .NET 6 console app that hosts a GraphQL endpoint
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="GraphQL.AspNetCore3" Version="3.0.0" />
-    <PackageReference Include="GraphQL.SystemTextJson" Version="5.1.1" />
+    <PackageReference Include="GraphQL.AspNetCore3" Version="4.0.0" />
+    <PackageReference Include="GraphQL.SystemTextJson" Version="5.3.3" />
   </ItemGroup>
 
 </Project>
