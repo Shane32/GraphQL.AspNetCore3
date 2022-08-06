@@ -33,7 +33,7 @@ for changes from previous versions.
 ### Typical configuration with HTTP middleware
 
 First add the `GraphQL.AspNetCore3` nuget package to your application.  It requires
-`GraphQL` version 5.1.1 or later.
+`GraphQL` version 5.3.0 or later.
 
 Second, install the `GraphQL.SystemTextJson` or `GraphQL.NewtonsoftJson` package within your
 application if you have not already done so.  For best performance, please use the

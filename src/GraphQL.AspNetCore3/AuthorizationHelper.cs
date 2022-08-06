@@ -16,7 +16,9 @@ public static class AuthorizationHelper
     /// </summary>
     public static async ValueTask<bool> AuthorizeAsync<TState>(AuthorizationParameters<TState> options, TState state)
     {
-        if (options.AuthorizationRequired) {
+        var anyRolesRequired = options.AuthorizedRoles?.Any() ?? false;
+
+        if (options.AuthorizationRequired || anyRolesRequired || options.AuthorizedPolicy != null) {
             if (!((options.HttpContext.User ?? NoUser()).Identity ?? NoIdentity()).IsAuthenticated) {
                 if (options.OnNotAuthenticated != null)
                     await options.OnNotAuthenticated(state);
@@ -24,9 +26,9 @@ public static class AuthorizationHelper
             }
         }
 
-        if (options.AuthorizedRoles?.Any() == true) {
+        if (anyRolesRequired) {
             var user = options.HttpContext.User ?? NoUser();
-            foreach (var role in options.AuthorizedRoles) {
+            foreach (var role in options.AuthorizedRoles!) {
                 if (user.IsInRole(role))
                     goto PassRoleCheck;
             }
