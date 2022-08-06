@@ -41,6 +41,12 @@ to the constructor to accomodate this change.
 
 `AuthorizationVisitor.AuthorizePolicy` has been renamed to `Authorize`.
 
+Rename `AuthorizationVisitorBase.SkipField` to `SkipNode` and add support for
+skipping fragment spreads or inline fragments via @skip and @include directives.
+
+Added `AuthorizationVisitorBase.GetRecursivelyReferencedFragments` which will skip
+fragment definitions not referenced due to a @skip or @include directive.
+
 ## 3.0.0
 
 Supports building user contexts after authentication has occurred for WebSocket
