@@ -676,3 +676,8 @@ typical ASP.Net Core scenarios.
 | `MultipleSchema`        | Demonstrates multiple GraphQL endpoints served through a single project. |
 | `Net48Sample`           | Demonstrates a GraphQL server running on .NET Framework 4.8 (or for linux machines, .NET Core 2.1) |
 | `PagesSample`           | Demonstrates configuring GraphQL within a ASP.NET Core Pages project. |
+
+## Credits
+
+Glory to Jehovah, Lord of Lords and King of Kings, creator of Heaven and Earth, who through his Son Jesus Christ,
+has reedemed me to become a child of God. -Shane32
