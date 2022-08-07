@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(IsPackable)' == 'true'">
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <AnalysisMode>Recommended</AnalysisMode>
   </PropertyGroup>
 </Project>
