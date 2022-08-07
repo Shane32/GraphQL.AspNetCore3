@@ -634,7 +634,7 @@ services.AddGraphQL(b => b
     // configure queries for serial execution (optional)
     .AddExecutionStrategy<SerialExecutionStrategy>(OperationType.Query)
     // configure subscription field resolvers for scoped serial execution (parallel is optional)
-    .AddScopedExecutionStrategy());
+    .AddScopedSubscriptionExecutionStrategy());
 ```
 
 For single GET / POST requests, the service scope from the underlying HTTP context is used.
