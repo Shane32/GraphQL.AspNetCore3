@@ -29,6 +29,7 @@
     <None Include="..\..\logo.64x64.png" Pack="true" PackagePath="\"/>
     <None Include="..\..\LICENSE" Pack="true" PackagePath="\"/>
     <None Include="..\..\README.md" Pack="true" PackagePath="\"/>
+    <None Include="..\..\migration.md" Pack="true" PackagePath="\"/>
   </ItemGroup>
 
 </Project>
