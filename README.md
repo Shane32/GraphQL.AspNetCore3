@@ -259,14 +259,14 @@ if you allow anonymous requests.
 #### For individual graphs, fields and query arguments
 
 To configure ASP.NET Core authorization for GraphQL, add the corresponding
-validation rule during GraphQL configuration, typically by calling `.AddAuthorization()`
+validation rule during GraphQL configuration, typically by calling `.AddAuthorizationRule()`
 as shown below:
 
 ```csharp
 builder.Services.AddGraphQL(b => b
     .AddAutoSchema<Query>()
     .AddSystemTextJson()
-    .AddAuthorization());
+    .AddAuthorizationRule());
 ```
 
 Both roles and policies are supported for output graph types, fields on output graph types,
@@ -511,7 +511,7 @@ and Subscription portions of your schema, as shown below:
 builder.Services.AddGraphQL(b => b
     .AddSchema<MySchema>()
     .AddSystemTextJson()
-    .AddAuthorization()); // add authorization validation rule
+    .AddAuthorizationRule()); // add authorization validation rule
 
 var app = builder.Build();
 app.UseDeveloperExceptionPage();
