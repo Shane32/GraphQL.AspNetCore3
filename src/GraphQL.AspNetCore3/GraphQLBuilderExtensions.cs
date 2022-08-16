@@ -13,10 +13,7 @@ public static class GraphQLBuilderExtensions
     /// </summary>
     [Obsolete("Please use AddAuthorizationRule")]
     public static IGraphQLBuilder AddAuthorization(this IGraphQLBuilder builder)
-    {
-        builder.AddValidationRule<AuthorizationValidationRule>(true);
-        return builder;
-    }
+        => AddAuthorizationRule(builder);
 
     /// <summary>
     /// Registers <see cref="AuthorizationValidationRule"/> with the dependency injection framework
