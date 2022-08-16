@@ -10,7 +10,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\GraphQL.AspNetCore3\GraphQL.AspNetCore3.csproj" />
     <ProjectReference Include="..\ChatSchema\Chat.csproj" />
-    <PackageReference Include="GraphQL.SystemTextJson" Version="$(GraphQLVersion)" />
   </ItemGroup>
 
 </Project>

@@ -33,7 +33,7 @@ builder.Services.AddSingleton<Chat.Services.ChatService>();
 builder.Services.AddGraphQL(b => b
     .AddAutoSchema<AuthorizationSample.Schema.Query>(s => s.WithMutation<AuthorizationSample.Schema.Mutation>())
     .AddSystemTextJson()
-    .AddAuthorization());
+    .AddAuthorizationRule());
 // ------------------------------------
 
 var app = builder.Build();
@@ -61,11 +61,11 @@ app.UseWebSockets();
 app.UseGraphQL("/graphql");
 // configure Playground at "/ui/graphql"
 app.UseGraphQLPlayground(
+    "/ui/graphql",
     new GraphQL.Server.Ui.Playground.PlaygroundOptions {
         GraphQLEndPoint = new PathString("/graphql"),
         SubscriptionsEndPoint = new PathString("/graphql"),
-    },
-    "/ui/graphql");
+    });
 // -------------------------------------
 
 app.MapRazorPages();
