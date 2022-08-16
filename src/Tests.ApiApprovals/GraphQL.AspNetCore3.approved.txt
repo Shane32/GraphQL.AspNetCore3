@@ -62,7 +62,7 @@ namespace GraphQL.AspNetCore3
     }
     public static class GraphQLBuilderExtensions
     {
-        [System.Obsolete("Please user AddAuthorizationRule")]
+        [System.Obsolete("Please use AddAuthorizationRule")]
         public static GraphQL.DI.IGraphQLBuilder AddAuthorization(this GraphQL.DI.IGraphQLBuilder builder) { }
         public static GraphQL.DI.IGraphQLBuilder AddAuthorizationRule(this GraphQL.DI.IGraphQLBuilder builder) { }
         public static GraphQL.DI.IGraphQLBuilder AddUserContextBuilder<TUserContextBuilder>(this GraphQL.DI.IGraphQLBuilder builder, GraphQL.DI.ServiceLifetime serviceLifetime = 0)

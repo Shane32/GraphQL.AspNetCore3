@@ -11,7 +11,7 @@ public static class GraphQLBuilderExtensions
     /// Registers <see cref="AuthorizationValidationRule"/> with the dependency injection framework
     /// and configures it to be used when executing a request.
     /// </summary>
-    [Obsolete("Please user AddAuthorizationRule")]
+    [Obsolete("Please use AddAuthorizationRule")]
     public static IGraphQLBuilder AddAuthorization(this IGraphQLBuilder builder)
     {
         builder.AddValidationRule<AuthorizationValidationRule>(true);
