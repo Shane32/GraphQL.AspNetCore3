@@ -46,10 +46,6 @@ public class AuthorizationTests
         });
         var mockServices = new Mock<IServiceProvider>(MockBehavior.Strict);
         mockServices.Setup(x => x.GetService(typeof(IAuthorizationService))).Returns(mockAuthorizationService.Object);
-        var mockHttpContext = new Mock<HttpContext>(MockBehavior.Strict);
-        mockHttpContext.Setup(x => x.User).Returns(_principal);
-        var mockContextAccessor = new Mock<IHttpContextAccessor>(MockBehavior.Strict);
-        mockContextAccessor.Setup(x => x.HttpContext).Returns(mockHttpContext.Object);
         var document = GraphQLParser.Parser.Parse(query);
 
         var inputs = new GraphQLSerializer().Deserialize<Inputs>(variables) ?? Inputs.Empty;
@@ -63,6 +59,7 @@ public class AuthorizationTests
             UserContext = new Dictionary<string, object?>(),
             Variables = inputs,
             RequestServices = mockServices.Object,
+            User = _principal,
         }).GetAwaiter().GetResult(); // there is no async code being tested
         coreRulesResult.IsValid.ShouldBe(shouldPassCoreRules);
 
@@ -70,11 +67,12 @@ public class AuthorizationTests
             Document = document,
             Extensions = Inputs.Empty,
             Operation = (GraphQLOperationDefinition)document.Definitions.First(x => x.Kind == ASTNodeKind.OperationDefinition),
-            Rules = new IValidationRule[] { new AuthorizationValidationRule(mockContextAccessor.Object) },
+            Rules = new IValidationRule[] { new AuthorizationValidationRule() },
             Schema = _schema,
             UserContext = new Dictionary<string, object?>(),
             Variables = inputs,
             RequestServices = mockServices.Object,
+            User = _principal,
         }).GetAwaiter().GetResult(); // there is no async code being tested
         return result;
     }
@@ -533,18 +531,16 @@ public class AuthorizationTests
     [Fact]
     public void Constructors()
     {
-        Should.Throw<ArgumentNullException>(() => new AuthorizationValidationRule(null!));
         Should.Throw<ArgumentNullException>(() => new AuthorizationVisitor(null!, _principal, Mock.Of<IAuthorizationService>()));
         Should.Throw<ArgumentNullException>(() => new AuthorizationVisitor(new ValidationContext(), null!, Mock.Of<IAuthorizationService>()));
         Should.Throw<ArgumentNullException>(() => new AuthorizationVisitor(new ValidationContext(), _principal, null!));
     }
 
     [Theory]
-    [InlineData(true, false, false, false)]
-    [InlineData(false, true, false, false)]
-    [InlineData(false, false, true, false)]
-    [InlineData(false, false, false, true)]
-    public void MiscErrors(bool noHttpContext, bool noClaimsPrincipal, bool noRequestServices, bool noAuthenticationService)
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, true)]
+    public void MiscErrors(bool noClaimsPrincipal, bool noRequestServices, bool noAuthenticationService)
     {
         var mockAuthorizationService = new Mock<IAuthorizationService>(MockBehavior.Strict);
         mockAuthorizationService.Setup(x => x.AuthorizeAsync(_principal, null, It.IsAny<string>())).Returns<ClaimsPrincipal, object, string>((_, _, policy) => {
@@ -554,10 +550,6 @@ public class AuthorizationTests
         });
         var mockServices = new Mock<IServiceProvider>(MockBehavior.Strict);
         mockServices.Setup(x => x.GetService(typeof(IAuthorizationService))).Returns(noAuthenticationService ? null! : mockAuthorizationService.Object);
-        var mockHttpContext = new Mock<HttpContext>(MockBehavior.Strict);
-        mockHttpContext.Setup(x => x.User).Returns(noClaimsPrincipal ? null! : _principal);
-        var mockContextAccessor = new Mock<IHttpContextAccessor>(MockBehavior.Strict);
-        mockContextAccessor.Setup(x => x.HttpContext).Returns(noHttpContext ? null! : mockHttpContext.Object);
         var document = GraphQLParser.Parser.Parse("{ __typename }");
         var validator = new DocumentValidator();
 
@@ -565,18 +557,16 @@ public class AuthorizationTests
             Document = document,
             Extensions = Inputs.Empty,
             Operation = (GraphQLOperationDefinition)document.Definitions.Single(x => x.Kind == ASTNodeKind.OperationDefinition),
-            Rules = new IValidationRule[] { new AuthorizationValidationRule(mockContextAccessor.Object) },
+            Rules = new IValidationRule[] { new AuthorizationValidationRule() },
             Schema = _schema,
             UserContext = new Dictionary<string, object?>(),
             Variables = Inputs.Empty,
             RequestServices = noRequestServices ? null : mockServices.Object,
+            User = noClaimsPrincipal ? null : _principal,
         }).GetAwaiter().GetResult()); // there is no async code being tested
 
-        if (noHttpContext)
-            err.ShouldBeOfType<InvalidOperationException>().Message.ShouldBe("HttpContext could not be retrieved from IHttpContextAccessor.");
-
         if (noClaimsPrincipal)
-            err.ShouldBeOfType<InvalidOperationException>().Message.ShouldBe("ClaimsPrincipal could not be retrieved from HttpContext.");
+            err.ShouldBeOfType<InvalidOperationException>().Message.ShouldBe("User could not be retrieved from ValidationContext. Please be sure it is set in ExecutionOptions.User.");
 
         if (noRequestServices)
             err.ShouldBeOfType<MissingRequestServicesException>();
@@ -591,10 +581,6 @@ public class AuthorizationTests
         var mockAuthorizationService = new Mock<IAuthorizationService>(MockBehavior.Strict);
         var mockServices = new Mock<IServiceProvider>(MockBehavior.Strict);
         mockServices.Setup(x => x.GetService(typeof(IAuthorizationService))).Returns(mockAuthorizationService.Object);
-        var mockHttpContext = new Mock<HttpContext>(MockBehavior.Strict);
-        mockHttpContext.Setup(x => x.User).Returns(new ClaimsPrincipal());
-        var mockContextAccessor = new Mock<IHttpContextAccessor>(MockBehavior.Strict);
-        mockContextAccessor.Setup(x => x.HttpContext).Returns(mockHttpContext.Object);
         var document = GraphQLParser.Parser.Parse("{ __typename }");
         var validator = new DocumentValidator();
         _schema.Authorize();
@@ -603,11 +589,12 @@ public class AuthorizationTests
             Document = document,
             Extensions = Inputs.Empty,
             Operation = (GraphQLOperationDefinition)document.Definitions.Single(x => x.Kind == ASTNodeKind.OperationDefinition),
-            Rules = new IValidationRule[] { new AuthorizationValidationRule(mockContextAccessor.Object) },
+            Rules = new IValidationRule[] { new AuthorizationValidationRule() },
             Schema = _schema,
             UserContext = new Dictionary<string, object?>(),
             Variables = Inputs.Empty,
             RequestServices = mockServices.Object,
+            User = new ClaimsPrincipal(),
         }).GetAwaiter().GetResult(); // there is no async code being tested
 
         result.Errors.ShouldHaveSingleItem().ShouldBeOfType<AccessDeniedError>().Message.ShouldBe("Access denied for schema.");
@@ -700,17 +687,9 @@ public class AuthorizationTests
         services.AddGraphQL(b => b
             .AddSchema(_schema)
             .AddSystemTextJson()
-            .AddAuthorization());
+            .AddAuthorizationRule());
 
         services.AddSingleton(Mock.Of<IAuthorizationService>(MockBehavior.Strict));
-
-        var mockContext = new Mock<HttpContext>(MockBehavior.Strict);
-        mockContext.Setup(x => x.User).Returns(_principal);
-
-        var mockContextAccessor = new Mock<IHttpContextAccessor>(MockBehavior.Strict);
-        mockContextAccessor.Setup(x => x.HttpContext).Returns(mockContext.Object);
-
-        services.AddSingleton(mockContextAccessor.Object);
 
         using var provider = services.BuildServiceProvider();
 
@@ -718,10 +697,56 @@ public class AuthorizationTests
         var ret = await executer.ExecuteAsync(new ExecutionOptions {
             Query = @"{ parent { child } }",
             RequestServices = provider,
+            User = _principal,
         });
 
         var serializer = provider.GetRequiredService<IGraphQLTextSerializer>();
         var actual = serializer.Serialize(ret);
+
+        if (authenticated)
+            actual.ShouldBe(@"{""data"":{""parent"":null}}");
+        else
+            actual.ShouldBe(@"{""errors"":[{""message"":""Access denied for field \u0027parent\u0027 on type \u0027QueryType\u0027."",""locations"":[{""line"":1,""column"":3}],""extensions"":{""code"":""ACCESS_DENIED"",""codes"":[""ACCESS_DENIED""]}}]}");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task EndToEnd(bool authenticated)
+    {
+        _field.Authorize();
+
+        if (authenticated)
+            SetAuthorized();
+
+        var hostBuilder = new WebHostBuilder();
+        hostBuilder.ConfigureServices(services => {
+            services.AddSingleton<Chat.Services.ChatService>();
+            services.AddGraphQL(b => b
+                .AddSchema(_schema)
+                .AddSystemTextJson()
+                .AddAuthorizationRule());
+            services.AddAuthentication();
+            services.AddAuthorization();
+#if NETCOREAPP2_1 || NET48
+            services.AddHostApplicationLifetime();
+#endif
+        });
+        hostBuilder.Configure(app => {
+            app.UseWebSockets();
+            // simulate app.UseAuthentication()
+            app.Use(next => context => {
+                context.User = _principal;
+                return next(context);
+            });
+            app.UseGraphQL();
+        });
+        using var server = new TestServer(hostBuilder);
+
+        using var client = server.CreateClient();
+        using var response = await client.GetAsync("/graphql?query={ parent { child } }");
+        response.StatusCode.ShouldBe(authenticated ? System.Net.HttpStatusCode.OK : System.Net.HttpStatusCode.BadRequest);
+        var actual = await response.Content.ReadAsStringAsync();
 
         if (authenticated)
             actual.ShouldBe(@"{""data"":{""parent"":null}}");

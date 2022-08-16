@@ -33,11 +33,7 @@ for changes from previous versions.
 ### Typical configuration with HTTP middleware
 
 First add the `GraphQL.AspNetCore3` nuget package to your application.  It requires
-`GraphQL` version 5.3.3 or a later 5.x version.
-
-Second, install the `GraphQL.SystemTextJson` or `GraphQL.NewtonsoftJson` package within your
-application if you have not already done so.  For best performance, please use the
-`GraphQL.SystemTextJson` package.
+`GraphQL` version 7.0.0 or a later.
 
 Then update your `Program.cs` or `Startup.cs` to register the schema, the serialization engine,
 and optionally the HTTP middleware and WebSocket services.  Configure WebSockets and GraphQL
@@ -58,8 +54,7 @@ Below is a complete sample of a .NET 6 console app that hosts a GraphQL endpoint
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="GraphQL.AspNetCore3" Version="4.0.1" />
-    <PackageReference Include="GraphQL.SystemTextJson" Version="5.3.3" />
+    <PackageReference Include="GraphQL.AspNetCore3" Version="5.0.0" />
   </ItemGroup>
 
 </Project>
@@ -264,14 +259,14 @@ if you allow anonymous requests.
 #### For individual graphs, fields and query arguments
 
 To configure ASP.NET Core authorization for GraphQL, add the corresponding
-validation rule during GraphQL configuration, typically by calling `.AddAuthorization()`
+validation rule during GraphQL configuration, typically by calling `.AddAuthorizationRule()`
 as shown below:
 
 ```csharp
 builder.Services.AddGraphQL(b => b
     .AddAutoSchema<Query>()
     .AddSystemTextJson()
-    .AddAuthorization());
+    .AddAuthorizationRule());
 ```
 
 Both roles and policies are supported for output graph types, fields on output graph types,
@@ -315,7 +310,7 @@ fields are marked with `AllowAnonymous`.
 
 This project does not include user interfaces, such as GraphiQL or Playground,
 but you can include references to the ones provided by the [GraphQL Server](https://github.com/graphql-dotnet/server)
-repository which work well with ASP.Net Core 3.1+.  Below is a list of the nuget packages offered:
+repository which work well with ASP.Net Core 2.1+.  Below is a list of the nuget packages offered:
 
 | Package                                              | Downloads                                                                                                                                                                             | NuGet Latest                                                                                                                                                                         |
 |------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -408,11 +403,14 @@ and [this](http://www.breachattack.com/#howitworks) for more details.
 You may choose to use the .NET Core 2.1 runtime or a .NET Framework runtime.
 This library has been tested with .NET Core 2.1 and .NET Framework 4.8.
 
-The only additional requirement is that you must add this code in your `Startup.cs` file:
+One additional requirement is that you must add this code in your `Startup.cs` file:
 
 ```csharp
 services.AddHostApplicationLifetime();
 ```
+
+You will also need to reference a serializer package such as `GraphQL.NewtonsoftJson`
+or `GraphQL.SystemTextJson`, as `GraphQL.SystemTextJson` is not included in this case.
 
 Besides that requirement, all features are supported in exactly the same manner as
 when using ASP.NET Core 3.1+.  You may find differences in the ASP.NET Core runtime,
@@ -513,7 +511,7 @@ and Subscription portions of your schema, as shown below:
 builder.Services.AddGraphQL(b => b
     .AddSchema<MySchema>()
     .AddSystemTextJson()
-    .AddAuthorization()); // add authorization validation rule
+    .AddAuthorizationRule()); // add authorization validation rule
 
 var app = builder.Build();
 app.UseDeveloperExceptionPage();

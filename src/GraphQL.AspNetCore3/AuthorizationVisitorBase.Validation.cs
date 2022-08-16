@@ -10,14 +10,14 @@ public partial class AuthorizationVisitorBase
     /// Validates authorization rules for the schema.
     /// Returns a value indicating if validation was successful.
     /// </summary>
-    public virtual bool ValidateSchema(ValidationContext context)
-        => Validate(context.Schema, null, context);
+    public virtual ValueTask<bool> ValidateSchemaAsync(ValidationContext context)
+        => ValidateAsync(context.Schema, null, context);
 
     /// <summary>
     /// Validate a node that is current within the context.
     /// </summary>
-    private bool Validate(IProvideMetadata obj, ASTNode? node, ValidationContext context)
-        => Validate(BuildValidationInfo(node, obj, context));
+    private ValueTask<bool> ValidateAsync(IProvideMetadata obj, ASTNode? node, ValidationContext context)
+        => ValidateAsync(BuildValidationInfo(node, obj, context));
 
     /// <summary>
     /// Initializes a new <see cref="ValidationInfo"/> instance for the specified node.
@@ -67,7 +67,7 @@ public partial class AuthorizationVisitorBase
     /// as this is handled elsewhere.
     /// Returns a value indicating if validation was successful for this node.
     /// </summary>
-    protected virtual bool Validate(ValidationInfo info)
+    protected virtual async ValueTask<bool> ValidateAsync(ValidationInfo info)
     {
         bool requiresAuthorization = info.Obj.IsAuthorizationRequired();
         if (!requiresAuthorization)
@@ -84,7 +84,7 @@ public partial class AuthorizationVisitorBase
             _policyResults ??= new Dictionary<string, AuthorizationResult>();
             foreach (var policy in policies) {
                 if (!_policyResults.TryGetValue(policy, out var result)) {
-                    result = Authorize(policy);
+                    result = await AuthorizeAsync(policy);
                     _policyResults.Add(policy, result);
                 }
                 if (!result.Succeeded) {
@@ -120,7 +120,7 @@ public partial class AuthorizationVisitorBase
     protected abstract bool IsInRole(string role);
 
     /// <inheritdoc cref="IAuthorizationService.AuthorizeAsync(ClaimsPrincipal, object, string)"/>
-    protected abstract AuthorizationResult Authorize(string policy);
+    protected abstract ValueTask<AuthorizationResult> AuthorizeAsync(string policy);
 
     /// <summary>
     /// Adds a error to the validation context indicating that the user is not authenticated

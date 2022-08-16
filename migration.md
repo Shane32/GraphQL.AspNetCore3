@@ -1,5 +1,27 @@
 # Version history / migration notes
 
+## 5.0.0
+
+GraphQL.AspNetCore3 v5 requires GraphQL.NET v7 or newer.
+
+`builder.AddAuthorization()` has been renamed to `builder.AddAuthorizationRule()`.
+The old method has been marked as deprecated.
+
+The authorization validation rule and supporting methods have been changed to be
+asynchronous, to match the new asynchronous signatures of `IValidationRule` in
+GraphQL.NET v7.  If you override any methods, they will need to be updated with
+the new signature.
+
+The authorization rule now pulls `ClaimsPrincipal` indirectly from
+`ExecutionOptions.User`.  This value must be set properly from the ASP.NET middleware.
+While the default implementation has this update in place, if you override
+`GraphQLHttpMiddleware.ExecuteRequestAsync` or do not use the provided ASP.NET
+middleware, you must set the value in your code.  Another consequence of this
+change is that the constructor of `AuthorizationValidationRule` does not require
+`IHttpContextAccessor`, and `IHttpContextAccessor` is not required to be registered
+within the dependency injection framework (previously provided automatically by
+`builder.AddAuthorization()`).
+
 ## 4.0.0
 
 Remove `AllowEmptyQuery` option, as this error condition is now handled by the

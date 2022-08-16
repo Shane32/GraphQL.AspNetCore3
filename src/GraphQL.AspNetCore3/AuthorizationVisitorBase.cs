@@ -19,7 +19,7 @@ public abstract partial class AuthorizationVisitorBase : INodeVisitor
     private List<TodoInfo>? _todos;
 
     /// <inheritdoc/>
-    public virtual void Enter(ASTNode node, ValidationContext context)
+    public virtual async ValueTask EnterAsync(ASTNode node, ValidationContext context)
     {
         // if the node is the selected operation, or if it is a fragment referenced by the current operation,
         // then enable authorization checks on decendant nodes (_checkTree = true)
@@ -58,7 +58,7 @@ public abstract partial class AuthorizationVisitorBase : INodeVisitor
 
                     // Fields, unlike types, are validated immediately.
                     if (!fieldAnonymousAllowed) {
-                        Validate(field, node, context);
+                        await ValidateAsync(field, node, context);
                     }
                 }
 
@@ -92,7 +92,7 @@ public abstract partial class AuthorizationVisitorBase : INodeVisitor
                     // verify field argument
                     var arg = context.TypeInfo.GetArgument();
                     if (arg != null) {
-                        Validate(arg, node, context);
+                        await ValidateAsync(arg, node, context);
                     }
                 }
             }
@@ -100,7 +100,7 @@ public abstract partial class AuthorizationVisitorBase : INodeVisitor
     }
 
     /// <inheritdoc/>
-    public virtual void Leave(ASTNode node, ValidationContext context)
+    public virtual async ValueTask LeaveAsync(ASTNode node, ValidationContext context)
     {
         if (!_checkTree) {
             // if we are within a field skipped by a directive, resume auth checks at the appropriate time
@@ -114,30 +114,30 @@ public abstract partial class AuthorizationVisitorBase : INodeVisitor
         }
         if (node == context.Operation) {
             _checkTree = false;
-            PopAndProcess();
+            await PopAndProcessAsync();
         } else if (node is GraphQLFragmentDefinition fragmentDefinition) {
             // once a fragment is done being processed, apply it to all types waiting on fragment checks,
             // and process checks for types that are not waiting on any fragments
             _checkTree = false;
             var fragmentName = fragmentDefinition.FragmentName.Name.StringValue;
             var ti = _onlyAnonymousSelected.Pop();
-            RecursiveResolve(fragmentName, ti, context);
+            await RecursiveResolveAsync(fragmentName, ti, context);
             _fragments ??= new();
             _fragments.TryAdd(fragmentName, ti);
         } else if (_checkTree && node is GraphQLField) {
-            PopAndProcess();
+            await PopAndProcessAsync();
         }
 
         // pop the current type info, and validate the type if it does not contain only fields marked
         // with AllowAnonymous (assuming it is not waiting on fragments)
-        void PopAndProcess()
+        async ValueTask PopAndProcessAsync()
         {
             var info = _onlyAnonymousSelected.Pop();
             var type = context.TypeInfo.GetLastType()?.GetNamedType();
             if (type == null)
                 return;
             if (info.AnyAuthenticated || (!info.AnyAnonymous && (info.WaitingOnFragments?.Count ?? 0) == 0)) {
-                Validate(type, node, context);
+                await ValidateAsync(type, node, context);
             } else if (info.WaitingOnFragments?.Count > 0) {
                 _todos ??= new();
                 _todos.Add(new(BuildValidationInfo(node, type, context), info));
@@ -205,7 +205,7 @@ public abstract partial class AuthorizationVisitorBase : INodeVisitor
     /// Runs when a fragment is added or updated; the fragment might not be waiting on any
     /// other fragments, or it still might be.
     /// </summary>
-    private void RecursiveResolve(string fragmentName, TypeInfo ti, ValidationContext context)
+    private async ValueTask RecursiveResolveAsync(string fragmentName, TypeInfo ti, ValidationContext context)
     {
         // first see if any other fragments are waiting on this fragment
         if (_fragments != null) {
@@ -216,7 +216,7 @@ public abstract partial class AuthorizationVisitorBase : INodeVisitor
                     ti2.AnyAuthenticated |= ti.AnyAuthenticated;
                     ti2.AnyAnonymous |= ti.AnyAnonymous;
                     _fragments[fragment.Key] = ti2;
-                    RecursiveResolve(fragment.Key, ti2, context);
+                    await RecursiveResolveAsync(fragment.Key, ti2, context);
                     goto Retry; // modifying a collection at runtime is not supported
                 }
             }
@@ -234,7 +234,7 @@ public abstract partial class AuthorizationVisitorBase : INodeVisitor
                             _todos.RemoveAt(i);
                             count--;
                             if (todo.AnyAuthenticated || !todo.AnyAnonymous) {
-                                Validate(todo.ValidationInfo);
+                                await ValidateAsync(todo.ValidationInfo);
                             }
                         }
                     }

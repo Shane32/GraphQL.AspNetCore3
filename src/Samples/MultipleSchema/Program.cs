@@ -22,17 +22,17 @@ app.UseGraphQL<MultipleSchema.Cats.CatsSchema>("/cats/graphql");
 app.UseGraphQL<MultipleSchema.Dogs.DogsSchema>("/dogs/graphql");
 // configure Playground at "/cats"
 app.UseGraphQLPlayground(
+    "/cats",
     new GraphQL.Server.Ui.Playground.PlaygroundOptions {
         GraphQLEndPoint = new PathString("/cats/graphql"),
         SubscriptionsEndPoint = new PathString("/cats/graphql"),
-    },
-    "/cats");
+    });
 // configure Playground at "/dogs"
 app.UseGraphQLPlayground(
+    "/dogs",
     new GraphQL.Server.Ui.Playground.PlaygroundOptions {
         GraphQLEndPoint = new PathString("/dogs/graphql"),
         SubscriptionsEndPoint = new PathString("/dogs/graphql"),
-    },
-    "/dogs");
+    });
 app.MapRazorPages();
 await app.RunAsync();
