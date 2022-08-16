@@ -409,8 +409,8 @@ One additional requirement is that you must add this code in your `Startup.cs` f
 services.AddHostApplicationLifetime();
 ```
 
-You will need to also to reference a serializer package; either `GraphQL.NewtonsoftJson`
-or `GraphQL.SystemTextJson`.
+You will also need to reference a serializer package such as `GraphQL.NewtonsoftJson`
+or `GraphQL.SystemTextJson`, as `GraphQL.SystemTextJson` is not included in this case.
 
 Besides that requirement, all features are supported in exactly the same manner as
 when using ASP.NET Core 3.1+.  You may find differences in the ASP.NET Core runtime,
