@@ -285,7 +285,7 @@ public class AuthorizationTests
                     validatedUser = true;
                 }));
         });
-        _options.AuthorizationRequired = false; // disable authorization requirements; we just want to verify that a anonymous user is passed to the execution options
+        _options.AuthorizationRequired = false; // disable authorization requirements; we just want to verify that an anonymous user is passed to the execution options
         using var response = await PostQueryAsync("{ __typename }", true); // send an authenticated request (with JWT bearer scheme)
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var actual = await response.Content.ReadAsStringAsync();
