@@ -232,16 +232,7 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
     /// </summary>
     protected virtual async ValueTask<bool> HandleAuthorizeAsync(HttpContext context, RequestDelegate next)
     {
-        if (_options.AuthenticationSchemes.Count > 0) {
-            ClaimsPrincipal? newPrincipal = null;
-            foreach (var scheme in _options.AuthenticationSchemes) {
-                var result = await context.AuthenticateAsync(scheme);
-                if (result != null && result.Succeeded) {
-                    newPrincipal = SecurityHelper.MergeUserPrincipal(newPrincipal, result.Principal);
-                }
-            }
-            context.User = newPrincipal ?? new ClaimsPrincipal(new ClaimsIdentity());
-        }
+        await SetHttpContextUserAsync(context);
 
         var success = await AuthorizationHelper.AuthorizeAsync(
             new AuthorizationParameters<(GraphQLHttpMiddleware Middleware, HttpContext Context, RequestDelegate Next)>(
@@ -256,15 +247,9 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
     }
 
     /// <summary>
-    /// Perform authorization, if required, and return <see langword="true"/> if the
-    /// request was handled (typically by returning an error message).  If <see langword="false"/>
-    /// is returned, the request is processed normally.
-    /// <br/><br/>
-    /// By default this does not check authorization rules because authentication may take place within
-    /// the WebSocket connection during the ConnectionInit message.  Authorization checks for
-    /// WebSocket connections occur then, after authorization has taken place.
+    /// If any authentication schemes are defined, set the HttpContext.User property.
     /// </summary>
-    protected virtual async ValueTask<bool> HandleAuthorizeWebSocketConnectionAsync(HttpContext context, RequestDelegate next)
+    private async ValueTask SetHttpContextUserAsync(HttpContext context)
     {
         if (_options.AuthenticationSchemes.Count > 0) {
             ClaimsPrincipal? newPrincipal = null;
@@ -276,6 +261,20 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
             }
             context.User = newPrincipal ?? new ClaimsPrincipal(new ClaimsIdentity());
         }
+    }
+
+    /// <summary>
+    /// Perform authorization, if required, and return <see langword="true"/> if the
+    /// request was handled (typically by returning an error message).  If <see langword="false"/>
+    /// is returned, the request is processed normally.
+    /// <br/><br/>
+    /// By default this does not check authorization rules because authentication may take place within
+    /// the WebSocket connection during the ConnectionInit message.  Authorization checks for
+    /// WebSocket connections occur then, after authorization has taken place.
+    /// </summary>
+    protected virtual async ValueTask<bool> HandleAuthorizeWebSocketConnectionAsync(HttpContext context, RequestDelegate next)
+    {
+        await SetHttpContextUserAsync(context);
         return false;
     }
 
