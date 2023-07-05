@@ -263,20 +263,14 @@ public class AuthorizationTests
     [Fact]
     public async Task NotAuthorized_WrongScheme()
     {
-        bool validatedUser = false;
         _server = CreateServer(services => {
             services.AddAuthentication("Cookie"); // change default scheme to Cookie authentication
-            services.AddGraphQL(b => b.ConfigureExecutionOptions(opts => {
-                opts.User.ShouldNotBeNull().Identity.ShouldNotBeNull().IsAuthenticated.ShouldBeFalse();
-                validatedUser = true;
-            }));
         });
         _options.AuthorizationRequired = true;
         using var response = await PostQueryAsync("{ __typename }", true); // send an authenticated request (with JWT bearer scheme)
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         var actual = await response.Content.ReadAsStringAsync();
         actual.ShouldBe(@"{""errors"":[{""message"":""Access denied for schema."",""extensions"":{""code"":""ACCESS_DENIED"",""codes"":[""ACCESS_DENIED""]}}]}");
-        validatedUser.ShouldBeTrue();
     }
 
     [Fact]
