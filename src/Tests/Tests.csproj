@@ -26,6 +26,7 @@
     <ProjectReference Include="..\Samples\ChatSchema\Chat.csproj" />
     <ProjectReference Include="..\GraphQL.AspNetCore3\GraphQL.AspNetCore3.csproj" />
     <PackageReference Include="GraphQL.SystemTextJson" Version="$(GraphQLVersion)" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Cookies" Version="2.1.*" Condition="'$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'netcoreapp2.1'" />
   </ItemGroup>
 
   <ItemGroup>

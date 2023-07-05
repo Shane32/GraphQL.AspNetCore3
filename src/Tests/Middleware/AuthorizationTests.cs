@@ -3,6 +3,7 @@ using System.Net;
 using System.Security.Claims;
 using GraphQL.AspNetCore3.Errors;
 using GraphQL.Execution;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Hosting;
 
@@ -264,9 +265,24 @@ public class AuthorizationTests
     public async Task NotAuthorized_WrongScheme()
     {
         _server = CreateServer(services => {
-            services.AddAuthentication("Cookie"); // change default scheme to Cookie authentication
+            services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme); // change default scheme to Cookie authentication
         });
         _options.AuthorizationRequired = true;
+        using var response = await PostQueryAsync("{ __typename }", true); // send an authenticated request (with JWT bearer scheme)
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        var actual = await response.Content.ReadAsStringAsync();
+        actual.ShouldBe(@"{""errors"":[{""message"":""Access denied for schema."",""extensions"":{""code"":""ACCESS_DENIED"",""codes"":[""ACCESS_DENIED""]}}]}");
+    }
+
+    [Fact]
+    public async Task NotAuthorized_WrongScheme_2()
+    {
+        _server.Dispose();
+        _server = CreateServer(services => {
+            services.AddAuthentication().AddCookie(); // add Cookie authentication
+        });
+        _options.AuthorizationRequired = true;
+        _options.AuthenticationSchemes.Add(CookieAuthenticationDefaults.AuthenticationScheme); // change authentication scheme for GraphQL requests to Cookie (which is not used by the test client)
         using var response = await PostQueryAsync("{ __typename }", true); // send an authenticated request (with JWT bearer scheme)
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         var actual = await response.Content.ReadAsStringAsync();
@@ -278,7 +294,7 @@ public class AuthorizationTests
     {
         bool validatedUser = false;
         _server = CreateServer(services => {
-            services.AddAuthentication("Cookie"); // change default scheme to Cookie authentication
+            services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme); // change default scheme to Cookie authentication
             services.AddGraphQL(b => b
                 .ConfigureExecutionOptions(opts => {
                     opts.User.ShouldNotBeNull().Identity.ShouldNotBeNull().IsAuthenticated.ShouldBeFalse();
@@ -298,7 +314,7 @@ public class AuthorizationTests
     {
         bool validatedUser = false;
         _server = CreateServer(services => {
-            services.AddAuthentication("Cookie"); // change default scheme to Cookie authentication
+            services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme); // change default scheme to Cookie authentication
             services.AddGraphQL(b => b.ConfigureExecutionOptions(opts => {
                 opts.User.ShouldNotBeNull().Identity.ShouldNotBeNull().IsAuthenticated.ShouldBeTrue();
                 validatedUser = true;
