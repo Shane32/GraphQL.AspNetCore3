@@ -35,7 +35,7 @@ SOFTWARE.
 
 using System.Security.Claims;
 
-namespace Microsoft.Extensions.Internal;
+namespace GraphQL.AspNetCore3;
 
 /// <summary>
 /// Helper code used when implementing authentication middleware
