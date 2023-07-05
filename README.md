@@ -306,6 +306,97 @@ Similarly for unions, validation occurs on the exact type that is queried.  Be s
 consider placement of authorization rules when using interfaces and unions, especially when some
 fields are marked with `AllowAnonymous`.
 
+#### Custom authentication configuration for GET/POST requests
+
+To provide custom authentication code, bypassing ASP.NET Core's authentication, derive from the
+`GraphQLHttpMiddleware<T>` class and override `HandleAuthorizeAsync`, setting `HttpContext.User`
+to an appropriate `ClaimsPrincipal` instance.
+
+See 'Customizing middleware behavior' below for an example of deriving from `GraphQLHttpMiddleware`.
+
+#### Authentication for WebSocket requests
+
+Since WebSocket requests from browsers cannot typically carry a HTTP Authorization header, you
+will need to authorize requests via the `ConnectionInit` WebSocket message or carry the authorization
+token within the URL.  Below is a sample of the former:
+
+```cs
+builder.Services.AddGraphQL(b => b
+    .AddAutoSchema<Query>()
+    .AddSystemTextJson()
+    .AddAuthorizationRule()  // not required for endpoint authorization
+    .AddWebSocketAuthentication<MyAuthService>());
+
+app.UseGraphQL("/graphql", config =>
+{
+    // require that the user be authenticated
+    config.AuthorizationRequired = true;
+});
+
+class MyAuthService : IWebSocketAuthenticationService
+{
+    private readonly IGraphQLSerializer _serializer;
+
+    public MyAuthService(IGraphQLSerializer serializer)
+    {
+        _serializer = serializer;
+    }
+
+    public async ValueTask<bool> AuthenticateAsync(IWebSocketConnection connection, OperationMessage operationMessage)
+    {
+        // read payload of ConnectionInit message and look for an "Authorization" entry that starts with "Bearer "
+        var payload = _serializer.ReadNode<Inputs>(operationMessage.Payload);
+        if ((payload?.TryGetValue("Authorization", out var value) ?? false) && value is string valueString)
+        {
+            var user = ParseToken(valueString);
+            if (user != null)
+            {
+                // set user and indicate authentication was successful
+                connection.HttpContext.User = user;
+                return true;
+            }
+        }
+        return false; // authentication failed
+    }
+
+    private ClaimsPrincipal? ParseToken(string authorizationHeaderValue)
+    {
+        // parse header value and return user, or null if unable
+    }
+}
+```
+
+To authorize based on information within the query string, it is recommended to
+derive from `GraphQLHttpMiddleware<T>` and override `InvokeAsync`, setting
+`HttpContext.User` based on the query string parameters, and then calling `base.InvokeAsync`.
+Alternatively you may override `HandleAuthorizeAsync` which will execute for GET/POST requests,
+and `HandleAuthorizeWebSocketConnectionAsync` for WebSocket requests.
+Note that `InvokeAsync` will execute even if the protocol is disabled in the options via
+disabling `HandleGet` or similar; `HandleAuthorizeAsync` and `HandleAuthorizeWebSocketConnectionAsync`
+will not.
+
+#### Authentication schemes
+
+By default the role and policy requirements are validated against the current user as defined by
+`HttpContext.User`.  This is typically set by ASP.NET Core's authentication middleware and is based
+on the default authentication scheme set during the call to `AddAuthentication` in `Startup.cs`.
+You may override this behavior by specifying a different authentication scheme via the `AuthenticationSchemes`
+option.  For instance, if you wish to authenticate using JWT authentication when Cookie authentication is
+the default, you may specify the scheme as follows:
+
+```csharp
+app.UseGraphQL("/graphql", config =>
+{
+    // specify a specific authentication scheme to use
+    config.AuthenticationSchemes.Add(JwtBearerDefaults.AuthenticationScheme);
+});
+```
+
+This will overwrite the `HttpContext.User` property when handling GraphQL requests, which will in turn
+set the `IResolveFieldContext.User` property to the same value (unless being overridden via an
+`IWebSocketAuthenticationService` implementation as shown above).  So both endpoint authorization and
+field authorization will perform role and policy checks against the same authentication scheme.
+
 ### UI configuration
 
 This project does not include user interfaces, such as GraphiQL or Playground,
