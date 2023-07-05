@@ -1,6 +1,9 @@
 #pragma warning disable CA1716 // Identifiers should not match keywords
 
+using Microsoft.AspNetCore.Authentication;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Internal;
 
 namespace GraphQL.AspNetCore3;
 
@@ -230,6 +233,17 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
     /// </summary>
     protected virtual async ValueTask<bool> HandleAuthorizeAsync(HttpContext context, RequestDelegate next)
     {
+        if (_options.AuthenticationSchemes.Count > 0) {
+            ClaimsPrincipal? newPrincipal = null;
+            foreach (var scheme in _options.AuthenticationSchemes) {
+                var result = await context.AuthenticateAsync(scheme);
+                if (result != null && result.Succeeded) {
+                    newPrincipal = SecurityHelper.MergeUserPrincipal(newPrincipal, result.Principal);
+                }
+            }
+            context.User = newPrincipal ?? new ClaimsPrincipal(new ClaimsIdentity());
+        }
+
         var success = await AuthorizationHelper.AuthorizeAsync(
             new AuthorizationParameters<(GraphQLHttpMiddleware Middleware, HttpContext Context, RequestDelegate Next)>(
                 context,
@@ -251,8 +265,20 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
     /// the WebSocket connection during the ConnectionInit message.  Authorization checks for
     /// WebSocket connections occur then, after authorization has taken place.
     /// </summary>
-    protected virtual ValueTask<bool> HandleAuthorizeWebSocketConnectionAsync(HttpContext context, RequestDelegate next)
-        => new(false);
+    protected virtual async ValueTask<bool> HandleAuthorizeWebSocketConnectionAsync(HttpContext context, RequestDelegate next)
+    {
+        if (_options.AuthenticationSchemes.Count > 0) {
+            ClaimsPrincipal? newPrincipal = null;
+            foreach (var scheme in _options.AuthenticationSchemes) {
+                var result = await context.AuthenticateAsync(scheme);
+                if (result != null && result.Succeeded) {
+                    newPrincipal = SecurityHelper.MergeUserPrincipal(newPrincipal, result.Principal);
+                }
+            }
+            context.User = newPrincipal ?? new ClaimsPrincipal(new ClaimsIdentity());
+        }
+        return false;
+    }
 
     /// <summary>
     /// Handles a single GraphQL request.
