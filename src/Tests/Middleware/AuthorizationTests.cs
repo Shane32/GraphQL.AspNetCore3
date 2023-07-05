@@ -12,9 +12,14 @@ public class AuthorizationTests
 {
     private GraphQLHttpMiddlewareOptions _options = null!;
     private bool _enableCustomErrorInfoProvider;
-    private readonly TestServer _server;
+    private TestServer _server;
 
     public AuthorizationTests()
+    {
+        _server = CreateServer();
+    }
+
+    private TestServer CreateServer(Action<IServiceCollection>? configureServices = null)
     {
         var hostBuilder = new WebHostBuilder();
         hostBuilder.ConfigureServices(services => {
@@ -42,6 +47,7 @@ public class AuthorizationTests
 #if NETCOREAPP2_1 || NET48
             services.AddHostApplicationLifetime();
 #endif
+            configureServices?.Invoke(services);
         });
         hostBuilder.Configure(app => {
             app.UseWebSockets();
@@ -53,7 +59,7 @@ public class AuthorizationTests
                 _options = opts;
             });
         });
-        _server = new TestServer(hostBuilder);
+        return new TestServer(hostBuilder);
     }
 
     private string CreateJwtToken()
@@ -252,6 +258,65 @@ public class AuthorizationTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var actual = await response.Content.ReadAsStringAsync();
         actual.ShouldBe(@"{""data"":{""__typename"":""Query""}}");
+    }
+
+    [Fact]
+    public async Task NotAuthorized_WrongScheme()
+    {
+        bool validatedUser = false;
+        _server = CreateServer(services => {
+            services.AddAuthentication("Cookie"); // change default scheme to Cookie authentication
+            services.AddGraphQL(b => b.ConfigureExecutionOptions(opts => {
+                opts.User.ShouldNotBeNull().Identity.ShouldNotBeNull().IsAuthenticated.ShouldBeFalse();
+                validatedUser = true;
+            }));
+        });
+        _options.AuthorizationRequired = true;
+        using var response = await PostQueryAsync("{ __typename }", true); // send an authenticated request (with JWT bearer scheme)
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        var actual = await response.Content.ReadAsStringAsync();
+        actual.ShouldBe(@"{""errors"":[{""message"":""Access denied for schema."",""extensions"":{""code"":""ACCESS_DENIED"",""codes"":[""ACCESS_DENIED""]}}]}");
+        validatedUser.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task NotAuthorized_WrongScheme_VerifyUser()
+    {
+        bool validatedUser = false;
+        _server = CreateServer(services => {
+            services.AddAuthentication("Cookie"); // change default scheme to Cookie authentication
+            services.AddGraphQL(b => b
+                .ConfigureExecutionOptions(opts => {
+                    opts.User.ShouldNotBeNull().Identity.ShouldNotBeNull().IsAuthenticated.ShouldBeFalse();
+                    validatedUser = true;
+                }));
+        });
+        _options.AuthorizationRequired = false; // disable authorization requirements; we just want to verify that a anonymous user is passed to the execution options
+        using var response = await PostQueryAsync("{ __typename }", true); // send an authenticated request (with JWT bearer scheme)
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var actual = await response.Content.ReadAsStringAsync();
+        actual.ShouldBe(@"{""data"":{""__typename"":""Query""}}");
+        validatedUser.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Authorized_DifferentScheme()
+    {
+        bool validatedUser = false;
+        _server = CreateServer(services => {
+            services.AddAuthentication("Cookie"); // change default scheme to Cookie authentication
+            services.AddGraphQL(b => b.ConfigureExecutionOptions(opts => {
+                opts.User.ShouldNotBeNull().Identity.ShouldNotBeNull().IsAuthenticated.ShouldBeTrue();
+                validatedUser = true;
+            }));
+        });
+        _options.AuthorizationRequired = true;
+        _options.AuthenticationSchemes.Add(JwtBearerDefaults.AuthenticationScheme);
+        using var response = await PostQueryAsync("{ __typename }", true);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var actual = await response.Content.ReadAsStringAsync();
+        actual.ShouldBe(@"{""data"":{""__typename"":""Query""}}");
+        validatedUser.ShouldBeTrue();
     }
 
     private class CustomErrorInfoProvider : ErrorInfoProvider
