@@ -247,7 +247,7 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
     }
 
     /// <summary>
-    /// If any authentication schemes are defined, set the HttpContext.User property.
+    /// If any authentication schemes are defined, set the <see cref="HttpContext.User"/> property.
     /// </summary>
     private async ValueTask SetHttpContextUserAsync(HttpContext context)
     {
