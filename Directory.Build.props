@@ -21,7 +21,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <GraphQLVersion>7.0.0</GraphQLVersion>
-    <NoWarn>$(NoWarn);IDE0056;IDE0057</NoWarn>
+    <NoWarn>$(NoWarn);IDE0056;IDE0057;NU1902;NU1903</NoWarn>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(IsPackable)' == 'true'">

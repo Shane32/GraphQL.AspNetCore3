@@ -23,3 +23,9 @@ public interface IUserContextBuilder
     /// </param>
     ValueTask<IDictionary<string, object?>> BuildUserContextAsync(HttpContext context, object? payload);
 }
+
+/// <inheritdoc cref="IUserContextBuilder"/>
+public interface IUserContextBuilder<TSchema> : IUserContextBuilder
+    where TSchema : ISchema
+{
+}
