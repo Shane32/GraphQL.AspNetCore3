@@ -160,6 +160,7 @@ namespace GraphQL.AspNetCore3
         where TSchema : GraphQL.Types.ISchema
     {
         public GraphQLHttpMiddleware(Microsoft.AspNetCore.Http.RequestDelegate next, GraphQL.IGraphQLTextSerializer serializer, GraphQL.IDocumentExecuter<TSchema> documentExecuter, Microsoft.Extensions.DependencyInjection.IServiceScopeFactory serviceScopeFactory, GraphQL.AspNetCore3.GraphQLHttpMiddlewareOptions options, Microsoft.Extensions.Hosting.IHostApplicationLifetime hostApplicationLifetime) { }
+        protected override System.Threading.Tasks.ValueTask<System.Collections.Generic.IDictionary<string, object?>> BuildUserContextAsync(Microsoft.AspNetCore.Http.HttpContext context, object? payload) { }
     }
     public sealed class HttpGetValidationRule : GraphQL.Validation.IValidationRule
     {
@@ -181,6 +182,8 @@ namespace GraphQL.AspNetCore3
     {
         System.Threading.Tasks.ValueTask<System.Collections.Generic.IDictionary<string, object?>> BuildUserContextAsync(Microsoft.AspNetCore.Http.HttpContext context, object? payload);
     }
+    public interface IUserContextBuilder<TSchema> : GraphQL.AspNetCore3.IUserContextBuilder
+        where TSchema : GraphQL.Types.ISchema { }
     public class UserContextBuilder<TUserContext> : GraphQL.AspNetCore3.IUserContextBuilder
         where TUserContext : System.Collections.Generic.IDictionary<string, object?>
     {

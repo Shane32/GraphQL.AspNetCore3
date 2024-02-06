@@ -46,6 +46,7 @@
     <Using Include="GraphQL.AspNetCore3" />
     <Using Include="GraphQL.AspNetCore3.WebSockets" />
     <Using Include="Shouldly" />
+    <Using Include="System.Net.Http"/>
     <Using Include="System.Text" />
     <Using Include="System.Threading" />
     <Using Include="System.Threading.Tasks" />
