@@ -463,6 +463,31 @@ app.UseEndpoints(endpoints => {
 await app.RunAsync();
 ```
 
+In order to ensure that all requests trigger CORS preflight requests, by default the server
+will reject requests that do not meet one of the following criteria:
+
+- The request is a POST request that includes a Content-Type header that is not
+  `application/x-www-form-urlencoded`, `multipart/form-data`, or `text/plain`.
+- The request includes a non-empty `GraphQL-Require-Preflight` header.
+
+To disable this behavior, set the `CsrfProtectionEnabled` option to `false` in the `GraphQLServerOptions`.
+
+```csharp
+app.UseGraphQL("/graphql", config =>
+{
+    config.CsrfProtectionEnabled = false;
+});
+```
+
+You may also change the allowed headers by modifying the `CsrfProtectionHeaders` option.
+
+```csharp
+app.UseGraphQL("/graphql", config =>
+{
+    config.CsrfProtectionHeaders = ["MyCustomHeader"];
+});
+```
+
 ### Response compression
 
 ASP.NET Core supports response compression independently of GraphQL, with brotli and gzip
@@ -538,6 +563,8 @@ endpoint.
 | `AuthorizationRequired`            | Requires `HttpContext.User` to represent an authenticated user. | False |
 | `AuthorizedPolicy`                 | If set, requires `HttpContext.User` to pass authorization of the specified policy. | |
 | `AuthorizedRoles`                  | If set, requires `HttpContext.User` to be a member of any one of a list of roles. | |
+| `CsrfProtectionEnabled`            | Enables cross-site request forgery (CSRF) protection for both GET and POST requests. | True |
+| `CsrfProtectionHeaders`            | Sets the headers used for CSRF protection when necessary. | `GraphQL-Require-Preflight` |
 | `EnableBatchedRequests`            | Enables handling of batched GraphQL requests for POST requests when formatted as JSON. | True |
 | `ExecuteBatchedRequestsInParallel` | Enables parallel execution of batched GraphQL requests. | True |
 | `HandleGet`                        | Enables handling of GET requests. | True |
