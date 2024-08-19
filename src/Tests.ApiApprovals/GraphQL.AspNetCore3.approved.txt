@@ -166,6 +166,7 @@ namespace GraphQL.AspNetCore3
         public int? MaximumFileCount { get; set; }
         public long? MaximumFileSize { get; set; }
         public bool ReadExtensionsFromQueryString { get; set; }
+        public bool ReadFormOnPost { get; set; }
         public bool ReadQueryStringOnPost { get; set; }
         public bool ReadVariablesFromQueryString { get; set; }
         public bool ValidationErrorsReturnBadRequest { get; set; }
