@@ -6,6 +6,9 @@ This package is designed for ASP.Net Core (2.1 through 6.0) to facilitate easy s
 over HTTP.  The code is designed to be used as middleware within the ASP.Net Core pipeline,
 serving GET, POST or WebSocket requests.  GET requests process requests from the querystring.
 POST requests can be in the form of JSON requests, form submissions, or raw GraphQL strings.
+Form submissions either accepts `query`, `operationName`, `variables` and `extensions` parameters,
+or `operations` and `map` parameters along with file uploads as defined in the
+[GraphQL multipart request spec](https://github.com/jaydenseric/graphql-multipart-request-spec).
 WebSocket requests can use the `graphql-ws` or `graphql-transport-ws` WebSocket sub-protocol,
 as defined in the [apollographql/subscriptions-transport-ws](https://github.com/apollographql/subscriptions-transport-ws)
 and [enisdenjo/graphql-ws](https://github.com/enisdenjo/graphql-ws) respoitories, respectively.
@@ -543,6 +546,8 @@ endpoint.
 | `HandleGet`                        | Enables handling of GET requests. | True |
 | `HandlePost`                       | Enables handling of POST requests. | True |
 | `HandleWebSockets`                 | Enables handling of WebSockets requests. | True |
+| `MaximumFileSize`                  | Sets the maximum file size allowed for GraphQL multipart requests. | unlimited |
+| `MaximumFileCount`                 | Sets the maximum number of files allowed for GraphQL multipart requests. | unlimited |
 | `ReadExtensionsFromQueryString`    | Enables reading extensions from the query string. | True |
 | `ReadQueryStringOnPost`            | Enables parsing the query string on POST requests. | True |
 | `ReadVariablesFromQueryString`     | Enables reading variables from the query string. | True |
@@ -752,6 +757,86 @@ are rejected over HTTP GET connections.  Derive from `GraphQLHttpMiddleware` and
 `ExecuteRequestAsync` to prevent injection of the validation rules that enforce this behavior.
 
 As would be expected, subscription requests are only allowed over WebSocket channels.
+
+### Handling form data for POST requests
+
+The GraphQL over HTTP specification does not outline a procedure for transmitting GraphQL requests via
+HTTP POST connections using a `Content-Type` of `application/x-www-form-urlencoded` or `multipart/form-data`.
+Allowing the processing of such requests could be advantageous in avoiding CORS preflight requests when
+sending GraphQL queries from a web browser.  Nevertheless, enabling this feature may give rise to security
+risks when utilizing cookie authentication, since transmitting cookies with these requests does not trigger
+a pre-flight CORS check.  As a consequence, GraphQL.NET might execute a request and potentially modify data
+even when the CORS policy prohibits it, regardless of whether the sender has access to the response.
+This situation exposes the system to security vulnerabilities, which should be carefully evaluated and
+mitigated to ensure the safe handling of GraphQL requests and maintain the integrity of the data.
+
+This functionality is activated by default to maintain backward compatibility, but it can be turned off by
+setting the `ReadFormOnPost` value to `false`.  The next major version of GraphQL.NET Server will have this
+feature disabled by default, enhancing security measures.
+
+Keep in mind that CORS pre-flight requests are also not executed for GET requests, potentially presenting a
+security risk.  However, GraphQL query operations usually do not alter data, and mutations are refused.
+Additionally, the response is not expected to be readable in the browser (unless CORS checks are successful),
+which helps alleviate this concern.
+
+GraphQL.NET Server supports two formats of `application/x-www-form-urlencoded` or `multipart/form-data` requests:
+
+1. The following keys are read from the form data and used to populate the GraphQL request:
+   - `query`: The GraphQL query string.
+   - `operationName`: The name of the operation to execute.
+   - `variables`: A JSON-encoded object containing the variables for the operation.
+   - `extensions`: A JSON-encoded object containing the extensions for the operation.
+
+2. The following keys are read from the form data and used to populate the GraphQL request:
+   - `operations`: A JSON-encoded object containing the GraphQL request, in the same format as typical
+     requests sent via `application/json`.  This can be a single object or an array of objects if batching
+     is enabled.
+   - `map`: An optional JSON-encoded map of file keys to file objects.  This is used to map attached files
+     into the GraphQL request's variables property.  See the section below titled 'File uploading/downloading' and the
+     [GraphQL multipart request specification](https://github.com/jaydenseric/graphql-multipart-request-spec)
+     for additional details.  Since `application/x-www-form-urlencoded` cannot transmit files, this feature
+     is only available for `multipart/form-data` requests.
+
+### File uploading/downloading
+
+A common question is how to upload or download files attached to GraphQL data.
+For instance, storing and retrieving photographs attached to product data.
+One common technique is to encode the data as Base64 and transmitting as a custom
+GraphQL scalar (encoded as a string value within the JSON transport).
+This may not be ideal, but works well for smaller files.  It can also couple with
+response compression (details listed above) to reduce the impact of the Base64
+encoding.
+Another technique is to get or store the data out-of-band.  For responses, this can
+be as simple as a Uri pointing to a location to retrieve the data, especially if
+the data are photographs used in a SPA client application.  This may have additional
+security complications, especially when used with JWT bearer authentication.
+This answer often works well for GraphQL queries, but may not be desired during
+uploads (mutations).
+
+An option for uploading is to upload file data alongside a mutation with the `multipart/form-data`
+content type.  Please see [Issue 307](https://github.com/graphql-dotnet/server/issues/307) and
+[FileUploadTests.cs](https://github.com/graphql-dotnet/server/blob/master/tests/Transports.AspNetCore.Tests/Middleware/FileUploadTests.cs)
+for discussion and demonstration of this capability.
+An option for uploading is to upload file data alongside a mutation with the
+`multipart/form-data` content type as described by the
+[GraphQL multipart request specification](https://github.com/jaydenseric/graphql-multipart-request-spec).
+Uploaded files are mapped into the GraphQL request's variables as `IFormFile` objects.
+You can use the provided `FormFileGraphType` scalar graph type in your GraphQL schema
+to access these files.  The `AddFormFileGraphType()` builder extension method adds this scalar
+to the DI container and configures a CLR type mapping for it to be used for `IFormFile` objects.
+
+```csharp
+services.AddGraphQL(b => b
+    .AddAutoSchema<Query>()
+    .AddFormFileGraphType()
+    .AddSystemTextJson());
+```
+
+Please see the 'Upload' sample for a demonstration of this technique.  Note that
+using the `FormFileGraphType` scalar requires that the uploaded files be sent only
+via the `multipart/form-data` content type as attached files.  If you wish to also
+allow clients to send files as base-64 encoded strings, you can write a custom scalar
+better suited to your needs.
 
 ## Samples
 
