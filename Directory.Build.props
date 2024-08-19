@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <VersionPrefix>5.0.0-preview</VersionPrefix>
-    <LangVersion>10.0</LangVersion>
+    <LangVersion>12.0</LangVersion>
     <Copyright>Shane Krueger</Copyright>
     <Authors>Shane Krueger</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
