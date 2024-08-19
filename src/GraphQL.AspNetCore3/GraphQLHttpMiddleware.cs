@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace GraphQL.AspNetCore3;
 
@@ -124,6 +125,10 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
             await HandleInvalidHttpMethodErrorAsync(context, _next);
             return;
         }
+
+        // Perform CSRF protection if necessary
+        if (await HandleCsrfProtectionAsync(context, _next))
+            return;
 
         // Authenticate request if necessary
         if (await HandleAuthorizeAsync(context, _next))
@@ -421,6 +426,32 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
                 throw new InvalidMapError($"Cannot refer to child property '{prop}' of a string or number.");
             }
         }
+    }
+
+    /// <summary>
+    /// Performs CSRF protection, if required, and returns <see langword="true"/> if the
+    /// request was handled (typically by returning an error message).  If <see langword="false"/>
+    /// is returned, the request is processed normally.
+    /// </summary>
+    protected virtual async ValueTask<bool> HandleCsrfProtectionAsync(HttpContext context, RequestDelegate next)
+    {
+        if (!_options.CsrfProtectionEnabled)
+            return false;
+        if (context.Request.Headers.TryGetValue("Content-Type", out var contentTypes) && contentTypes.Count > 0 && contentTypes[0] != null) {
+            var contentType = contentTypes[0]!;
+            if (contentType.IndexOf(';') > 0) {
+                contentType = contentType.Substring(0, contentType.IndexOf(';'));
+            }
+            contentType = contentType.Trim().ToLowerInvariant();
+            if (!(contentType == "text/plain" || contentType == "application/x-www-form-urlencoded" || contentType == "multipart/form-data"))
+                return false;
+        }
+        foreach (var header in _options.CsrfProtectionHeaders) {
+            if (context.Request.Headers.TryGetValue(header, out var values) && values.Count > 0 && values[0]?.Length > 0)
+                return false;
+        }
+        await HandleCsrfProtectionErrorAsync(context, next);
+        return true;
     }
 
     /// <summary>
@@ -769,21 +800,29 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
     /// </summary>
     protected virtual async ValueTask<bool> HandleDeserializationErrorAsync(HttpContext context, RequestDelegate next, Exception exception)
     {
-        await WriteErrorResponseAsync(context, HttpStatusCode.BadRequest, new JsonInvalidError(exception));
+        await WriteErrorResponseAsync(context, new JsonInvalidError(exception));
         return true;
+    }
+
+    /// <summary>
+    /// Writes a '.' message to the output.
+    /// </summary>
+    protected virtual async Task HandleCsrfProtectionErrorAsync(HttpContext context, RequestDelegate next)
+    {
+        await WriteErrorResponseAsync(context, new CsrfProtectionError(_options.CsrfProtectionHeaders));
     }
 
     /// <summary>
     /// Writes a '400 Batched requests are not supported.' message to the output.
     /// </summary>
     protected virtual Task HandleBatchedRequestsNotSupportedAsync(HttpContext context, RequestDelegate next)
-        => WriteErrorResponseAsync(context, HttpStatusCode.BadRequest, new BatchedRequestsNotSupportedError());
+        => WriteErrorResponseAsync(context, new BatchedRequestsNotSupportedError());
 
     /// <summary>
     /// Writes a '400 Invalid requested WebSocket sub-protocol(s).' message to the output.
     /// </summary>
     protected virtual Task HandleWebSocketSubProtocolNotSupportedAsync(HttpContext context, RequestDelegate next)
-        => WriteErrorResponseAsync(context, HttpStatusCode.BadRequest, new WebSocketSubProtocolNotSupportedError(context.WebSockets.WebSocketRequestedProtocols));
+        => WriteErrorResponseAsync(context, new WebSocketSubProtocolNotSupportedError(context.WebSockets.WebSocketRequestedProtocols));
 
     /// <summary>
     /// Writes a '415 Invalid Content-Type header: could not be parsed.' message to the output.
@@ -813,6 +852,12 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
         //return WriteErrorResponseAsync(context, $"Invalid HTTP method.{(Options.HandleGet || Options.HandlePost ? $" Only {(Options.HandleGet && Options.HandlePost ? "GET and POST are" : Options.HandleGet ? "GET is" : "POST is")} supported." : "")}", HttpStatusCode.MethodNotAllowed);
         return next(context);
     }
+
+    /// <summary>
+    /// Writes the specified error as a JSON-formatted GraphQL response.
+    /// </summary>
+    protected virtual Task WriteErrorResponseAsync(HttpContext context, ExecutionError executionError)
+        => WriteErrorResponseAsync(context, executionError is IHasPreferredStatusCode withCode ? withCode.PreferredStatusCode : HttpStatusCode.BadRequest, executionError);
 
     /// <summary>
     /// Writes the specified error message as a JSON-formatted GraphQL response, with the specified HTTP status code.

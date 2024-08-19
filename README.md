@@ -564,6 +564,8 @@ endpoint.
 | `AuthorizationRequired`            | Requires `HttpContext.User` to represent an authenticated user. | False |
 | `AuthorizedPolicy`                 | If set, requires `HttpContext.User` to pass authorization of the specified policy. | |
 | `AuthorizedRoles`                  | If set, requires `HttpContext.User` to be a member of any one of a list of roles. | |
+| `CsrfProtectionEnabled`            | Enables cross-site request forgery (CSRF) protection for both GET and POST requests. | True |
+| `CsrfProtectionHeaders`            | Sets the headers used for CSRF protection when necessary. | `GraphQL-Require-Preflight` |
 | `EnableBatchedRequests`            | Enables handling of batched GraphQL requests for POST requests when formatted as JSON. | True |
 | `ExecuteBatchedRequestsInParallel` | Enables parallel execution of batched GraphQL requests. | True |
 | `HandleGet`                        | Enables handling of GET requests. | True |
