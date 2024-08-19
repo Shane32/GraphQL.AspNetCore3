@@ -150,6 +150,7 @@ public class PostTests : IDisposable
     [InlineData(false, false)]
     public async Task FormMultipart_Legacy(bool requireCsrf, bool supplyCsrf)
     {
+        _options2.ReadFormOnPost = true;
         if (!requireCsrf)
             _options2.CsrfProtectionEnabled = false;
         var client = _server.CreateClient();
@@ -183,6 +184,7 @@ public class PostTests : IDisposable
     [InlineData(false, false)]
     public async Task FormMultipart_Upload(bool requireCsrf, bool supplyCsrf)
     {
+        _options2.ReadFormOnPost = true;
         if (!requireCsrf)
             _options2.CsrfProtectionEnabled = false;
         var client = _server.CreateClient();
@@ -353,6 +355,7 @@ public class PostTests : IDisposable
     [Theory]
     public async Task FormMultipart_Upload_Matrix(int testIndex, string? operations, string? map, bool file0, bool file1, int expectedStatusCode, string expectedResponse)
     {
+        _options2.ReadFormOnPost = true;
         _ = testIndex;
         operations ??= "{\"query\":\"query($arg:FormFile){file(file:$arg){content}}\",\"variables\":{\"arg\":null}}";
         var client = _server.CreateClient();
@@ -381,6 +384,7 @@ public class PostTests : IDisposable
         var client = _server.CreateClient();
         _options2.MaximumFileCount = maxFileCount;
         _options2.MaximumFileSize = maxFileLength;
+        _options2.ReadFormOnPost = true;
         using var content = new MultipartFormDataContent
         {
             { new StringContent(operations, Encoding.UTF8, "application/json"), "operations" },
@@ -401,6 +405,7 @@ public class PostTests : IDisposable
     [InlineData(false, false)]
     public async Task FormUrlEncoded(bool requireCsrf, bool supplyCsrf)
     {
+        _options2.ReadFormOnPost = true;
         if (!requireCsrf)
             _options2.CsrfProtectionEnabled = false;
         var client = _server.CreateClient();
@@ -425,7 +430,8 @@ public class PostTests : IDisposable
     [InlineData(true)]
     public async Task FormUrlEncoded_DeserializationError(bool badRequest)
     {
-        _options.ValidationErrorsReturnBadRequest = badRequest;
+        _options2.ValidationErrorsReturnBadRequest = badRequest;
+        _options2.ReadFormOnPost = true;
         var client = _server.CreateClient();
         var content = new FormUrlEncodedContent(new[] {
             new KeyValuePair<string?, string?>("query", @"{ext}"),
