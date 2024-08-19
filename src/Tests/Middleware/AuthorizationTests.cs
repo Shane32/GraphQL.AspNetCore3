@@ -29,6 +29,7 @@ public class AuthorizationTests
                 .AddAutoSchema<Chat.Schema.Query>()
                 .AddErrorInfoProvider(new CustomErrorInfoProvider(this))
                 .AddSystemTextJson());
+            services.AddRouting();
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options => {
                     options.TokenValidationParameters.ValidateIssuerSigningKey = false;
