@@ -67,7 +67,7 @@ public class GraphQLHttpMiddlewareOptions : IAuthorizationOptions
     /// present, or a POST request with a Content-Type header that is not <c>text/plain</c>,
     /// <c>application/x-www-form-urlencoded</c>, or <c>multipart/form-data</c>.
     /// </summary>
-    public bool CsrfProtectionEnabled { get; set; }
+    public bool CsrfProtectionEnabled { get; set; } = true;
 
     /// <summary>
     /// When <see cref="CsrfProtectionEnabled"/> is enabled, requests require a non-empty
@@ -75,7 +75,7 @@ public class GraphQLHttpMiddlewareOptions : IAuthorizationOptions
     /// <c>text/plain</c>, <c>application/x-www-form-urlencoded</c>, or <c>multipart/form-data</c>.
     /// Defaults to <c>GraphQL-Require-Preflight</c>.
     /// </summary>
-    public List<string> CsrfProtectionHeaders { get; set; } = new() { "GraphQL-Require-Preflight" }; // see https://github.com/graphql/graphql-over-http/pull/303
+    public List<string> CsrfProtectionHeaders { get; set; } = ["GraphQL-Require-Preflight"]; // see https://github.com/graphql/graphql-over-http/pull/303
 
     /// <summary>
     /// Enables reading variables from the query string.
