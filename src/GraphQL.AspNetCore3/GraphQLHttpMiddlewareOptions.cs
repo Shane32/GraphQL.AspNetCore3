@@ -49,6 +49,19 @@ public class GraphQLHttpMiddlewareOptions : IAuthorizationOptions
     public bool ReadQueryStringOnPost { get; set; } = true;
 
     /// <summary>
+    /// Enables parsing POST requests with the form content types such as <c>multipart-form/data</c>.
+    /// </summary>
+    /// <remarks>
+    /// There is a potential security vulnerability when employing cookie authentication
+    /// with the <c>multipart-form/data</c> content type because sending cookies
+    /// alongside the request does not initiate a pre-flight CORS request.
+    /// As a result, GraphQL.NET carries out the request and potentially modifies data,
+    /// even if the CORS policy forbids it, irrespective of the sender's ability to access
+    /// the response.
+    /// </remarks>
+    public bool ReadFormOnPost { get; set; } = true;
+
+    /// <summary>
     /// Enables cross-site request forgery (CSRF) protection for both GET and POST requests.
     /// Requires a non-empty header from the <see cref="CsrfProtectionHeaders"/> list to be
     /// present, or a POST request with a Content-Type header that is not <c>text/plain</c>,
@@ -103,6 +116,20 @@ public class GraphQLHttpMiddlewareOptions : IAuthorizationOptions
     /// HTTP requests return <c>403 Forbidden</c> when the user fails the policy check.
     /// </remarks>
     public string? AuthorizedPolicy { get; set; }
+
+    /// <summary>
+    /// The maximum allowed file size in bytes for each file uploaded pursuant to the
+    /// specification at <see href="https://github.com/jaydenseric/graphql-multipart-request-spec"/>.
+    /// Null indicates no limit.
+    /// </summary>
+    public long? MaximumFileSize { get; set; }
+
+    /// <summary>
+    /// The maximum allowed number of files uploaded pursuant to the specification at
+    /// <see href="https://github.com/jaydenseric/graphql-multipart-request-spec"/>.
+    /// Null indicates no limit.
+    /// </summary>
+    public int? MaximumFileCount { get; set; }
 
     /// <summary>
     /// Returns an options class for WebSocket connections.

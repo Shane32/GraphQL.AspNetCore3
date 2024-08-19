@@ -156,4 +156,15 @@ public static class GraphQLBuilderExtensions
 
         return builder;
     }
+
+    /// <summary>
+    /// Registers <see cref="FormFileGraphType"/> within the dependency injection framework
+    /// and configures the schema to use it for mapping <see cref="IFormFile"/> instances.
+    /// </summary>
+    public static IGraphQLBuilder AddFormFileGraphType(this IGraphQLBuilder builder)
+    {
+        builder.Services.Register<FormFileGraphType>(DI.ServiceLifetime.Singleton);
+        builder.ConfigureSchema(s => s.RegisterTypeMapping<IFormFile, FormFileGraphType>());
+        return builder;
+    }
 }
