@@ -127,7 +127,7 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
         }
 
         // Perform CSRF protection if necessary
-        if (await HandleCsrfProtectionAsync(context, next))
+        if (await HandleCsrfProtectionAsync(context, _next))
             return;
 
         // Authenticate request if necessary

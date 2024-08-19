@@ -67,7 +67,7 @@ public class GraphQLHttpMiddlewareOptions : IAuthorizationOptions
     /// present, or a POST request with a Content-Type header that is not <c>text/plain</c>,
     /// <c>application/x-www-form-urlencoded</c>, or <c>multipart/form-data</c>.
     /// </summary>
-    public bool CsrfProtectionEnabled { get; set; } = true;
+    public bool CsrfProtectionEnabled { get; set; }
 
     /// <summary>
     /// When <see cref="CsrfProtectionEnabled"/> is enabled, requests require a non-empty
