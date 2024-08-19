@@ -2,7 +2,7 @@
 
 [![NuGet](https://img.shields.io/nuget/v/GraphQL.AspNetCore3.svg)](https://www.nuget.org/packages/GraphQL.AspNetCore3) [![Coverage Status](https://coveralls.io/repos/github/Shane32/GraphQL.AspNetCore3/badge.svg?branch=master)](https://coveralls.io/github/Shane32/GraphQL.AspNetCore3?branch=master)
 
-This package is designed for ASP.Net Core (2.1 through 6.0) to facilitate easy set-up of GraphQL requests
+This package is designed for ASP.Net Core (2.1 through 8.0) to facilitate easy set-up of GraphQL requests
 over HTTP.  The code is designed to be used as middleware within the ASP.Net Core pipeline,
 serving GET, POST or WebSocket requests.  GET requests process requests from the querystring.
 POST requests can be in the form of JSON requests, form submissions, or raw GraphQL strings.

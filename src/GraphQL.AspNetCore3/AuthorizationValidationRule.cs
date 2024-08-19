@@ -7,10 +7,10 @@ namespace GraphQL.AspNetCore3;
 /// <summary>
 /// Validates a document against the configured set of policy and role requirements.
 /// </summary>
-public class AuthorizationValidationRule : IValidationRule
+public class AuthorizationValidationRule : ValidationRuleBase
 {
     /// <inheritdoc/>
-    public virtual async ValueTask<INodeVisitor?> ValidateAsync(ValidationContext context)
+    public override async ValueTask<INodeVisitor?> GetPreNodeVisitorAsync(ValidationContext context)
     {
         var user = context.User
             ?? throw new InvalidOperationException("User could not be retrieved from ValidationContext. Please be sure it is set in ExecutionOptions.User.");

@@ -15,10 +15,10 @@ namespace GraphQL.AspNetCore3
         public System.Func<TState, Microsoft.AspNetCore.Authorization.AuthorizationResult, System.Threading.Tasks.Task>? OnNotAuthorizedPolicy { get; set; }
         public System.Func<TState, System.Threading.Tasks.Task>? OnNotAuthorizedRole { get; set; }
     }
-    public class AuthorizationValidationRule : GraphQL.Validation.IValidationRule
+    public class AuthorizationValidationRule : GraphQL.Validation.ValidationRuleBase
     {
         public AuthorizationValidationRule() { }
-        public virtual System.Threading.Tasks.ValueTask<GraphQL.Validation.INodeVisitor?> ValidateAsync(GraphQL.Validation.ValidationContext context) { }
+        public override System.Threading.Tasks.ValueTask<GraphQL.Validation.INodeVisitor?> GetPreNodeVisitorAsync(GraphQL.Validation.ValidationContext context) { }
     }
     public class AuthorizationVisitor : GraphQL.AspNetCore3.AuthorizationVisitorBase
     {
@@ -47,10 +47,10 @@ namespace GraphQL.AspNetCore3
         public virtual System.Threading.Tasks.ValueTask<bool> ValidateSchemaAsync(GraphQL.Validation.ValidationContext context) { }
         public readonly struct ValidationInfo : System.IEquatable<GraphQL.AspNetCore3.AuthorizationVisitorBase.ValidationInfo>
         {
-            public ValidationInfo(GraphQL.Types.IProvideMetadata Obj, GraphQLParser.AST.ASTNode? Node, GraphQL.Types.IFieldType? ParentFieldType, GraphQL.Types.IGraphType? ParentGraphType, GraphQL.Validation.ValidationContext Context) { }
+            public ValidationInfo(GraphQL.Types.IMetadataReader Obj, GraphQLParser.AST.ASTNode? Node, GraphQL.Types.IFieldType? ParentFieldType, GraphQL.Types.IGraphType? ParentGraphType, GraphQL.Validation.ValidationContext Context) { }
             public GraphQL.Validation.ValidationContext Context { get; set; }
             public GraphQLParser.AST.ASTNode? Node { get; set; }
-            public GraphQL.Types.IProvideMetadata Obj { get; set; }
+            public GraphQL.Types.IMetadataReader Obj { get; set; }
             public GraphQL.Types.IFieldType? ParentFieldType { get; set; }
             public GraphQL.Types.IGraphType? ParentGraphType { get; set; }
         }
@@ -183,15 +183,15 @@ namespace GraphQL.AspNetCore3
         public GraphQLHttpMiddleware(Microsoft.AspNetCore.Http.RequestDelegate next, GraphQL.IGraphQLTextSerializer serializer, GraphQL.IDocumentExecuter<TSchema> documentExecuter, Microsoft.Extensions.DependencyInjection.IServiceScopeFactory serviceScopeFactory, GraphQL.AspNetCore3.GraphQLHttpMiddlewareOptions options, Microsoft.Extensions.Hosting.IHostApplicationLifetime hostApplicationLifetime) { }
         protected override System.Threading.Tasks.ValueTask<System.Collections.Generic.IDictionary<string, object?>> BuildUserContextAsync(Microsoft.AspNetCore.Http.HttpContext context, object? payload) { }
     }
-    public sealed class HttpGetValidationRule : GraphQL.Validation.IValidationRule
+    public sealed class HttpGetValidationRule : GraphQL.Validation.ValidationRuleBase
     {
         public HttpGetValidationRule() { }
-        public System.Threading.Tasks.ValueTask<GraphQL.Validation.INodeVisitor?> ValidateAsync(GraphQL.Validation.ValidationContext context) { }
+        public override System.Threading.Tasks.ValueTask<GraphQL.Validation.INodeVisitor?> GetPreNodeVisitorAsync(GraphQL.Validation.ValidationContext context) { }
     }
-    public sealed class HttpPostValidationRule : GraphQL.Validation.IValidationRule
+    public sealed class HttpPostValidationRule : GraphQL.Validation.ValidationRuleBase
     {
         public HttpPostValidationRule() { }
-        public System.Threading.Tasks.ValueTask<GraphQL.Validation.INodeVisitor?> ValidateAsync(GraphQL.Validation.ValidationContext context) { }
+        public override System.Threading.Tasks.ValueTask<GraphQL.Validation.INodeVisitor?> GetPreNodeVisitorAsync(GraphQL.Validation.ValidationContext context) { }
     }
     public interface IAuthorizationOptions
     {

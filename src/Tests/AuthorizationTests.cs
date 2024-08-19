@@ -51,7 +51,7 @@ public class AuthorizationTests
         var inputs = new GraphQLSerializer().Deserialize<Inputs>(variables) ?? Inputs.Empty;
 
         var validator = new DocumentValidator();
-        var (coreRulesResult, _) = validator.ValidateAsync(new ValidationOptions {
+        var validationResult = validator.ValidateAsync(new ValidationOptions {
             Document = document,
             Extensions = Inputs.Empty,
             Operation = (GraphQLOperationDefinition)document.Definitions.First(x => x.Kind == ASTNodeKind.OperationDefinition),
@@ -61,9 +61,9 @@ public class AuthorizationTests
             RequestServices = mockServices.Object,
             User = _principal,
         }).GetAwaiter().GetResult(); // there is no async code being tested
-        coreRulesResult.IsValid.ShouldBe(shouldPassCoreRules);
+        validationResult.IsValid.ShouldBe(shouldPassCoreRules);
 
-        var (result, _) = validator.ValidateAsync(new ValidationOptions {
+        var result = validator.ValidateAsync(new ValidationOptions {
             Document = document,
             Extensions = Inputs.Empty,
             Operation = (GraphQLOperationDefinition)document.Definitions.First(x => x.Kind == ASTNodeKind.OperationDefinition),
@@ -495,7 +495,7 @@ public class AuthorizationTests
         ret.IsValid.ShouldBeFalse();
     }
 
-    private void Apply(IProvideMetadata obj, Mode mode)
+    private void Apply(IMetadataWriter obj, Mode mode)
     {
         switch (mode) {
             case Mode.None:
@@ -585,7 +585,7 @@ public class AuthorizationTests
         var validator = new DocumentValidator();
         _schema.Authorize();
 
-        var (result, _) = validator.ValidateAsync(new ValidationOptions {
+        var result = validator.ValidateAsync(new ValidationOptions {
             Document = document,
             Extensions = Inputs.Empty,
             Operation = (GraphQLOperationDefinition)document.Definitions.Single(x => x.Kind == ASTNodeKind.OperationDefinition),
