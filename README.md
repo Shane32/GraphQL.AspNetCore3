@@ -113,9 +113,32 @@ sample of the application builder code:
 ```csharp
 var app = builder.Build();
 app.UseDeveloperExceptionPage();
+app.UseWebSockets();
 app.UseRouting();
 app.UseEndpoints(endpoints => {
     endpoints.MapGraphQL("graphql");
+});
+await app.RunAsync();
+```
+
+Using endpoint routing is particularly useful when you want to select a specific
+CORS configuration for the GraphQL endpoint.  See the CORS section below for a sample.
+
+Please note that when using endpoint routing, you cannot use WebSocket connections
+while a UI package is also configured at the same URL.  You will need to use a
+different URL for the UI package, or use UI middleware prior to endpoint routing.
+So long as different URLs are used, there are no issues.  Below is a sample when
+the UI and GraphQL reside at the same URL:
+
+```csharp
+var app = builder.Build();
+app.UseDeveloperExceptionPage();
+app.UseWebSockets();
+app.UseRouting();
+app.UseGraphQLVoyager("/graphql");
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapGraphQL("/graphql");
 });
 await app.RunAsync();
 ```
