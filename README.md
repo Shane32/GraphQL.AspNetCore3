@@ -489,31 +489,6 @@ app.UseEndpoints(endpoints => {
 await app.RunAsync();
 ```
 
-In order to ensure that all requests trigger CORS preflight requests, by default the server
-will reject requests that do not meet one of the following criteria:
-
-- The request is a POST request that includes a Content-Type header that is not
-  `application/x-www-form-urlencoded`, `multipart/form-data`, or `text/plain`.
-- The request includes a non-empty `GraphQL-Require-Preflight` header.
-
-To disable this behavior, set the `CsrfProtectionEnabled` option to `false` in the `GraphQLServerOptions`.
-
-```csharp
-app.UseGraphQL("/graphql", config =>
-{
-    config.CsrfProtectionEnabled = false;
-});
-```
-
-You may also change the allowed headers by modifying the `CsrfProtectionHeaders` option.
-
-```csharp
-app.UseGraphQL("/graphql", config =>
-{
-    config.CsrfProtectionHeaders = ["MyCustomHeader"];
-});
-```
-
 ### Response compression
 
 ASP.NET Core supports response compression independently of GraphQL, with brotli and gzip
