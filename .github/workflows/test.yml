@@ -62,7 +62,7 @@ jobs:
           reporttypes: 'Html'
           tag: 'test_${{ github.run_number }}'
       - name: Upload artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: Code coverage artifacts
           path: |
