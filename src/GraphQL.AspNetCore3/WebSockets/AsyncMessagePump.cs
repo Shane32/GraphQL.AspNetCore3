@@ -37,7 +37,8 @@ internal class AsyncMessagePump<T>
     {
         if (callback == null)
             throw new ArgumentNullException(nameof(callback));
-        _callback = message => {
+        _callback = message =>
+        {
             callback(message);
             return Task.CompletedTask;
         };
@@ -46,8 +47,7 @@ internal class AsyncMessagePump<T>
     /// <summary>
     /// Posts the specified message to the message queue.
     /// </summary>
-    public void Post(T message)
-        => Post(new ValueTask<T>(message));
+    public void Post(T message) => Post(new ValueTask<T>(message));
 
     /// <summary>
     /// Posts the result of an asynchronous operation to the message queue.
@@ -55,13 +55,30 @@ internal class AsyncMessagePump<T>
     public void Post(ValueTask<T> messageTask)
     {
         bool attach = false;
-        lock (_queue) {
+        lock (_queue)
+        {
             _queue.Enqueue(messageTask);
             attach = _queue.Count == 1;
         }
 
-        if (attach) {
+        if (attach)
+        {
             CompleteAsync();
+        }
+    }
+
+    /// <summary>
+    /// Returns the number of messages waiting in the queue.
+    /// Includes the message currently being processed, if any.
+    /// </summary>
+    public int Count
+    {
+        get
+        {
+            lock (_queue)
+            {
+                return _queue.Count;
+            }
         }
     }
 
@@ -72,25 +89,33 @@ internal class AsyncMessagePump<T>
     {
         // grab the message at the start of the queue, but don't remove it from the queue
         ValueTask<T> messageTask;
-        lock (_queue) {
+        lock (_queue)
+        {
             // should always successfully peek from the queue here
 #pragma warning disable CA2012 // Use ValueTasks correctly
             messageTask = _queue.Peek();
 #pragma warning restore CA2012 // Use ValueTasks correctly
         }
-        while (true) {
+        while (true)
+        {
             // process the message
-            try {
+            try
+            {
                 var message = await messageTask.ConfigureAwait(false);
                 await _callback(message).ConfigureAwait(false);
-            } catch (Exception ex) {
-                try {
+            }
+            catch (Exception ex)
+            {
+                try
+                {
                     await HandleErrorAsync(ex);
-                } catch { }
+                }
+                catch { }
             }
 
             // once the message has been passed along, dequeue it
-            lock (_queue) {
+            lock (_queue)
+            {
 #pragma warning disable CA2012 // Use ValueTasks correctly
                 _ = _queue.Dequeue();
 #pragma warning restore CA2012 // Use ValueTasks correctly
@@ -105,6 +130,5 @@ internal class AsyncMessagePump<T>
     /// <summary>
     /// Handles exceptions that occur within the asynchronous message delegate or the callback.
     /// </summary>
-    protected virtual Task HandleErrorAsync(Exception exception)
-        => Task.CompletedTask;
+    protected virtual Task HandleErrorAsync(Exception exception) => Task.CompletedTask;
 }

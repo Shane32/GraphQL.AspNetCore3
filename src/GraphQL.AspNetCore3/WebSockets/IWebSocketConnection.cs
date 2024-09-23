@@ -23,6 +23,11 @@ public interface IWebSocketConnection : IDisposable
     Task SendMessageAsync(OperationMessage message);
 
     /// <summary>
+    /// Sends a message. Option to ignoreMaxSendQueueThreshold and force a message.
+    /// </summary>
+    Task SendMessageAsync(OperationMessage message, bool ignoreMaxSendQueueThreshold = false);
+
+    /// <summary>
     /// Closes the WebSocket connection, and
     /// prevents further incoming messages from being dispatched through <see cref="IOperationMessageProcessor"/>.
     /// </summary>

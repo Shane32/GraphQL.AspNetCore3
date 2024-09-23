@@ -38,4 +38,11 @@ public class GraphQLWebSocketOptions
     /// Disconnects a subscription from the client there are any GraphQL errors during a subscription.
     /// </summary>
     public bool DisconnectAfterAnyError { get; set; }
+
+    /// <summary>
+    /// To help prevent backpressure from slower internet speeds, this will prevent the queue from expanding
+    /// beyond the max length.
+    /// The default is null (no limit). Value must be greater than 0.
+    /// </summary>
+    public int? MaxSendQueueThreshold { get; set; }
 }
