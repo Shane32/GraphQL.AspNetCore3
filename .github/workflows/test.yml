@@ -35,6 +35,7 @@ jobs:
           NUGET_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
       - name: Add graphql-dotnet nuget source
         run: dotnet nuget add source https://nuget.pkg.github.com/graphql-dotnet/index.json -n graphqldotnet -u ${{ secrets.NUGET_PUBLIC_USER }} -p ${{ secrets.NUGET_PUBLIC_TOKEN }} --store-password-in-clear-text
+        continue-on-error: true
       - name: Install dependencies
         run: dotnet restore
       - name: Build solution [Release]
