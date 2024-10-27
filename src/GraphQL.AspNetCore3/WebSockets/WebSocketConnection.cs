@@ -42,6 +42,13 @@ public class WebSocketConnection : IWebSocketConnection
     public HttpContext HttpContext { get; }
 
     /// <summary>
+    /// Returns the number of packets waiting in the send queue, including
+    /// messages, keep-alive packets, and the close message.
+    /// This count includes any packet currently being processed.
+    /// </summary>
+    protected int SendQueueCount => _pump.Count;
+
+    /// <summary>
     /// Initializes an instance with the specified parameters.
     /// </summary>
     public WebSocketConnection(HttpContext httpContext, WebSocket webSocket, IGraphQLSerializer serializer, GraphQLWebSocketOptions options, CancellationToken cancellationToken)
@@ -167,7 +174,7 @@ public class WebSocketConnection : IWebSocketConnection
     }
 
     /// <inheritdoc/>
-    public Task SendMessageAsync(OperationMessage message)
+    public virtual Task SendMessageAsync(OperationMessage message)
     {
         // Messages posted after requesting the connection be closed will be discarded.
         if (!_closeRequested)
