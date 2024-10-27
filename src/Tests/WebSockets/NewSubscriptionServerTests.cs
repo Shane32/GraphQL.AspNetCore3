@@ -94,11 +94,15 @@ public class NewSubscriptionServerTests : IDisposable
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Message_Ping(bool initialized)
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Message_Ping(bool initialized, bool withPayload)
     {
         var message = new OperationMessage { Type = "ping" };
+        if (withPayload)
+            message.Payload = new { id = Guid.NewGuid().ToString("N") };
         _mockServer.Protected().Setup<Task>("OnPingAsync", message)
             .Returns(Task.CompletedTask).Verifiable();
         if (initialized) {
