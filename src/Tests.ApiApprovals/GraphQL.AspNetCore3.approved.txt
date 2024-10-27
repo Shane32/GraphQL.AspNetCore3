@@ -297,8 +297,13 @@ namespace GraphQL.AspNetCore3.WebSockets
         public virtual System.Threading.Tasks.Task InitializeConnectionAsync() { }
         protected virtual System.Threading.Tasks.Task OnCloseConnectionAsync() { }
         protected abstract System.Threading.Tasks.Task OnConnectionAcknowledgeAsync(GraphQL.Transport.OperationMessage message);
+        protected virtual System.Threading.Tasks.Task OnConnectionInitAsync(GraphQL.Transport.OperationMessage message) { }
+        [System.Obsolete("Please use the OnConnectionInitAsync(message) and OnKeepAliveLoopAsync methods in" +
+            "stead. This method will be removed in a future version of this library.")]
         protected virtual System.Threading.Tasks.Task OnConnectionInitAsync(GraphQL.Transport.OperationMessage message, bool smartKeepAlive) { }
         protected virtual System.Threading.Tasks.Task OnConnectionInitWaitTimeoutAsync() { }
+        protected virtual System.Threading.Tasks.Task OnKeepAliveLoopAsync() { }
+        protected virtual System.Threading.Tasks.Task OnKeepAliveLoopAsync(System.TimeSpan keepAliveTimeout, GraphQL.AspNetCore3.WebSockets.KeepAliveMode keepAliveMode) { }
         public abstract System.Threading.Tasks.Task OnMessageReceivedAsync(GraphQL.Transport.OperationMessage message);
         protected virtual System.Threading.Tasks.Task OnNotAuthenticatedAsync(GraphQL.Transport.OperationMessage message) { }
         protected virtual System.Threading.Tasks.Task OnNotAuthorizedPolicyAsync(GraphQL.Transport.OperationMessage message, Microsoft.AspNetCore.Authorization.AuthorizationResult result) { }
@@ -322,7 +327,9 @@ namespace GraphQL.AspNetCore3.WebSockets
         public bool DisconnectAfterAnyError { get; set; }
         public bool DisconnectAfterErrorEvent { get; set; }
         public System.TimeSpan? DisconnectionTimeout { get; set; }
+        public GraphQL.AspNetCore3.WebSockets.KeepAliveMode KeepAliveMode { get; set; }
         public System.TimeSpan? KeepAliveTimeout { get; set; }
+        public System.Collections.Generic.List<string> SupportedWebSocketSubProtocols { get; set; }
     }
     public interface IOperationMessageProcessor : System.IDisposable
     {
@@ -342,6 +349,13 @@ namespace GraphQL.AspNetCore3.WebSockets
         System.Threading.Tasks.Task CloseAsync(int eventId, string? description);
         System.Threading.Tasks.Task ExecuteAsync(GraphQL.AspNetCore3.WebSockets.IOperationMessageProcessor operationMessageProcessor);
         System.Threading.Tasks.Task SendMessageAsync(GraphQL.Transport.OperationMessage message);
+    }
+    public enum KeepAliveMode
+    {
+        Default = 0,
+        Timeout = 1,
+        Interval = 2,
+        TimeoutWithPayload = 3,
     }
     public sealed class SubscriptionList : System.IDisposable
     {
@@ -386,6 +400,11 @@ namespace GraphQL.AspNetCore3.WebSockets.GraphQLWs
         public const string Pong = "pong";
         public const string Subscribe = "subscribe";
     }
+    public class PingPayload
+    {
+        public PingPayload() { }
+        public string? id { get; set; }
+    }
     public class SubscriptionServer : GraphQL.AspNetCore3.WebSockets.BaseSubscriptionServer
     {
         public SubscriptionServer(GraphQL.AspNetCore3.WebSockets.IWebSocketConnection connection, GraphQL.AspNetCore3.WebSockets.GraphQLWebSocketOptions options, GraphQL.AspNetCore3.IAuthorizationOptions authorizationOptions, GraphQL.IDocumentExecuter executer, GraphQL.IGraphQLSerializer serializer, Microsoft.Extensions.DependencyInjection.IServiceScopeFactory serviceScopeFactory, GraphQL.AspNetCore3.IUserContextBuilder userContextBuilder, GraphQL.AspNetCore3.WebSockets.IWebSocketAuthenticationService? authenticationService = null) { }
@@ -399,6 +418,10 @@ namespace GraphQL.AspNetCore3.WebSockets.GraphQLWs
         protected override System.Threading.Tasks.Task<GraphQL.ExecutionResult> ExecuteRequestAsync(GraphQL.Transport.OperationMessage message) { }
         protected virtual System.Threading.Tasks.Task OnCompleteAsync(GraphQL.Transport.OperationMessage message) { }
         protected override System.Threading.Tasks.Task OnConnectionAcknowledgeAsync(GraphQL.Transport.OperationMessage message) { }
+        [System.Obsolete("Please use the OnConnectionInitAsync and OnKeepAliveLoopAsync methods instead. Th" +
+            "is method will be removed in a future version of this library.")]
+        protected override System.Threading.Tasks.Task OnConnectionInitAsync(GraphQL.Transport.OperationMessage message, bool smartKeepAlive) { }
+        protected override System.Threading.Tasks.Task OnKeepAliveLoopAsync(System.TimeSpan keepAliveTimeout, GraphQL.AspNetCore3.WebSockets.KeepAliveMode keepAliveMode) { }
         public override System.Threading.Tasks.Task OnMessageReceivedAsync(GraphQL.Transport.OperationMessage message) { }
         protected virtual System.Threading.Tasks.Task OnPingAsync(GraphQL.Transport.OperationMessage message) { }
         protected virtual System.Threading.Tasks.Task OnPongAsync(GraphQL.Transport.OperationMessage message) { }
@@ -437,6 +460,10 @@ namespace GraphQL.AspNetCore3.WebSockets.SubscriptionsTransportWs
         protected override System.Threading.Tasks.Task ErrorAccessDeniedAsync() { }
         protected override System.Threading.Tasks.Task<GraphQL.ExecutionResult> ExecuteRequestAsync(GraphQL.Transport.OperationMessage message) { }
         protected override System.Threading.Tasks.Task OnConnectionAcknowledgeAsync(GraphQL.Transport.OperationMessage message) { }
+        [System.Obsolete("Please use the OnConnectionInitAsync and OnKeepAliveLoopAsync methods instead. Th" +
+            "is method will be removed in a future version of this library.")]
+        protected override System.Threading.Tasks.Task OnConnectionInitAsync(GraphQL.Transport.OperationMessage message, bool smartKeepAlive) { }
+        protected override System.Threading.Tasks.Task OnKeepAliveLoopAsync(System.TimeSpan keepAliveTimeout, GraphQL.AspNetCore3.WebSockets.KeepAliveMode keepAliveMode) { }
         public override System.Threading.Tasks.Task OnMessageReceivedAsync(GraphQL.Transport.OperationMessage message) { }
         protected override System.Threading.Tasks.Task OnSendKeepAliveAsync() { }
         protected virtual System.Threading.Tasks.Task OnStartAsync(GraphQL.Transport.OperationMessage message) { }
