@@ -23,6 +23,19 @@ internal class AsyncMessagePump<T>
     private readonly Queue<ValueTask<T>> _queue = new();
 
     /// <summary>
+    /// Returns the number of messages in the queue.
+    /// This count includes any message currently being processed.
+    /// </summary>
+    public int Count
+    {
+        get {
+            lock (_queue) {
+                return _queue.Count;
+            }
+        }
+    }
+
+    /// <summary>
     /// Initializes a new instances with the specified asynchronous callback delegate.
     /// </summary>
     public AsyncMessagePump(Func<T, Task> callback)
