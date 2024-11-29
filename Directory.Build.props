@@ -22,6 +22,7 @@
     <IsPackable>false</IsPackable>
     <GraphQLVersion>8.2.1</GraphQLVersion>
     <NoWarn>$(NoWarn);IDE0056;IDE0057;NU1902;NU1903</NoWarn>
+    <NuGetAuditMode>direct</NuGetAuditMode>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(IsPackable)' == 'true'">
