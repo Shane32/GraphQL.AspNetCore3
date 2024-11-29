@@ -429,10 +429,13 @@ Configure it using the `AddJwtBearerAuthentication` extension method as shown
 in the example below:
 
 ```csharp
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer();
+
 builder.Services.AddGraphQL(b => b
     .AddAutoSchema<Query>()
     .AddSystemTextJson()
-    .AddAuthorizationRule()  // not required for endpoint authorization
+    .AddAuthorizationRule()
     .AddJwtBearerAuthentication()
 );
 
