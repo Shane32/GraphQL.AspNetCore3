@@ -446,9 +446,13 @@ app.UseGraphQL("/graphql", config =>
 });
 ```
 
-Please note that if JWT Bearer is not the default authentication scheme, you will need to
-specify the authentication scheme to use for GraphQL requests.  See 'Authentication schemes'
-below for more information.
+Please note:
+
+- If JWT Bearer is not the default authentication scheme, you will need to specify
+  the authentication scheme to use for GraphQL requests.  See 'Authentication schemes'
+  below for more information.
+
+- Events configured through `JwtBearerEvents` are not currently supported.
 
 #### Authentication schemes
 

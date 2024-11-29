@@ -7,7 +7,7 @@ GraphQL.AspNetCore3 v7 requires GraphQL.NET v8 or newer.
 ### New features
 
 - Supports JWT WebSocket Authentication using the separately-provided `GraphQL.AspNetCore3.JwtBearer` package.
-  - Inherits all options configured by the `Microsoft.AspNetCore.Authentication.JwtBearer` package.
+  - Inherits most options configured by the `Microsoft.AspNetCore.Authentication.JwtBearer` package.
   - Supports multiple authentication schemes, configurable via the `GraphQLHttpMiddlewareOptions.AuthenticationSchemes` property.
   - Defaults to attempting the `AuthenticationOptions.DefaultAuthenticateScheme` scheme if not specified.
 
