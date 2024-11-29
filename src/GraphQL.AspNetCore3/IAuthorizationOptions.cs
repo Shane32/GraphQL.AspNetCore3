@@ -10,10 +10,10 @@ namespace GraphQL.AspNetCore3;
 public interface IAuthorizationOptions
 {
     /// <summary>
-    /// Gets or sets a list of the authentication schemes the authentication requirements are evaluated against.
+    /// Gets a list of the authentication schemes the authentication requirements are evaluated against.
     /// When no schemes are specified, the default authentication scheme is used.
     /// </summary>
-    List<string> AuthenticationSchemes { get; set; }
+    IEnumerable<string> AuthenticationSchemes { get; }
 
     /// <summary>
     /// If set, requires that <see cref="IIdentity.IsAuthenticated"/> return <see langword="true"/>

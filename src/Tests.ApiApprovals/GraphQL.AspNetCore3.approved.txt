@@ -195,6 +195,7 @@ namespace GraphQL.AspNetCore3
     }
     public interface IAuthorizationOptions
     {
+        System.Collections.Generic.IEnumerable<string> AuthenticationSchemes { get; }
         bool AuthorizationRequired { get; }
         string? AuthorizedPolicy { get; }
         System.Collections.Generic.IEnumerable<string> AuthorizedRoles { get; }
@@ -273,6 +274,14 @@ namespace GraphQL.AspNetCore3.Errors
 }
 namespace GraphQL.AspNetCore3.WebSockets
 {
+    public class AuthenticationRequest
+    {
+        public AuthenticationRequest(GraphQL.AspNetCore3.WebSockets.IWebSocketConnection connection, string subProtocol, GraphQL.Transport.OperationMessage operationMessage, System.Collections.Generic.IEnumerable<string> authenticationSchemes) { }
+        public System.Collections.Generic.IEnumerable<string> AuthenticationSchemes { get; }
+        public GraphQL.AspNetCore3.WebSockets.IWebSocketConnection Connection { get; }
+        public GraphQL.Transport.OperationMessage OperationMessage { get; }
+        public string SubProtocol { get; }
+    }
     public abstract class BaseSubscriptionServer : GraphQL.AspNetCore3.WebSockets.IOperationMessageProcessor, System.IDisposable
     {
         protected BaseSubscriptionServer(GraphQL.AspNetCore3.WebSockets.IWebSocketConnection connection, GraphQL.AspNetCore3.WebSockets.GraphQLWebSocketOptions options, GraphQL.AspNetCore3.IAuthorizationOptions authorizationOptions) { }
@@ -338,7 +347,7 @@ namespace GraphQL.AspNetCore3.WebSockets
     }
     public interface IWebSocketAuthenticationService
     {
-        System.Threading.Tasks.Task AuthenticateAsync(GraphQL.AspNetCore3.WebSockets.IWebSocketConnection connection, string subProtocol, GraphQL.Transport.OperationMessage operationMessage);
+        System.Threading.Tasks.Task AuthenticateAsync(GraphQL.AspNetCore3.WebSockets.AuthenticationRequest authenticationRequest);
     }
     public interface IWebSocketConnection : System.IDisposable
     {
