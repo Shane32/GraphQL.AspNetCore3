@@ -78,7 +78,7 @@ public class JwtWebSocketAuthenticationService : IWebSocketAuthenticationService
                 var token = authPayload.Authorization.Substring(7);
 
                 // try to authenticate with each of the configured authentication schemes
-                foreach (var scheme in authenticationRequest.AuthenticationSchemes) {
+                foreach (var scheme in schemes) {
                     var options = _jwtBearerOptionsMonitor.Get(scheme);
 
                     // follow logic simplified from JwtBearerHandler.HandleAuthenticateAsync, as follows:
