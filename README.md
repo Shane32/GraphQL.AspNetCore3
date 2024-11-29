@@ -422,6 +422,31 @@ Note that `InvokeAsync` will execute even if the protocol is disabled in the opt
 disabling `HandleGet` or similar; `HandleAuthorizeAsync` and `HandleAuthorizeWebSocketConnectionAsync`
 will not.
 
+JWT Bearer authentication is provided by the `GraphQL.AspNetCore3.JwtBearer` package.
+Like the above sample, it will look for an "Authorization" entry that starts with "Bearer "
+and validate the token using the configured ASP.Net Core JWT Bearer authentication handler.
+Configure it using the `AddJwtBearerAuthentication` extension method as shown
+in the example below:
+
+```csharp
+builder.Services.AddGraphQL(b => b
+    .AddAutoSchema<Query>()
+    .AddSystemTextJson()
+    .AddAuthorizationRule()  // not required for endpoint authorization
+    .AddJwtBearerAuthentication()
+);
+
+app.UseGraphQL("/graphql", config =>
+{
+    // require that the user be authenticated
+    config.AuthorizationRequired = true;
+});
+```
+
+Please note that if JWT Bearer is not the default authentication scheme, you will need to
+specify the authentication scheme to use for GraphQL requests.  See 'Authentication schemes'
+below for more information.
+
 #### Authentication schemes
 
 By default the role and policy requirements are validated against the current user as defined by

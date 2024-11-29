@@ -10,6 +10,12 @@ namespace GraphQL.AspNetCore3;
 public interface IAuthorizationOptions
 {
     /// <summary>
+    /// Gets or sets a list of the authentication schemes the authentication requirements are evaluated against.
+    /// When no schemes are specified, the default authentication scheme is used.
+    /// </summary>
+    List<string> AuthenticationSchemes { get; set; }
+
+    /// <summary>
     /// If set, requires that <see cref="IIdentity.IsAuthenticated"/> return <see langword="true"/>
     /// for the user within <see cref="HttpContext.User"/>
     /// prior to executing the GraphQL request or accepting the WebSocket connection.
