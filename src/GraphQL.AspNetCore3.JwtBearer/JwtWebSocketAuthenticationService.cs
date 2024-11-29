@@ -26,17 +26,12 @@ namespace GraphQL.AspNetCore3.JwtBearer;
 /// <item>
 /// This class pulls the <see cref="JwtBearerOptions"/> instance registered by ASP.NET Core during the call to
 /// <see cref="JwtBearerExtensions.AddJwtBearer(AuthenticationBuilder, Action{JwtBearerOptions})">AddJwtBearer</see>
-/// for the <see cref="JwtBearerDefaults.AuthenticationScheme">Bearer</see> scheme and authenticates the token
+/// for the default or configured authentication scheme and authenticates the token
 /// based on simplified logic used by <see cref="JwtBearerHandler"/>.
 /// </item>
 /// <item>
 /// The expected format of the payload is <c>{"Authorization":"Bearer TOKEN"}</c> where TOKEN is the JSON Web Token (JWT),
 /// mirroring the format of the 'Authorization' HTTP header.
-/// </item>
-/// <item>
-/// This implementation only supports the "Bearer" scheme configured in ASP.NET Core. Any scheme configured via
-/// the <see cref="GraphQLHttpMiddlewareOptions.AuthenticationSchemes"/> property is
-/// ignored by this implementation.
 /// </item>
 /// <item>
 /// Events configured in <see cref="JwtBearerOptions.Events"/> are not raised by this implementation.

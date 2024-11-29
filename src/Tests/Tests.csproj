@@ -27,6 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\GraphQL.AspNetCore3.JwtBearer\GraphQL.AspNetCore3.JwtBearer.csproj" />
     <ProjectReference Include="..\Samples\ChatSchema\Chat.csproj" />
     <ProjectReference Include="..\GraphQL.AspNetCore3\GraphQL.AspNetCore3.csproj" />
     <PackageReference Include="GraphQL.SystemTextJson" Version="$(GraphQLVersion)" />
