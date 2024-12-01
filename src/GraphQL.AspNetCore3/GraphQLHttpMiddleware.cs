@@ -574,15 +574,13 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
     protected virtual async Task<ExecutionResult> ExecuteScopedRequestAsync(HttpContext context, GraphQLRequest? request, IDictionary<string, object?> userContext)
     {
         var scope = _serviceScopeFactory.CreateScope();
-        if (scope is IAsyncDisposable ad) {
-            try {
-                return await ExecuteRequestAsync(context, request, scope.ServiceProvider, userContext);
-            } finally {
-                await ad.DisposeAsync().ConfigureAwait(false);
-            }
-        } else {
-            using (scope)
-                return await ExecuteRequestAsync(context, request, scope.ServiceProvider, userContext);
+        try {
+            return await ExecuteRequestAsync(context, request, scope.ServiceProvider, userContext);
+        } finally {
+            if (scope is IAsyncDisposable ad)
+                await ad.DisposeAsync();
+            else
+                scope.Dispose();
         }
     }
 

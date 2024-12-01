@@ -283,7 +283,7 @@ public class SubscriptionServer : BaseSubscriptionServer
         var request = Serializer.ReadNode<GraphQLRequest>(message.Payload)
             ?? throw new ArgumentNullException(nameof(message) + "." + nameof(OperationMessage.Payload));
 #pragma warning restore CA2208 // Instantiate argument exceptions correctly
-        using var scope = ServiceScopeFactory.CreateScope();
+        var scope = ServiceScopeFactory.CreateScope();
         try {
             var options = new ExecutionOptions {
                 Query = request.Query,
@@ -301,6 +301,8 @@ public class SubscriptionServer : BaseSubscriptionServer
         } finally {
             if (scope is IAsyncDisposable ad)
                 await ad.DisposeAsync();
+            else
+                scope.Dispose();
         }
     }
 
