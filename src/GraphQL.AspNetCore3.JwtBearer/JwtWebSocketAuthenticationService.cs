@@ -51,7 +51,7 @@ public class JwtWebSocketAuthenticationService : IWebSocketAuthenticationService
     {
         _graphQLSerializer = graphQLSerializer;
         _jwtBearerOptionsMonitor = jwtBearerOptionsMonitor;
-        var defaultAuthenticationScheme = authenticationOptions.Value.DefaultAuthenticateScheme;
+        var defaultAuthenticationScheme = authenticationOptions.Value.DefaultScheme;
         _defaultAuthenticationSchemes = defaultAuthenticationScheme != null ? [defaultAuthenticationScheme] : [];
     }
 
@@ -146,8 +146,10 @@ public class JwtWebSocketAuthenticationService : IWebSocketAuthenticationService
         return tokenValidationParameters;
     }
 
-    private sealed class AuthPayload
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+    public sealed class AuthPayload
     {
         public string? Authorization { get; set; }
     }
+#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 }
