@@ -25,7 +25,6 @@ public class Startup
                 .WithMutation<Chat.Schema.Mutation>()
                 .WithSubscription<Chat.Schema.Subscription>())
             .AddNewtonsoftJson());
-        services.AddHostApplicationLifetime();
     }
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

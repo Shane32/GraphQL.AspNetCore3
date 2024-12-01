@@ -43,9 +43,6 @@ public class PostTests : IDisposable
                 });
             });
             services.AddSingleton<PersistedDocumentHandler>();
-#if NETCOREAPP2_1 || NET48
-            services.AddHostApplicationLifetime();
-#endif
         });
         hostBuilder.Configure(app => {
             app.UseWebSockets();

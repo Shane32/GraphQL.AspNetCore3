@@ -2,6 +2,9 @@ using System.Net;
 using GraphQL.AspNetCore3.Errors;
 using GraphQL.Execution;
 using Microsoft.Extensions.Hosting;
+#if NET48 || NETCOREAPP2_1
+using IHostApplicationLifetime = Microsoft.Extensions.Hosting.IApplicationLifetime;
+#endif
 
 namespace Tests.Middleware;
 

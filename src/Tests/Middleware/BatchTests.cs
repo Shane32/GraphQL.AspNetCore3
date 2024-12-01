@@ -19,9 +19,6 @@ public class BatchTests : IDisposable
                 .AddSchema<Schema2>()
                 .AddSystemTextJson()
                 .ConfigureExecutionOptions(o => _configureExecution(o)));
-#if NETCOREAPP2_1 || NET48
-            services.AddHostApplicationLifetime();
-#endif
         });
         hostBuilder.Configure(app => {
             app.UseWebSockets();

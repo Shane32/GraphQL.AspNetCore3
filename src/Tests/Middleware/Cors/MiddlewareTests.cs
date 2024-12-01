@@ -18,9 +18,6 @@ public class MiddlewareTests
                 .AddAutoSchema<Query>()
                 .AddSystemTextJson());
             services.AddCors();
-#if NETCOREAPP2_1 || NET48
-            services.AddHostApplicationLifetime();
-#endif
         });
         hostBuilder.Configure(app => {
             if (configureCorsPolicy != null)

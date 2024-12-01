@@ -6,6 +6,9 @@ using GraphQL.Execution;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Hosting;
+#if NET48 || NETCOREAPP2_1
+using IHostApplicationLifetime = Microsoft.Extensions.Hosting.IApplicationLifetime;
+#endif
 
 namespace Tests.Middleware;
 
@@ -46,9 +49,6 @@ public class AuthorizationTests
                     policyConfig.RequireRole("FailingRole");
                 });
             });
-#if NETCOREAPP2_1 || NET48
-            services.AddHostApplicationLifetime();
-#endif
             configureServices?.Invoke(services);
         });
         hostBuilder.Configure(app => {
@@ -127,9 +127,6 @@ public class AuthorizationTests
             services.AddGraphQL(b => b
                 .AddAutoSchema<Chat.Schema.Query>()
                 .AddSystemTextJson());
-#if NETCOREAPP2_1 || NET48
-            services.AddHostApplicationLifetime();
-#endif
         });
         hostBuilder.Configure(app => {
             app.UseWebSockets();

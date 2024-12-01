@@ -41,9 +41,6 @@ public class GetTests : IDisposable
                 });
             });
             services.AddSingleton<PersistedDocumentHandler>();
-#if NETCOREAPP2_1 || NET48
-            services.AddHostApplicationLifetime();
-#endif
         });
         hostBuilder.Configure(app => {
             app.UseWebSockets();
@@ -142,9 +139,6 @@ public class GetTests : IDisposable
             services.AddGraphQL(b => b
                 .AddAutoSchema<Chat.Schema.Query>()
                 .AddSystemTextJson());
-#if NETCOREAPP2_1 || NET48
-            services.AddHostApplicationLifetime();
-#endif
         });
         hostBuilder.Configure(app => app.UseGraphQL());
         using var server = new TestServer(hostBuilder);

@@ -22,9 +22,6 @@ public class ChatTests : IDisposable
                     .WithMutation<Chat.Schema.Mutation>()
                     .WithSubscription<Chat.Schema.Subscription>())
                 .AddSystemTextJson());
-#if NETCOREAPP2_1 || NET48
-            services.AddHostApplicationLifetime();
-#endif
         });
         hostBuilder.Configure(app => {
             app.UseWebSockets();

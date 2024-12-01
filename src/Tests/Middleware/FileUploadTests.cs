@@ -1,5 +1,8 @@
 using GraphQLParser.AST;
 using Microsoft.Extensions.Hosting;
+#if NET48 || NETCOREAPP2_1
+using IHostApplicationLifetime = Microsoft.Extensions.Hosting.IApplicationLifetime;
+#endif
 
 namespace Tests.Middleware;
 
@@ -15,9 +18,6 @@ public class FileUploadTests : IDisposable
             services.AddGraphQL(b => b
                 .AddSchema<MySchema>()
                 .AddSystemTextJson());
-#if NETCOREAPP2_1 || NET48
-            services.AddHostApplicationLifetime();
-#endif
         });
         hostBuilder.Configure(app => {
             app.UseWebSockets();

@@ -5,6 +5,9 @@ using System.Globalization;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+#if NETSTANDARD2_0 || NETCOREAPP2_1
+using IHostApplicationLifetime = Microsoft.Extensions.Hosting.IApplicationLifetime;
+#endif
 
 namespace GraphQL.AspNetCore3;
 
