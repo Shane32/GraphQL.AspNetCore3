@@ -255,9 +255,6 @@ public class JwtWebSocketAuthenticationServiceTests
                     .AddSystemTextJson()
                     .AddJwtBearerAuthentication()
                 );
-#if NET48 || NETCOREAPP2_1
-                services.AddHostApplicationLifetime();
-#endif
             })
             .Configure(app => {
                 app.UseWebSockets();
