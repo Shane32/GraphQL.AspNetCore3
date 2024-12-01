@@ -6,6 +6,7 @@ namespace GraphQL.AspNetCore3.WebSockets.SubscriptionsTransportWs;
 public class SubscriptionServer : BaseSubscriptionServer
 {
     private readonly IWebSocketAuthenticationService? _authenticationService;
+    private readonly IEnumerable<string> _authenticationSchemes;
 
     /// <summary>
     /// The WebSocket sub-protocol used for this protocol.
@@ -69,6 +70,7 @@ public class SubscriptionServer : BaseSubscriptionServer
         UserContextBuilder = userContextBuilder ?? throw new ArgumentNullException(nameof(userContextBuilder));
         Serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
         _authenticationService = authenticationService;
+        _authenticationSchemes = authorizationOptions.AuthenticationSchemes;
     }
 
     /// <inheritdoc/>
@@ -224,7 +226,7 @@ public class SubscriptionServer : BaseSubscriptionServer
     /// <summary>
     /// Authorizes an incoming GraphQL over WebSockets request with the connection initialization message and initializes the <see cref="UserContext"/>.
     /// <br/><br/>
-    /// The default implementation calls the <see cref="IWebSocketAuthenticationService.AuthenticateAsync(IWebSocketConnection, string, OperationMessage)"/>
+    /// The default implementation calls the <see cref="IWebSocketAuthenticationService.AuthenticateAsync(AuthenticationRequest)"/>
     /// method to authenticate the request (if <see cref="IWebSocketAuthenticationService"/> was specified),
     /// checks the authorization rules set in <see cref="GraphQLHttpMiddlewareOptions"/>,
     /// if any, against <see cref="HttpContext.User"/>.  If validation fails, control is passed
@@ -242,7 +244,7 @@ public class SubscriptionServer : BaseSubscriptionServer
     protected override async ValueTask<bool> AuthorizeAsync(OperationMessage message)
     {
         if (_authenticationService != null)
-            await _authenticationService.AuthenticateAsync(Connection, SubProtocol, message);
+            await _authenticationService.AuthenticateAsync(new(Connection, SubProtocol, message, _authenticationSchemes));
 
         bool success = await base.AuthorizeAsync(message);
 

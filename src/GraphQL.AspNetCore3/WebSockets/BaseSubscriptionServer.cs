@@ -195,7 +195,7 @@ public abstract class BaseSubscriptionServer : IOperationMessageProcessor
     /// <see cref="OnNotAuthorizedRoleAsync(OperationMessage)">OnNotAuthorizedRoleAsync</see>
     /// or <see cref="OnNotAuthorizedPolicyAsync(OperationMessage, AuthorizationResult)">OnNotAuthorizedPolicyAsync</see>.
     /// <br/><br/>
-    /// Derived implementations should call the <see cref="IWebSocketAuthenticationService.AuthenticateAsync(IWebSocketConnection, string, OperationMessage)"/>
+    /// Derived implementations should call the <see cref="IWebSocketAuthenticationService.AuthenticateAsync(AuthenticationRequest)"/>
     /// method to authenticate the request, and then call this base method.
     /// <br/><br/>
     /// This method will return <see langword="true"/> if authorization is successful, or
