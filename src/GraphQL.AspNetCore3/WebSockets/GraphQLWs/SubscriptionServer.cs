@@ -6,6 +6,7 @@ namespace GraphQL.AspNetCore3.WebSockets.GraphQLWs;
 public class SubscriptionServer : BaseSubscriptionServer
 {
     private readonly IWebSocketAuthenticationService? _authenticationService;
+    private readonly IEnumerable<string> _authenticationSchemes;
     private readonly IGraphQLSerializer _serializer;
     private readonly GraphQLWebSocketOptions _options;
     private DateTime _lastPongReceivedUtc;
@@ -76,6 +77,7 @@ public class SubscriptionServer : BaseSubscriptionServer
         _authenticationService = authenticationService;
         _serializer = serializer;
         _options = options;
+        _authenticationSchemes = authorizationOptions.AuthenticationSchemes;
     }
 
     /// <inheritdoc/>
@@ -305,7 +307,7 @@ public class SubscriptionServer : BaseSubscriptionServer
     /// <summary>
     /// Authorizes an incoming GraphQL over WebSockets request with the connection initialization message and initializes the <see cref="UserContext"/>.
     /// <br/><br/>
-    /// The default implementation calls the <see cref="IWebSocketAuthenticationService.AuthenticateAsync(IWebSocketConnection, string, OperationMessage)"/>
+    /// The default implementation calls the <see cref="IWebSocketAuthenticationService.AuthenticateAsync(AuthenticationRequest)"/>
     /// method to authenticate the request (if <see cref="IWebSocketAuthenticationService"/> was specified),
     /// checks the authorization rules set in <see cref="GraphQLHttpMiddlewareOptions"/>,
     /// if any, against <see cref="HttpContext.User"/>.  If validation fails, control is passed
@@ -323,7 +325,7 @@ public class SubscriptionServer : BaseSubscriptionServer
     protected override async ValueTask<bool> AuthorizeAsync(OperationMessage message)
     {
         if (_authenticationService != null)
-            await _authenticationService.AuthenticateAsync(Connection, SubProtocol, message);
+            await _authenticationService.AuthenticateAsync(new(Connection, SubProtocol, message, _authenticationSchemes));
 
         bool success = await base.AuthorizeAsync(message);
 

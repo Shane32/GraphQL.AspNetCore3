@@ -310,7 +310,10 @@ public class ChatTests : IDisposable
     {
         var builder = ConfigureBuilder();
         var mockAuthorizationService = new Mock<IWebSocketAuthenticationService>(MockBehavior.Strict);
-        mockAuthorizationService.Setup(x => x.AuthenticateAsync(It.IsAny<IWebSocketConnection>(), subProtocol, It.IsAny<OperationMessage>())).Returns(Task.CompletedTask).Verifiable();
+        mockAuthorizationService.Setup(x => x.AuthenticateAsync(It.IsAny<AuthenticationRequest>())).Returns<AuthenticationRequest>(request => {
+            request.SubProtocol.ShouldBe(subProtocol);
+            return Task.CompletedTask;
+        }).Verifiable();
         builder.ConfigureServices(s => s.AddSingleton(mockAuthorizationService.Object));
         using var app = new TestServer(builder);
         _options.AuthorizationRequired = true;
@@ -350,8 +353,11 @@ public class ChatTests : IDisposable
     {
         var builder = ConfigureBuilder();
         var mockAuthorizationService = new Mock<IWebSocketAuthenticationService>(MockBehavior.Strict);
-        mockAuthorizationService.Setup(x => x.AuthenticateAsync(It.IsAny<IWebSocketConnection>(), subProtocol, It.IsAny<OperationMessage>()))
-            .Returns<WebSocketConnection, string, OperationMessage>((connection, _, message) => {
+        mockAuthorizationService.Setup(x => x.AuthenticateAsync(It.IsAny<AuthenticationRequest>()))
+            .Returns<AuthenticationRequest>((authenticationRequest) => {
+                var connection = authenticationRequest.Connection;
+                var message = authenticationRequest.OperationMessage;
+                authenticationRequest.SubProtocol.ShouldBe(subProtocol);
                 connection.HttpContext.User.Identity!.IsAuthenticated.ShouldBeFalse();
                 var serializer = connection.HttpContext.RequestServices.GetRequiredService<IGraphQLSerializer>();
                 var payload = serializer.ReadNode<Inputs>(message.Payload);
