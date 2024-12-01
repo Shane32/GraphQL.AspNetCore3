@@ -99,6 +99,8 @@ public class GraphQLHttpMiddlewareOptions : IAuthorizationOptions
     /// </summary>
     public List<string> AuthenticationSchemes { get; set; } = new();
 
+    IEnumerable<string> IAuthorizationOptions.AuthenticationSchemes => AuthenticationSchemes;
+
     /// <inheritdoc/>
     /// <remarks>
     /// HTTP requests return <c>401 Forbidden</c> when the request is not authenticated.
