@@ -36,6 +36,9 @@ namespace GraphQL.AspNetCore3.JwtBearer;
 /// <item>
 /// Events configured in <see cref="JwtBearerOptions.Events"/> are not raised by this implementation.
 /// </item>
+/// <item>
+/// Implementation does not call <see cref="Microsoft.Extensions.Logging.ILogger"/> to log authentication events.
+/// </item>
 /// </list>
 /// </summary>
 public class JwtWebSocketAuthenticationService : IWebSocketAuthenticationService
