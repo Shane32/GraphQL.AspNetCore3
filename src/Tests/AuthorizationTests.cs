@@ -728,9 +728,6 @@ public class AuthorizationTests
                 .AddAuthorizationRule());
             services.AddAuthentication();
             services.AddAuthorization();
-#if NETCOREAPP2_1 || NET48
-            services.AddHostApplicationLifetime();
-#endif
         });
         hostBuilder.Configure(app => {
             app.UseWebSockets();

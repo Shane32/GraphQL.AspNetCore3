@@ -16,9 +16,6 @@ public class UserContextBuilderTests : IDisposable
                 b.AddSystemTextJson();
             });
             services.AddHttpContextAccessor();
-#if NETCOREAPP2_1 || NET48
-            services.AddHostApplicationLifetime();
-#endif
         });
         hostBuilder.Configure(app => {
             app.UseWebSockets();

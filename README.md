@@ -566,13 +566,7 @@ and [this](http://www.breachattack.com/#howitworks) for more details.
 You may choose to use the .NET Core 2.1 runtime or a .NET Framework runtime.
 This library has been tested with .NET Core 2.1 and .NET Framework 4.8.
 
-One additional requirement is that you must add this code in your `Startup.cs` file:
-
-```csharp
-services.AddHostApplicationLifetime();
-```
-
-You will also need to reference a serializer package such as `GraphQL.NewtonsoftJson`
+You will need to reference a serializer package such as `GraphQL.NewtonsoftJson`
 or `GraphQL.SystemTextJson`, as `GraphQL.SystemTextJson` is not included in this case.
 
 Besides that requirement, all features are supported in exactly the same manner as

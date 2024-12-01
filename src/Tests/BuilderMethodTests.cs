@@ -15,9 +15,6 @@ public class BuilderMethodTests
                     .WithSubscription<Chat.Schema.Subscription>())
                 .AddSchema<Schema2>()
                 .AddSystemTextJson());
-#if NETCOREAPP2_1 || NET48
-            services.AddHostApplicationLifetime();
-#endif
         });
     }
 
