@@ -17,7 +17,7 @@ public class JwtWebSocketAuthenticationServiceTests
     private string _issuer = "https://demo.identityserver.io";
     private string _audience = "testAudience";
     private readonly string _subject = "user123";
-    private RSAParameters _rsaParameters;
+    private static readonly RSAParameters _rsaParameters;
     private string? _jwtAccessToken;
     private readonly MockHttpMessageHandler _oidcHttpMessageHandler = new();
     private readonly ISchema _schema;
@@ -108,7 +108,7 @@ public class JwtWebSocketAuthenticationServiceTests
         SetupOidcDiscovery();
         _enableJwtEvents = enableJwtEvents;
         using var testServer = CreateTestServer();
-        CreateSignedToken(); // create new token with different keys
+        CreateSignedToken(differentKeys: true); // create new token with different keys
         await TestGetAsync(testServer, isAuthenticated: false);
         await TestWebSocketAsync(testServer, isAuthenticated: false);
     }
@@ -454,14 +454,29 @@ public class JwtWebSocketAuthenticationServiceTests
     }
 
     /// <summary>
-    /// Creates a new RSA key pair and a signed JWT token.
+    /// Creates a new RSA key pair.
+    /// </summary>
+    /// <remarks>
+    /// .NET Framework can only handle around 50 RSA keys at a time.
+    /// </remarks>
+    static JwtWebSocketAuthenticationServiceTests()
+    {
+        using var rsa = RSA.Create(2048);
+        _rsaParameters = rsa.ExportParameters(true);
+    }
+
+    /// <summary>
+    /// Creates a signed JWT token.
     /// Uses the currently configured <see cref="_issuer"/>, <see cref="_audience"/>, and <see cref="_subject"/>.
     /// Overwrites the <see cref="_rsaParameters"/> and <see cref="_jwtAccessToken"/> fields.
     /// </summary>
-    private void CreateSignedToken(bool expired = false)
+    private void CreateSignedToken(bool expired = false, bool differentKeys = false)
     {
-        using var rsa = RSA.Create(2048);
-        var rsaParameters = rsa.ExportParameters(true);
+        RSAParameters rsaParameters = _rsaParameters;
+        if (differentKeys) {
+            using var rsa = RSA.Create(2048);
+            rsaParameters = rsa.ExportParameters(true);
+        }
         var key = new RsaSecurityKey(rsaParameters);
         var signingCredentials = new SigningCredentials(key, SecurityAlgorithms.RsaSha256);
 
@@ -481,7 +496,6 @@ public class JwtWebSocketAuthenticationServiceTests
         var tokenHandler = new JwtSecurityTokenHandler();
         var token = tokenHandler.CreateToken(tokenDescriptor);
         var tokenStr = tokenHandler.WriteToken(token);
-        _rsaParameters = rsaParameters;
         _jwtAccessToken = tokenStr;
     }
 }
