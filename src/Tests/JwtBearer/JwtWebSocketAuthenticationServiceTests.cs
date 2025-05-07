@@ -21,47 +21,42 @@ public class JwtWebSocketAuthenticationServiceTests
     private string? _jwtAccessToken;
     private readonly MockHttpMessageHandler _oidcHttpMessageHandler = new();
     private readonly ISchema _schema;
-    
+
     // Event tracking flags
     private bool _messageReceived;
     private bool _tokenValidated;
     private bool _authenticationFailed;
     private bool _enableJwtEvents;
-    
+
     private readonly JwtBearerEvents _jwtBearerEvents;
     private Action<IResolveFieldContext>? _testFieldAction;
 
     public JwtWebSocketAuthenticationServiceTests()
     {
         var query = new ObjectGraphType() { Name = "Query" };
-        query.Field<StringGraphType>("test").Resolve(ctx =>
-        {
+        query.Field<StringGraphType>("test").Resolve(ctx => {
             _testFieldAction?.Invoke(ctx);
             return ctx.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         });
         _schema = new Schema { Query = query };
-        
+
         // Initialize JwtBearerEvents
-        _jwtBearerEvents = new JwtBearerEvents
-        {
-            OnMessageReceived = context =>
-            {
+        _jwtBearerEvents = new JwtBearerEvents {
+            OnMessageReceived = context => {
                 _messageReceived = true;
                 return Task.CompletedTask;
             },
-            OnTokenValidated = context =>
-            {
+            OnTokenValidated = context => {
                 _tokenValidated = true;
                 return Task.CompletedTask;
             },
-            OnAuthenticationFailed = context =>
-            {
+            OnAuthenticationFailed = context => {
                 _authenticationFailed = true;
                 return Task.CompletedTask;
             }
         };
     }
-    
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -315,15 +310,14 @@ public class JwtWebSocketAuthenticationServiceTests
 
             // wait for websocket closure
             (await webSocket.ReceiveCloseAsync()).ShouldBe((WebSocketCloseStatus)4401);
-            
+
             // Verify events were triggered if _enableJwtEvents is true
-            if (_enableJwtEvents)
-            {
+            if (_enableJwtEvents) {
                 _messageReceived.ShouldBe(expectMessageReceived);
                 _authenticationFailed.ShouldBe(expectAuthenticationFailed);
                 _tokenValidated.ShouldBe(expectTokenValidated);
             }
-            
+
             return;
         }
 
@@ -347,10 +341,9 @@ public class JwtWebSocketAuthenticationServiceTests
         message.Payload.ShouldBe($$$"""
         {"data":{"test":"{{{_subject}}}"}}
         """);
-        
+
         // Verify events were triggered if _enableJwtEvents is true
-        if (_enableJwtEvents)
-        {
+        if (_enableJwtEvents) {
             _messageReceived.ShouldBeTrue();
             _tokenValidated.ShouldBeTrue();
             _authenticationFailed.ShouldBeFalse();
@@ -373,10 +366,9 @@ public class JwtWebSocketAuthenticationServiceTests
                     o.Authority = _issuer;
                     o.Audience = _audience;
                     o.BackchannelHttpHandler = _oidcHttpMessageHandler;
-                    
+
                     // Configure JWT events if enabled
-                    if (_enableJwtEvents)
-                    {
+                    if (_enableJwtEvents) {
                         o.Events = _jwtBearerEvents;
                     }
                 });
