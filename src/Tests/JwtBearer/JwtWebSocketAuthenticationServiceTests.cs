@@ -70,7 +70,6 @@ public class JwtWebSocketAuthenticationServiceTests
         await TestWebSocketAsync(testServer, isAuthenticated: true);
     }
 
-
     [Fact]
     public async Task SuccessfulAuthenticationWithCustomClaim()
     {
