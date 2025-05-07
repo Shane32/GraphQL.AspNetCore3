@@ -26,6 +26,8 @@ jobs:
         with:
           dotnet-version: |
             2.1.x
+            3.1.x
+            5.0.x
             6.0.x
             8.0.x
           source-url: https://nuget.pkg.github.com/Shane32/index.json
