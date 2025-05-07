@@ -26,6 +26,11 @@ public class AspNetCore3JwtBearerExtensionsTests
                 false))
             .Returns(serviceRegisterMock.Object);
 
+        // Setup the Configure method to accept any Action<JwtBearerAuthenticationOptions, IServiceProvider>
+        serviceRegisterMock
+            .Setup(x => x.Configure<JwtBearerAuthenticationOptions>(It.IsAny<Action<JwtBearerAuthenticationOptions, IServiceProvider>>()))
+            .Returns(serviceRegisterMock.Object);
+
         // Act
         var result = graphQLBuilderMock.Object.AddJwtBearerAuthentication();
 

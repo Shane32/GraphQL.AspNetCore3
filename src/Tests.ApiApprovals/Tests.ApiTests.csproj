@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\GraphQL.AspNetCore3.JwtBearer\GraphQL.AspNetCore3.JwtBearer.csproj" />
     <ProjectReference Include="..\GraphQL.AspNetCore3\GraphQL.AspNetCore3.csproj" />
   </ItemGroup>
 
