@@ -13,7 +13,16 @@ public static class AspNetCore3JwtBearerExtensions
     /// Adds JWT bearer authentication to a GraphQL server for WebSocket communications.
     /// </summary>
     public static IGraphQLBuilder AddJwtBearerAuthentication(this IGraphQLBuilder builder)
+        => builder.AddJwtBearerAuthentication(options => { });
+
+    /// <inheritdoc cref="AddJwtBearerAuthentication(IGraphQLBuilder)"/>
+    public static IGraphQLBuilder AddJwtBearerAuthentication(this IGraphQLBuilder builder, bool enableJwtEvents)
+        => builder.AddJwtBearerAuthentication(options => options.EnableJwtEvents = enableJwtEvents);
+
+    /// <inheritdoc cref="AddJwtBearerAuthentication(IGraphQLBuilder)"/>
+    public static IGraphQLBuilder AddJwtBearerAuthentication(this IGraphQLBuilder builder, Action<JwtBearerAuthenticationOptions> configureOptions)
     {
+        builder.Services.Configure(configureOptions);
         builder.AddWebSocketAuthentication<JwtWebSocketAuthenticationService>();
         return builder;
     }

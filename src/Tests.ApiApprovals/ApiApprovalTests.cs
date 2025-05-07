@@ -1,4 +1,5 @@
 using GraphQL.AspNetCore3;
+using GraphQL.AspNetCore3.JwtBearer;
 using PublicApiGenerator;
 using Shouldly;
 using Xunit;
@@ -12,6 +13,7 @@ public class ApiApprovalTests
 {
     [Theory]
     [InlineData(typeof(GraphQLHttpMiddleware))]
+    [InlineData(typeof(JwtWebSocketAuthenticationService))]
     public void PublicApi(Type type)
     {
         string publicApi = type.Assembly.GeneratePublicApi(new ApiGeneratorOptions {

@@ -1,0 +1,27 @@
+namespace GraphQL.AspNetCore3.JwtBearer
+{
+    public class JwtBearerAuthenticationOptions
+    {
+        public JwtBearerAuthenticationOptions() { }
+        public bool EnableJwtEvents { get; set; }
+    }
+    public class JwtWebSocketAuthenticationService : GraphQL.AspNetCore3.WebSockets.IWebSocketAuthenticationService
+    {
+        public JwtWebSocketAuthenticationService(GraphQL.IGraphQLSerializer graphQLSerializer, Microsoft.Extensions.Options.IOptionsMonitor<Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerOptions> jwtBearerOptionsMonitor, Microsoft.Extensions.Options.IOptions<Microsoft.AspNetCore.Authentication.AuthenticationOptions> authenticationOptions, Microsoft.Extensions.Options.IOptions<GraphQL.AspNetCore3.JwtBearer.JwtBearerAuthenticationOptions> jwtBearerAuthenticationOptions, Microsoft.AspNetCore.Authentication.IAuthenticationSchemeProvider schemeProvider) { }
+        public System.Threading.Tasks.Task AuthenticateAsync(GraphQL.AspNetCore3.WebSockets.AuthenticationRequest authenticationRequest) { }
+        public sealed class AuthPayload
+        {
+            public AuthPayload() { }
+            public string? Authorization { get; set; }
+        }
+    }
+}
+namespace GraphQL
+{
+    public static class AspNetCore3JwtBearerExtensions
+    {
+        public static GraphQL.DI.IGraphQLBuilder AddJwtBearerAuthentication(this GraphQL.DI.IGraphQLBuilder builder) { }
+        public static GraphQL.DI.IGraphQLBuilder AddJwtBearerAuthentication(this GraphQL.DI.IGraphQLBuilder builder, System.Action<GraphQL.AspNetCore3.JwtBearer.JwtBearerAuthenticationOptions> configureOptions) { }
+        public static GraphQL.DI.IGraphQLBuilder AddJwtBearerAuthentication(this GraphQL.DI.IGraphQLBuilder builder, bool enableJwtEvents) { }
+    }
+}
