@@ -9,7 +9,7 @@ public class JwtBearerAuthenticationOptions
 {
     /// <summary>
     /// Gets or sets a value indicating whether JWT events should be enabled.
-    /// When enabled, the <see cref="JwtWebSocketAuthenticationService"/> will implement
+    /// When enabled, the <see cref="JwtWebSocketAuthenticationService"/> will raise the
     /// <see cref="JwtBearerEvents.MessageReceived"/>, <see cref="JwtBearerEvents.TokenValidated"/>, 
     /// and <see cref="JwtBearerEvents.AuthenticationFailed"/> events as appropriate.
     /// </summary>
