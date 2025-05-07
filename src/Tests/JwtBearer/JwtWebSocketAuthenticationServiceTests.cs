@@ -253,7 +253,7 @@ public class JwtWebSocketAuthenticationServiceTests
                 services.AddGraphQL(b => b
                     .AddSchema(_schema)
                     .AddSystemTextJson()
-                    .AddJwtBearerAuthentication()
+                    .AddJwtBearerAuthentication(true)
                 );
             })
             .Configure(app => {
