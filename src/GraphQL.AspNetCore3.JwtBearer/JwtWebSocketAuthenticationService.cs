@@ -91,19 +91,16 @@ public class JwtWebSocketAuthenticationService : IWebSocketAuthenticationService
                     var options = _jwtBearerOptionsMonitor.Get(scheme);
 
                     // If JWT events are enabled, trigger the MessageReceived event
-                    if (_jwtBearerAuthenticationOptions.EnableJwtEvents)
-                    {
+                    if (_jwtBearerAuthenticationOptions.EnableJwtEvents) {
                         var messageResult = await TriggerMessageReceivedEventAsync(connection.HttpContext, options, token, scheme).ConfigureAwait(false);
-                        if (messageResult.Handled)
-                        {
-                            if (messageResult.Success)
-                            {
+                        if (messageResult.Handled) {
+                            if (messageResult.Success) {
                                 connection.HttpContext.User = messageResult.Principal!;
                                 return;
                             }
                             continue;
                         }
-                        
+
                         token = messageResult.Token;
                     }
 
@@ -158,34 +155,30 @@ public class JwtWebSocketAuthenticationService : IWebSocketAuthenticationService
                             if (validator.CanReadToken(token)) {
                                 try {
                                     var principal = validator.ValidateToken(token, tokenValidationParameters, out var securityToken);
-                                    
+
                                     // If JWT events are enabled, trigger the TokenValidated event
-                                    if (_jwtBearerAuthenticationOptions.EnableJwtEvents)
-                                    {
+                                    if (_jwtBearerAuthenticationOptions.EnableJwtEvents) {
                                         var validatedResult = await TriggerTokenValidatedEventAsync(connection.HttpContext, options, principal, securityToken, scheme).ConfigureAwait(false);
-                                        if (validatedResult.Handled && !validatedResult.Success)
-                                        {
+                                        if (validatedResult.Handled && !validatedResult.Success) {
                                             continue;
                                         }
-                                        
+
                                         principal = validatedResult.Principal ?? principal;
                                     }
-                                    
+
                                     // set the ClaimsPrincipal for the HttpContext; authentication will take place against this object
                                     connection.HttpContext.User = principal;
                                     return;
                                 } catch (Exception ex) {
                                     // If JWT events are enabled, trigger the AuthenticationFailed event
-                                    if (_jwtBearerAuthenticationOptions.EnableJwtEvents)
-                                    {
+                                    if (_jwtBearerAuthenticationOptions.EnableJwtEvents) {
                                         var failedResult = await TriggerAuthenticationFailedEventAsync(connection.HttpContext, options, ex, scheme).ConfigureAwait(false);
-                                        if (failedResult.Handled && failedResult.Success)
-                                        {
+                                        if (failedResult.Handled && failedResult.Success) {
                                             connection.HttpContext.User = failedResult.Principal!;
                                             return;
                                         }
                                     }
-                                    
+
                                     // no errors during authentication should throw an exception
                                     // specifically, attempting to validate an invalid JWT token will result in an exception
                                 }
@@ -229,22 +222,19 @@ public class JwtWebSocketAuthenticationService : IWebSocketAuthenticationService
     {
         var scheme = await _schemeProvider.GetSchemeAsync(schemeName)
             ?? throw new InvalidOperationException($"Authentication scheme '{schemeName}' not found.");
-            
-        var messageReceivedContext = new MessageReceivedContext(httpContext, scheme, options)
-        {
+
+        var messageReceivedContext = new MessageReceivedContext(httpContext, scheme, options) {
             Token = token
         };
 
-        if (options.Events != null && options.Events.MessageReceived != null)
-        {
+        if (options.Events != null && options.Events.MessageReceived != null) {
             await options.Events.MessageReceived(messageReceivedContext).ConfigureAwait(false);
         }
-        
+
         var result = new EventResult { Token = messageReceivedContext.Token };
-        
+
         // If the event provided a principal, use it directly
-        if (messageReceivedContext.Result?.Succeeded == true)
-        {
+        if (messageReceivedContext.Result?.Succeeded == true) {
             result.Handled = true;
             result.Success = true;
             result.Principal = messageReceivedContext.Principal;
@@ -257,27 +247,23 @@ public class JwtWebSocketAuthenticationService : IWebSocketAuthenticationService
     {
         var scheme = await _schemeProvider.GetSchemeAsync(schemeName)
             ?? throw new InvalidOperationException($"Authentication scheme '{schemeName}' not found.");
-            
-        var tokenValidatedContext = new TokenValidatedContext(httpContext, scheme, options)
-        {
+
+        var tokenValidatedContext = new TokenValidatedContext(httpContext, scheme, options) {
             Principal = principal,
             SecurityToken = securityToken
         };
 
-        if (options.Events != null && options.Events.TokenValidated != null)
-        {
+        if (options.Events != null && options.Events.TokenValidated != null) {
             await options.Events.TokenValidated(tokenValidatedContext).ConfigureAwait(false);
         }
-        
+
         var result = new EventResult();
-        
+
         // If the event failed or replaced the principal
-        if (tokenValidatedContext.Result != null)
-        {
+        if (tokenValidatedContext.Result != null) {
             result.Handled = true;
             result.Success = tokenValidatedContext.Result.Succeeded;
-            if (tokenValidatedContext.Result.Succeeded)
-            {
+            if (tokenValidatedContext.Result.Succeeded) {
                 result.Principal = tokenValidatedContext.Principal;
             }
         }
@@ -289,26 +275,22 @@ public class JwtWebSocketAuthenticationService : IWebSocketAuthenticationService
     {
         var scheme = await _schemeProvider.GetSchemeAsync(schemeName)
             ?? throw new InvalidOperationException($"Authentication scheme '{schemeName}' not found.");
-            
-        var authenticationFailedContext = new AuthenticationFailedContext(httpContext, scheme, options)
-        {
+
+        var authenticationFailedContext = new AuthenticationFailedContext(httpContext, scheme, options) {
             Exception = exception
         };
 
-        if (options.Events != null && options.Events.AuthenticationFailed != null)
-        {
+        if (options.Events != null && options.Events.AuthenticationFailed != null) {
             await options.Events.AuthenticationFailed(authenticationFailedContext).ConfigureAwait(false);
         }
-        
+
         var result = new EventResult();
-        
+
         // If the event handled the exception and succeeded
-        if (authenticationFailedContext.Result != null)
-        {
+        if (authenticationFailedContext.Result != null) {
             result.Handled = true;
             result.Success = authenticationFailedContext.Result.Succeeded;
-            if (authenticationFailedContext.Result.Succeeded)
-            {
+            if (authenticationFailedContext.Result.Succeeded) {
                 result.Principal = authenticationFailedContext.Principal;
             }
         }
