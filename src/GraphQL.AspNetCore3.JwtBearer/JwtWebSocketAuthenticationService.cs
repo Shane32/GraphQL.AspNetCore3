@@ -129,6 +129,14 @@ public class JwtWebSocketAuthenticationService : IWebSocketAuthenticationService
                                     // set the ClaimsPrincipal for the HttpContext; authentication will take place against this object
                                     connection.HttpContext.User = principal;
                                     return;
+                                } else if (_jwtBearerAuthenticationOptions.EnableJwtEvents) {
+                                    // If JWT events are enabled, trigger the AuthenticationFailed event
+                                    var exception = tokenValidationResult.Exception ?? new SecurityTokenValidationException($"The TokenHandler: '{tokenHandler}', was unable to validate the Token.");
+                                    var failedResult = await TriggerAuthenticationFailedEventAsync(connection.HttpContext, options, exception, scheme).ConfigureAwait(false);
+                                    if (failedResult.Handled && failedResult.Success) {
+                                        connection.HttpContext.User = failedResult.Principal!;
+                                        return;
+                                    }
                                 }
                             } catch (Exception ex) {
                                 // If JWT events are enabled, trigger the AuthenticationFailed event

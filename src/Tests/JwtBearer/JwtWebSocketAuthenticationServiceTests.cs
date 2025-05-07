@@ -232,7 +232,7 @@ public class JwtWebSocketAuthenticationServiceTests
         using var testServer = CreateTestServer(specifyInvalidScheme: true);
         await TestGetAsync(testServer, isAuthenticated: false);
         await TestWebSocketAsync(testServer, isAuthenticated: false,
-            expectMessageReceived: true, expectAuthenticationFailed: false, expectTokenValidated: true);
+            expectMessageReceived: false, expectAuthenticationFailed: false);
     }
 
     [Theory]
@@ -260,7 +260,7 @@ public class JwtWebSocketAuthenticationServiceTests
         _jwtAccessToken = null;
         await TestGetAsync(testServer, isAuthenticated: false);
         await TestWebSocketAsync(testServer, isAuthenticated: false,
-            expectMessageReceived: true, expectAuthenticationFailed: false);
+            expectMessageReceived: false, expectAuthenticationFailed: false);
     }
 
     private async Task TestGetAsync(TestServer testServer, bool isAuthenticated)
@@ -293,6 +293,11 @@ public class JwtWebSocketAuthenticationServiceTests
         webSocketClient.SubProtocols.Add("graphql-ws");
         using var webSocket = await webSocketClient.ConnectAsync(new Uri(testServer.BaseAddress, "/graphql"), default);
 
+        // reset event tracking flags after initial connection has been made (as messageReceived is called on connection by the ASP.NET Core pipeline)
+        _messageReceived = false;
+        _authenticationFailed = false;
+        _tokenValidated = false;
+
         // send CONNECTION_INIT
         await webSocket.SendMessageAsync(new OperationMessage {
             Type = "connection_init",
@@ -315,6 +320,10 @@ public class JwtWebSocketAuthenticationServiceTests
                 _messageReceived.ShouldBe(expectMessageReceived);
                 _authenticationFailed.ShouldBe(expectAuthenticationFailed);
                 _tokenValidated.ShouldBe(expectTokenValidated);
+            } else {
+                _messageReceived.ShouldBeFalse();
+                _authenticationFailed.ShouldBeFalse();
+                _tokenValidated.ShouldBeFalse();
             }
 
             return;
@@ -346,6 +355,10 @@ public class JwtWebSocketAuthenticationServiceTests
             _messageReceived.ShouldBeTrue();
             _tokenValidated.ShouldBeTrue();
             _authenticationFailed.ShouldBeFalse();
+        } else {
+            _messageReceived.ShouldBeFalse();
+            _tokenValidated.ShouldBeFalse();
+            _authenticationFailed.ShouldBeFalse();
         }
     }
 
@@ -365,11 +378,7 @@ public class JwtWebSocketAuthenticationServiceTests
                     o.Authority = _issuer;
                     o.Audience = _audience;
                     o.BackchannelHttpHandler = _oidcHttpMessageHandler;
-
-                    // Configure JWT events if enabled
-                    if (_enableJwtEvents) {
-                        o.Events = _jwtBearerEvents;
-                    }
+                    o.Events = _jwtBearerEvents;
                 });
                 services.AddGraphQL(b => b
                     .AddSchema(_schema)
