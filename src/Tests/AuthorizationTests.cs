@@ -764,15 +764,14 @@ public class AuthorizationTests
     {
         // Set up query to require Role1
         _query.AuthorizeWithRoles("Role1");
-        
+
         // Set up child field to require Role2 and optionally be anonymous
         _field.AuthorizeWithRoles("Role2");
         if (childIsAnonymous)
             _field.AllowAnonymous();
 
         // Set up user principal based on test parameters
-        if (userRoles != null)
-        {
+        if (userRoles != null) {
             var roles = userRoles.Split(',');
             var claims = roles.Select(role => new Claim(ClaimTypes.Role, role)).ToArray();
             _principal = new ClaimsPrincipal(new ClaimsIdentity(claims, "Cookie"));
