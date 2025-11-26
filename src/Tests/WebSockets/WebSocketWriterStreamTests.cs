@@ -51,10 +51,18 @@ public class WebSocketWriterStreamTests
     }
 
     [Fact]
-    public async Task FlushAsync()
+    public async Task SendEndOfMessageAsync()
     {
         _mockWebSocket.Setup(x => x.SendAsync(new ArraySegment<byte>(Array.Empty<byte>(), 0, 0), WebSocketMessageType.Text, true, default))
             .Returns(Task.CompletedTask).Verifiable();
+        await _stream.SendEndOfMessageAsync(default);
+        _mockWebSocket.Verify();
+        _mockWebSocket.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task FlushAsync()
+    {
         await _stream.FlushAsync();
         _mockWebSocket.Verify();
         _mockWebSocket.VerifyNoOtherCalls();
@@ -63,8 +71,6 @@ public class WebSocketWriterStreamTests
     [Fact]
     public void Flush()
     {
-        _mockWebSocket.Setup(x => x.SendAsync(new ArraySegment<byte>(Array.Empty<byte>(), 0, 0), WebSocketMessageType.Text, true, default))
-            .Returns(Task.CompletedTask).Verifiable();
         _stream.Flush();
         _mockWebSocket.Verify();
         _mockWebSocket.VerifyNoOtherCalls();
