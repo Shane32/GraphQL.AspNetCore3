@@ -696,7 +696,7 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
                 return response;
         } else if (acceptHeaders.Count > 0) {
             // enumerate through each content type and see if it matches a supported content type
-            // give priority to specific types, then to types with wildcards
+            // give priority to quality, then specific types, then to types with wildcards
             var sortedAcceptHeaders = acceptHeaders
                 .OrderByDescending(x => x.Quality ?? 1.0)
                 .ThenBy(x => x.MatchesAllTypes ? 4 : x.MatchesAllSubTypes ? 3 : x.MatchesAllSubTypesWithoutSuffix ? 2 : 1);
