@@ -5,9 +5,12 @@ using System.Globalization;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Primitives;
+
 #if NETSTANDARD2_0 || NETCOREAPP2_1
 using IHostApplicationLifetime = Microsoft.Extensions.Hosting.IApplicationLifetime;
 #endif
+using MediaTypeHeaderValueMs = Microsoft.Net.Http.Headers.MediaTypeHeaderValue;
 
 namespace GraphQL.AspNetCore3;
 
@@ -72,10 +75,12 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
     private const string DOCUMENT_ID_KEY = "documentId";
     private const string OPERATIONS_KEY = "operations"; // used for multipart/form-data requests per https://github.com/jaydenseric/graphql-multipart-request-spec
     private const string MAP_KEY = "map"; // used for multipart/form-data requests per https://github.com/jaydenseric/graphql-multipart-request-spec
-    private const string MEDIATYPE_GRAPHQLJSON = "application/graphql+json";
+    private const string MEDIATYPE_GRAPHQLJSON = "application/graphql+json"; // deprecated
     private const string MEDIATYPE_JSON = "application/json";
     private const string MEDIATYPE_GRAPHQL = "application/graphql";
-    private const string CONTENTTYPE_GRAPHQLJSON = "application/graphql+json; charset=utf-8";
+    private const string CONTENTTYPE_JSON = "application/json; charset=utf-8";
+    private const string CONTENTTYPE_GRAPHQLJSON = "application/graphql+json; charset=utf-8"; // deprecated
+    internal const string CONTENTTYPE_GRAPHQLRESPONSEJSON = "application/graphql-response+json; charset=utf-8";
 
     /// <summary>
     /// Initializes a new instance.
@@ -202,7 +207,7 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
         var httpRequest = context.Request;
 
         switch (mediaType?.ToLowerInvariant()) {
-            case MEDIATYPE_GRAPHQLJSON:
+            case MEDIATYPE_GRAPHQLJSON: // deprecated
             case MEDIATYPE_JSON:
                 IList<GraphQLRequest?>? deserializationResult;
                 try {
@@ -237,7 +242,7 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
                         var formCollection = await httpRequest.ReadFormAsync(context.RequestAborted);
                         return ReadFormContent(formCollection);
                     } catch (ExecutionError ex) { // catches FileCountExceededError, FileSizeExceededError, InvalidMapError
-                        await WriteErrorResponseAsync(context, ex is IHasPreferredStatusCode sc ? sc.PreferredStatusCode : HttpStatusCode.BadRequest, ex);
+                        await WriteErrorResponseAsync(context, ex);
                         return null;
                     } catch (Exception ex) { // catches JSON deserialization exceptions
                         if (!await HandleDeserializationErrorAsync(context, _next, ex))
@@ -522,14 +527,16 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
         // Normal execution with single graphql request
         var userContext = await BuildUserContextAsync(context, null);
         var result = await ExecuteRequestAsync(context, gqlRequest, context.RequestServices, userContext);
-        HttpStatusCode statusCode = HttpStatusCode.OK;
+        // when the request fails validation (this logic does not apply to execution errors)
         if (!result.Executed) {
-            if (result.Errors?.Any(e => e is HttpMethodValidationError) == true)
-                statusCode = HttpStatusCode.MethodNotAllowed;
-            else if (_options.ValidationErrorsReturnBadRequest)
-                statusCode = HttpStatusCode.BadRequest;
+            // always return 405 Method Not Allowed when applicable, as this is a transport problem, not really a validation error,
+            // even though it occurs during validation (because the query text must be parsed to know if the request is a query or a mutation)
+            if (result.Errors?.Any(e => e is HttpMethodValidationError) == true) {
+                await WriteJsonResponseAsync(context, HttpStatusCode.MethodNotAllowed, result);
+                return;
+            }
         }
-        await WriteJsonResponseAsync(context, statusCode, result);
+        await WriteJsonResponseAsync(context, result);
     }
 
     /// <summary>
@@ -655,24 +662,234 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
     ValueTask<IDictionary<string, object?>> IUserContextBuilder.BuildUserContextAsync(HttpContext context, object? payload)
         => BuildUserContextAsync(context, payload);
 
-    /// <summary>
-    /// Selects a response content type string based on the <see cref="HttpContext"/>.
-    /// Defaults to <see cref="CONTENTTYPE_GRAPHQLJSON"/>.  Override this value for compatibility
-    /// with non-conforming GraphQL clients.
-    /// <br/><br/>
-    /// Note that by default, the response will be written as UTF-8 encoded JSON, regardless
-    /// of the content-type value here.  For more complex behavior patterns, override
-    /// <see cref="WriteJsonResponseAsync{TResult}(HttpContext, HttpStatusCode, TResult)"/>.
-    /// </summary>
-    protected virtual string SelectResponseContentType(HttpContext context)
-        => CONTENTTYPE_GRAPHQLJSON;
+    private static readonly MediaTypeHeaderValueMs _applicationJsonMediaType = MediaTypeHeaderValueMs.Parse(CONTENTTYPE_JSON);
+    private static readonly MediaTypeHeaderValueMs[] _validMediaTypes = new[]
+    {
+        MediaTypeHeaderValueMs.Parse(CONTENTTYPE_GRAPHQLRESPONSEJSON),
+        _applicationJsonMediaType,
+        MediaTypeHeaderValueMs.Parse(CONTENTTYPE_GRAPHQLJSON), // deprecated
+    };
 
     /// <summary>
-    /// Writes the specified object (usually a GraphQL response represented as an instance of <see cref="ExecutionResult"/>) as JSON to the HTTP response stream.
+    /// Selects a response content type string based on the <see cref="HttpContext"/>.
+    /// The default implementation attempts to match the content-type requested by the
+    /// client through the 'Accept' HTTP header to the default content type specified
+    /// within <see cref="GraphQLHttpMiddlewareOptions.DefaultResponseContentType"/>.
+    /// If matched, the specified content-type is returned; if not, supported
+    /// content-types are tested ("application/json", "application/graphql+json", and
+    /// "application/graphql-response+json") to see if they match the 'Accept' header.
+    /// <br/><br/>
+    /// Note that by default, the response will be written as UTF-8 encoded JSON, regardless
+    /// of the content-type value here, and this method's default implementation assumes as much.
+    /// For more complex behavior patterns, override
+    /// <see cref="WriteJsonResponseAsync{TResult}(HttpContext, HttpStatusCode, TResult)"/>.
+    /// </summary>
+    protected virtual MediaTypeHeaderValueMs SelectResponseContentType(HttpContext context)
+    {
+        // pull the Accept header, which may contain multiple content types
+        var acceptHeaders = context.Request.Headers.ContainsKey(Microsoft.Net.Http.Headers.HeaderNames.Accept)
+            ? context.Request.GetTypedHeaders().Accept
+            : Array.Empty<MediaTypeHeaderValueMs>();
+
+        if (acceptHeaders.Count == 1) {
+            var response = IsSupportedMediaType(acceptHeaders[0]);
+            if (response != null)
+                return response;
+        } else if (acceptHeaders.Count > 0) {
+            // enumerate through each content type and see if it matches a supported content type
+            // give priority to specific types, then to types with wildcards
+            foreach (var acceptHeader in acceptHeaders.OrderBy(x => x.MatchesAllTypes ? 4 : x.MatchesAllSubTypes ? 3 : x.MatchesAllSubTypesWithoutSuffix ? 2 : 1)) {
+                var response = IsSupportedMediaType(acceptHeader);
+                if (response != null)
+                    return response;
+            }
+        }
+
+        // return the default content type if no match is found, or if there is no 'Accept' header
+        return _options.DefaultResponseContentType;
+    }
+
+    /// <summary>
+    /// Checks to see if the specified <see cref="MediaTypeHeaderValueMs"/> matches any of the supported content types
+    /// by this middleware.  If a match is found, the matching content type is returned; otherwise, <see langword="null"/>.
+    /// Prioritizes <see cref="GraphQLHttpMiddlewareOptions.DefaultResponseContentType"/>, then
+    /// <c>application/graphql-response+json</c>, then <c>application/json</c>.
+    /// </summary>
+    private MediaTypeHeaderValueMs? IsSupportedMediaType(MediaTypeHeaderValueMs acceptHeader)
+        => IsSupportedMediaType(acceptHeader, _options.DefaultResponseContentType, _validMediaTypes);
+
+    /// <summary>
+    /// Checks to see if the specified <see cref="MediaTypeHeaderValueMs"/> matches any of the supported content types
+    /// by this middleware.  If a match is found, the matching content type is returned; otherwise, <see langword="null"/>.
+    /// Prioritizes <see cref="GraphQLHttpMiddlewareOptions.DefaultResponseContentType"/>, then
+    /// <c>application/graphql-response+json</c>, then <c>application/json</c>.
+    /// </summary>
+    private static MediaTypeHeaderValueMs? IsSupportedMediaType(MediaTypeHeaderValueMs acceptHeader, MediaTypeHeaderValueMs preferredContentType, MediaTypeHeaderValueMs[] allowedContentTypes)
+    {
+        // speeds check in WriteJsonResponseAsync
+        if (acceptHeader == preferredContentType)
+            return preferredContentType;
+
+        // strip quotes from charset
+        if (acceptHeader.Charset.Length > 0 && acceptHeader.Charset[0] == '\"' && acceptHeader.Charset[acceptHeader.Charset.Length - 1] == '\"') {
+            acceptHeader.Charset = acceptHeader.Charset.Substring(1, acceptHeader.Charset.Length - 2);
+        }
+
+        // check if this matches the default content type header
+        if (IsSubsetOf(preferredContentType, acceptHeader))
+            return preferredContentType;
+
+        // if the default content type header does not contain a charset, test with utf-8 as the charset
+        if (preferredContentType.Charset.Length == 0) {
+            var contentType2 = preferredContentType.Copy();
+            contentType2.Charset = "utf-8";
+            if (IsSubsetOf(contentType2, acceptHeader))
+                return contentType2;
+        }
+
+        // loop through the other supported media types, attempting to find a match
+        for (int j = 0; j < allowedContentTypes.Length; j++) {
+            var mediaType = allowedContentTypes[j];
+            if (IsSubsetOf(mediaType, acceptHeader))
+                // when a match is found, return the match
+                return mediaType;
+        }
+
+        // no match
+        return null;
+
+        // --- note: the below functions were copied from ASP.NET Core 2.1 source ---
+        // see https://github.com/dotnet/aspnetcore/blob/v2.1.33/src/Http/Headers/src/MediaTypeHeaderValue.cs
+
+        // The ASP.NET Core 6.0 source contains logic that is not suitable -- it will consider
+        // "application/graphql-response+json" to match an 'Accept' header of "application/json",
+        // which can break client applications.
+
+        /*
+         * Copyright (c) .NET Foundation. All rights reserved.
+         *
+         * Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+         * these files except in compliance with the License. You may obtain a copy of the
+         * License at
+         *
+         * http://www.apache.org/licenses/LICENSE-2.0
+         *
+         * Unless required by applicable law or agreed to in writing, software distributed
+         * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+         * CONDITIONS OF ANY KIND, either express or implied. See the License for the
+         * specific language governing permissions and limitations under the License.
+         *
+         */
+
+        static bool IsSubsetOf(MediaTypeHeaderValueMs mediaType, MediaTypeHeaderValueMs otherMediaType)
+        {
+            // "text/plain" is a subset of "text/plain", "text/*" and "*/*". "*/*" is a subset only of "*/*".
+            return MatchesType(mediaType, otherMediaType) &&
+                MatchesSubtype(mediaType, otherMediaType) &&
+                MatchesParameters(mediaType, otherMediaType);
+        }
+
+        static bool MatchesType(MediaTypeHeaderValueMs mediaType, MediaTypeHeaderValueMs set)
+        {
+            return set.MatchesAllTypes ||
+                set.Type.Equals(mediaType.Type, StringComparison.OrdinalIgnoreCase);
+        }
+
+        static bool MatchesSubtype(MediaTypeHeaderValueMs mediaType, MediaTypeHeaderValueMs set)
+        {
+            if (set.MatchesAllSubTypes) {
+                return true;
+            }
+            if (set.Suffix.HasValue) {
+                if (mediaType.Suffix.HasValue) {
+                    return MatchesSubtypeWithoutSuffix(mediaType, set) && MatchesSubtypeSuffix(mediaType, set);
+                } else {
+                    return false;
+                }
+            } else {
+                return set.SubType.Equals(mediaType.SubType, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        static bool MatchesSubtypeWithoutSuffix(MediaTypeHeaderValueMs mediaType, MediaTypeHeaderValueMs set)
+        {
+            return set.MatchesAllSubTypesWithoutSuffix ||
+                set.SubTypeWithoutSuffix.Equals(mediaType.SubTypeWithoutSuffix, StringComparison.OrdinalIgnoreCase);
+        }
+
+        static bool MatchesParameters(MediaTypeHeaderValueMs mediaType, MediaTypeHeaderValueMs set)
+        {
+            if (set.Parameters.Count != 0) {
+                // Make sure all parameters in the potential superset are included locally. Fine to have additional
+                // parameters locally; they make this one more specific.
+                foreach (var parameter in set.Parameters) {
+                    if (parameter.Name.Equals("*", StringComparison.OrdinalIgnoreCase)) {
+                        // A parameter named "*" has no effect on media type matching, as it is only used as an indication
+                        // that the entire media type string should be treated as a wildcard.
+                        continue;
+                    }
+
+                    if (parameter.Name.Equals("q", StringComparison.OrdinalIgnoreCase)) {
+                        // "q" and later parameters are not involved in media type matching. Quoting the RFC: The first
+                        // "q" parameter (if any) separates the media-range parameter(s) from the accept-params.
+                        break;
+                    }
+
+                    var localParameter = Microsoft.Net.Http.Headers.NameValueHeaderValue.Find(mediaType.Parameters, parameter.Name);
+                    if (localParameter == null) {
+                        // Not found.
+                        return false;
+                    }
+
+                    if (!StringSegment.Equals(parameter.Value, localParameter.Value, StringComparison.OrdinalIgnoreCase)) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        static bool MatchesSubtypeSuffix(MediaTypeHeaderValueMs mediaType, MediaTypeHeaderValueMs set)
+            // We don't have support for wildcards on suffixes alone (e.g., "application/entity+*")
+            // because there's no clear use case for it.
+            => set.Suffix.Equals(mediaType.Suffix, StringComparison.OrdinalIgnoreCase);
+
+        // --- end of ASP.NET Core 2.1 copied functions ---
+    }
+
+    /// <summary>
+    /// Writes the specified <see cref="ExecutionResult"/> as JSON to the HTTP response stream,
+    /// selecting the proper content type and status code based on the request Accept header and response.
+    /// </summary>
+    protected virtual Task WriteJsonResponseAsync(HttpContext context, ExecutionResult result)
+    {
+        var contentType = SelectResponseContentType(context);
+        context.Response.ContentType = contentType == _options.DefaultResponseContentType ? _options.DefaultResponseContentTypeString : contentType.ToString();
+        context.Response.StatusCode = (int)HttpStatusCode.OK;
+        if (result.Executed == false) {
+            var useBadRequest = _options.ValidationErrorsReturnBadRequest ?? IsSupportedMediaType(contentType, _applicationJsonMediaType, Array.Empty<MediaTypeHeaderValueMs>()) == null;
+            if (useBadRequest) {
+                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+
+                // if all errors being returned prefer the same status code, use that
+                if (result.Errors?.Count > 0 && result.Errors[0] is IHasPreferredStatusCode initialError) {
+                    if (result.Errors.All(e => e is IHasPreferredStatusCode e2 && e2.PreferredStatusCode == initialError.PreferredStatusCode))
+                        context.Response.StatusCode = (int)initialError.PreferredStatusCode;
+                }
+            }
+        }
+
+        return _serializer.WriteAsync(context.Response.Body, result, context.RequestAborted);
+    }
+
+    /// <summary>
+    /// Writes the specified object (usually a GraphQL response represented as an instance of <see cref="ExecutionResult"/>)
+    /// as JSON to the HTTP response stream, using the specified status code.
     /// </summary>
     protected virtual Task WriteJsonResponseAsync<TResult>(HttpContext context, HttpStatusCode httpStatusCode, TResult result)
     {
-        context.Response.ContentType = SelectResponseContentType(context);
+        var contentType = SelectResponseContentType(context);
+        context.Response.ContentType = contentType == _options.DefaultResponseContentType ? _options.DefaultResponseContentTypeString : contentType.ToString();
         context.Response.StatusCode = (int)httpStatusCode;
 
         return _serializer.WriteAsync(context.Response.Body, result, context.RequestAborted);
@@ -782,19 +999,19 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
     /// Writes an access denied message to the output with status code <c>401 Unauthorized</c> when the user is not authenticated.
     /// </summary>
     protected virtual Task HandleNotAuthenticatedAsync(HttpContext context, RequestDelegate next)
-        => WriteErrorResponseAsync(context, HttpStatusCode.Unauthorized, new AccessDeniedError("schema"));
+        => WriteErrorResponseAsync(context, new AccessDeniedError("schema") { PreferredStatusCode = HttpStatusCode.Unauthorized });
 
     /// <summary>
     /// Writes an access denied message to the output with status code <c>403 Forbidden</c> when the user fails the role checks.
     /// </summary>
     protected virtual Task HandleNotAuthorizedRoleAsync(HttpContext context, RequestDelegate next)
-        => WriteErrorResponseAsync(context, HttpStatusCode.Forbidden, new AccessDeniedError("schema") { RolesRequired = _options.AuthorizedRoles });
+        => WriteErrorResponseAsync(context, new AccessDeniedError("schema") { RolesRequired = _options.AuthorizedRoles });
 
     /// <summary>
     /// Writes an access denied message to the output with status code <c>403 Forbidden</c> when the user fails the policy check.
     /// </summary>
     protected virtual Task HandleNotAuthorizedPolicyAsync(HttpContext context, RequestDelegate next, AuthorizationResult authorizationResult)
-        => WriteErrorResponseAsync(context, HttpStatusCode.Forbidden, new AccessDeniedError("schema") { PolicyRequired = _options.AuthorizedPolicy, PolicyAuthorizationResult = authorizationResult });
+        => WriteErrorResponseAsync(context, new AccessDeniedError("schema") { PolicyRequired = _options.AuthorizedPolicy, PolicyAuthorizationResult = authorizationResult });
 
     /// <summary>
     /// Writes a '400 JSON body text could not be parsed.' message to the output.
@@ -831,7 +1048,7 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
     /// Writes a '415 Invalid Content-Type header: could not be parsed.' message to the output.
     /// </summary>
     protected virtual Task HandleContentTypeCouldNotBeParsedErrorAsync(HttpContext context, RequestDelegate next)
-        => WriteErrorResponseAsync(context, HttpStatusCode.UnsupportedMediaType, new InvalidContentTypeError($"value '{context.Request.ContentType}' could not be parsed."));
+        => WriteErrorResponseAsync(context, new InvalidContentTypeError($"value '{context.Request.ContentType}' could not be parsed."));
 
     /// <summary>
     /// Writes a '415 Invalid Content-Type header: non-supported media type.' message to the output.
@@ -839,7 +1056,6 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
     protected virtual Task HandleInvalidContentTypeErrorAsync(HttpContext context, RequestDelegate next)
         => WriteErrorResponseAsync(
             context,
-            HttpStatusCode.UnsupportedMediaType,
             _options.ReadFormOnPost
             ? new InvalidContentTypeError($"non-supported media type '{context.Request.ContentType}'. Must be '{MEDIATYPE_JSON}', '{MEDIATYPE_GRAPHQL}' or a form body.")
             : new InvalidContentTypeError($"non-supported media type '{context.Request.ContentType}'. Must be '{MEDIATYPE_JSON}' or '{MEDIATYPE_GRAPHQL}'.")

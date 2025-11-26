@@ -1,3 +1,5 @@
+using MediaTypeHeaderValueMs = Microsoft.Net.Http.Headers.MediaTypeHeaderValue;
+
 namespace GraphQL.AspNetCore3;
 
 /// <summary>
@@ -34,13 +36,23 @@ public class GraphQLHttpMiddlewareOptions : IAuthorizationOptions
     public bool ExecuteBatchedRequestsInParallel { get; set; } = true;
 
     /// <summary>
-    /// When enabled, GraphQL requests with validation errors
-    /// have the HTTP status code set to 400 Bad Request.
-    /// GraphQL requests with execution errors are unaffected.
+    /// When enabled, GraphQL requests with validation errors have the HTTP status code
+    /// set to 400 Bad Request or the error status code dictated by the error, while
+    /// setting this to <c>false</c> will use a 200 status code for all responses.
+    /// <br/><br/>
+    /// GraphQL requests with execution errors are unaffected and return a 200 status code.
+    /// <br/><br/>
+    /// Transport errors, such as a transport-level authentication failure, are not affected
+    /// and return a error-specific status code, such as 405 Method Not Allowed if a mutation
+    /// is attempted over a HTTP GET connection.
     /// <br/><br/>
     /// Does not apply to batched or WebSocket requests.
+    /// <br/><br/>
+    /// Settings this to <see langword="null"/> will use a 200 status code for
+    /// <c>application/json</c> responses and use a 4xx status code for
+    /// <c>application/graphql-response+json</c> and other responses.
     /// </summary>
-    public bool ValidationErrorsReturnBadRequest { get; set; } = true;
+    public bool? ValidationErrorsReturnBadRequest { get; set; }
 
     /// <summary>
     /// Enables parsing the query string on POST requests.
@@ -139,4 +151,22 @@ public class GraphQLHttpMiddlewareOptions : IAuthorizationOptions
     /// Returns an options class for WebSocket connections.
     /// </summary>
     public GraphQLWebSocketOptions WebSockets { get; set; } = new();
+
+    private MediaTypeHeaderValueMs _defaultResponseContentType = MediaTypeHeaderValueMs.Parse(GraphQLHttpMiddleware.CONTENTTYPE_GRAPHQLRESPONSEJSON);
+
+    /// <summary>
+    /// The Content-Type to use for GraphQL responses, if it matches the 'Accept'
+    /// HTTP request header. Defaults to "application/graphql-response+json; charset=utf-8".
+    /// </summary>
+    public MediaTypeHeaderValueMs DefaultResponseContentType
+    {
+        get => _defaultResponseContentType;
+        set
+        {
+            _defaultResponseContentType = value;
+            DefaultResponseContentTypeString = value.ToString();
+        }
+    }
+
+    internal string DefaultResponseContentTypeString { get; set; } = GraphQLHttpMiddleware.CONTENTTYPE_GRAPHQLRESPONSEJSON;
 }

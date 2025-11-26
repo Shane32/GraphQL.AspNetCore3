@@ -131,6 +131,7 @@ public partial class AuthorizationVisitorBase
     {
         var resource = GenerateResourceDescription(info);
         var err = info.Node == null ? new AccessDeniedError(resource) : new AccessDeniedError(resource, info.Context.Document.Source, info.Node);
+        err.PreferredStatusCode = HttpStatusCode.Unauthorized;
         info.Context.ReportError(err);
     }
 
