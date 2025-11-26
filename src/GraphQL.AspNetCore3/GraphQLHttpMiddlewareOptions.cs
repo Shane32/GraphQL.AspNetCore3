@@ -43,7 +43,7 @@ public class GraphQLHttpMiddlewareOptions : IAuthorizationOptions
     /// GraphQL requests with execution errors are unaffected and return a 200 status code.
     /// <br/><br/>
     /// Transport errors, such as a transport-level authentication failure, are not affected
-    /// and return a error-specific status code, such as 405 Method Not Allowed if a mutation
+    /// and return an error-specific status code, such as 405 Method Not Allowed if a mutation
     /// is attempted over a HTTP GET connection.
     /// <br/><br/>
     /// Does not apply to batched or WebSocket requests.
