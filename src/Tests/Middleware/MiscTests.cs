@@ -18,7 +18,9 @@ public class MiscTests
         var options = new GraphQLHttpMiddlewareOptions();
         var executer = Mock.Of<IDocumentExecuter<ISchema>>();
         var scopeFactory = Mock.Of<IServiceScopeFactory>();
+#pragma warning disable CS0618 // Type or member is obsolete
         var appLifetime = Mock.Of<IHostApplicationLifetime>();
+#pragma warning restore CS0618 // Type or member is obsolete
         Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(null!, serializer, executer, scopeFactory, options, appLifetime));
         Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, null!, executer, scopeFactory, options, appLifetime));
         Should.Throw<ArgumentNullException>(() => new GraphQLHttpMiddleware<ISchema>(next, serializer, null!, scopeFactory, options, appLifetime));
@@ -46,7 +48,9 @@ public class MiscTests
             Mock.Of<IDocumentExecuter<Schema>>(MockBehavior.Strict),
             Mock.Of<IServiceScopeFactory>(MockBehavior.Strict),
             new GraphQLHttpMiddlewareOptions(),
+#pragma warning disable CS0618 // Type or member is obsolete
             Mock.Of<IHostApplicationLifetime>(MockBehavior.Strict));
+#pragma warning restore CS0618 // Type or member is obsolete
         var builder = new Mock<IUserContextBuilder<Schema>>(MockBehavior.Strict);
         var d = new Dictionary<string, object?> { { "test", "test" } };
         builder.Setup(x => x.BuildUserContextAsync(It.IsAny<HttpContext>(), It.IsAny<object?>())).ReturnsAsync(d);
@@ -60,7 +64,9 @@ public class MiscTests
     private class MyMiddleware<TSchema> : GraphQLHttpMiddleware<TSchema>
         where TSchema : ISchema
     {
+#pragma warning disable CS0618 // Type or member is obsolete
         public MyMiddleware(RequestDelegate next, IGraphQLTextSerializer serializer, IDocumentExecuter<TSchema> executer, IServiceScopeFactory scopeFactory, GraphQLHttpMiddlewareOptions options, IHostApplicationLifetime hostApplicationLifetime)
+#pragma warning restore CS0618 // Type or member is obsolete
             : base(next, serializer, executer, scopeFactory, options, hostApplicationLifetime)
         {
         }
@@ -115,11 +121,13 @@ public class MiscTests
 
     public class MyMiddleware : GraphQLHttpMiddleware<ISchema>
     {
+#pragma warning disable CS0618 // Type or member is obsolete
         public MyMiddleware() : this(Mock.Of<IHostApplicationLifetime>(MockBehavior.Strict))
         {
         }
 
         public MyMiddleware(IHostApplicationLifetime hostApplicationLifetime) : base(
+#pragma warning restore CS0618 // Type or member is obsolete
             _ => throw new NotSupportedException(),
             Mock.Of<IGraphQLTextSerializer>(MockBehavior.Strict),
             Mock.Of<IDocumentExecuter<ISchema>>(MockBehavior.Strict),

@@ -110,7 +110,9 @@ public class WebSocketTests : IDisposable
     {
         private readonly string[] _subprotocols;
 
+#pragma warning disable CS0618 // Type or member is obsolete
         public TestMiddleware(RequestDelegate next, string[] subprotocols) : base(next, new GraphQLSerializer(), Mock.Of<IDocumentExecuter>(MockBehavior.Strict), Mock.Of<IServiceScopeFactory>(MockBehavior.Strict), new GraphQLHttpMiddlewareOptions(), Mock.Of<IHostApplicationLifetime>(MockBehavior.Strict))
+#pragma warning restore CS0618 // Type or member is obsolete
         {
             _subprotocols = subprotocols;
         }
@@ -161,12 +163,14 @@ public class WebSocketTests : IDisposable
     {
         private readonly Tuple<CancellationTokenSource, TaskCompletionSource<bool>> _tuple;
 
+#pragma warning disable CS0618 // Type or member is obsolete
         public TestMiddleware2(RequestDelegate next, IGraphQLTextSerializer serializer, IDocumentExecuter<ISchema> documentExecuter, IServiceScopeFactory serviceScopeFactory, GraphQLHttpMiddlewareOptions options, Tuple<CancellationTokenSource, TaskCompletionSource<bool>> tuple)
             : this(next, serializer, documentExecuter, serviceScopeFactory, options, Mock.Of<IHostApplicationLifetime>(MockBehavior.Strict), tuple)
         {
         }
 
         private TestMiddleware2(RequestDelegate next, IGraphQLTextSerializer serializer, IDocumentExecuter<ISchema> documentExecuter, IServiceScopeFactory serviceScopeFactory, GraphQLHttpMiddlewareOptions options, IHostApplicationLifetime hostApplicationLifetime, Tuple<CancellationTokenSource, TaskCompletionSource<bool>> tuple)
+#pragma warning restore CS0618 // Type or member is obsolete
             : base(next, serializer, documentExecuter, serviceScopeFactory, options, hostApplicationLifetime)
         {
             Mock.Get(hostApplicationLifetime).Setup(x => x.ApplicationStopping).Returns(tuple.Item1.Token);

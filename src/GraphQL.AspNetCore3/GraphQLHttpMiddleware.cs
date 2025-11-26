@@ -33,7 +33,9 @@ public class GraphQLHttpMiddleware<TSchema> : GraphQLHttpMiddleware
         IDocumentExecuter<TSchema> documentExecuter,
         IServiceScopeFactory serviceScopeFactory,
         GraphQLHttpMiddlewareOptions options,
+#pragma warning disable CS0618 // Type or member is obsolete
         IHostApplicationLifetime hostApplicationLifetime)
+#pragma warning restore CS0618 // Type or member is obsolete
         : base(next, serializer, documentExecuter, serviceScopeFactory, options, hostApplicationLifetime)
     {
     }
@@ -62,7 +64,9 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
     private readonly IEnumerable<IValidationRule> _postCachedDocumentValidationRules;
     private readonly IGraphQLTextSerializer _serializer;
     private readonly RequestDelegate _next;
+#pragma warning disable CS0618 // Type or member is obsolete
     private readonly IHostApplicationLifetime _hostApplicationLifetime;
+#pragma warning restore CS0618 // Type or member is obsolete
     private readonly GraphQLHttpMiddlewareOptions _options;
 
     private const string QUERY_KEY = "query";
@@ -86,7 +90,9 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
         IDocumentExecuter documentExecuter,
         IServiceScopeFactory serviceScopeFactory,
         GraphQLHttpMiddlewareOptions options,
+#pragma warning disable CS0618 // Type or member is obsolete
         IHostApplicationLifetime hostApplicationLifetime)
+#pragma warning restore CS0618 // Type or member is obsolete
     {
         _next = next ?? throw new ArgumentNullException(nameof(next));
         _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
@@ -677,11 +683,6 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
 
         return _serializer.WriteAsync(context.Response.Body, result, context.RequestAborted);
     }
-
-    private static readonly IEnumerable<string> _supportedSubProtocols = new List<string>(new[] {
-        WebSockets.GraphQLWs.SubscriptionServer.SubProtocol,
-        WebSockets.SubscriptionsTransportWs.SubscriptionServer.SubProtocol,
-    }).AsReadOnly();
 
     /// <summary>
     /// Gets a list of WebSocket sub-protocols supported.
