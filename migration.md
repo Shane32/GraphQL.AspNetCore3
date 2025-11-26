@@ -1,5 +1,37 @@
 # Version history / migration notes
 
+## 8.0.0
+
+### New features
+
+- Response content type negotiation now properly handles the `Accept` header, supporting
+  `application/graphql-response+json`, `application/json`, and `application/graphql+json` (deprecated).
+- Status codes for validation errors are now, by default, determined by the response content type,
+  and for authentication errors may return a 401 or 403 status code.  These changes are pursuant
+  to the [GraphQL over HTTP specification](https://github.com/graphql/graphql-over-http/blob/main/spec/GraphQLOverHTTP.md).
+  See the breaking changes section below for more information.
+
+### Breaking changes
+
+- `GraphQLHttpMiddlewareOptions.ValidationErrorsReturnBadRequest` is now a nullable boolean where
+   `null` means "use the default behavior".  The default behavior is to return a 200 status code
+  when the response content type is `application/json` and a 400 status code otherwise.  The
+  default value for this in v7 was `true`; set this option to retain the v7 behavior.
+- Validation errors such as authentication errors may now be returned with a 'preferred' status
+  code instead of a 400 status code.  This occurs when (1) the response would otherwise contain
+  a 400 status code (e.g. the execution of the document has not yet begun), and (2) all errors
+  in the response prefer the same status code.  For practical purposes, this means that the included
+  errors triggered by the authorization validation rule will now return 401 or 403 when appropriate.
+- The `SelectResponseContentType` method now returns a `MediaTypeHeaderValue` instead of a string.
+- The default response content type is now `application/graphql-response+json` (configurable via
+  `GraphQLHttpMiddlewareOptions.DefaultResponseContentType`), which is the new standard per the
+  GraphQL over HTTP specification.
+
+### Other changes
+
+- Added deprecation comments to `MEDIATYPE_GRAPHQLJSON` and `CONTENTTYPE_GRAPHQLJSON` constants
+  as `application/graphql+json` is being phased out in favor of `application/graphql-response+json`.
+
 ## 7.0.0
 
 GraphQL.AspNetCore3 v7 requires GraphQL.NET v8 or newer.
@@ -33,10 +65,6 @@ GraphQL.AspNetCore3 v6 requires GraphQL.NET v8 or newer.
 
 ### Breaking changes
 
-- `GraphQLHttpMiddlewareOptions.ValidationErrorsReturnBadRequest` is now a nullable boolean where
-   `null` means "use the default behavior".  The default behavior is to return a 200 status code
-  when the response content type is `application/json` and a 400 status code otherwise.  The
-  default value for this in v7 was `true`; set this option to retain the v7 behavior.
 - The validation rules' signatures have changed slightly due to the underlying changes to the
   GraphQL.NET library.  Please see the GraphQL.NET v8 migration document for more information.
 - Cross-site request forgery (CSRF) protection has been enabled for all requests by default.
@@ -46,12 +74,6 @@ GraphQL.AspNetCore3 v6 requires GraphQL.NET v8 or newer.
   the `CsrfProtectionHeaders` property on the same class.  See the readme for more details.
 - Form POST requests are disabled by default; to enable them, set the `ReadFormOnPost` setting
   to `true`.
-- Validation errors such as authentication errors may now be returned with a 'preferred' status
-  code instead of a 400 status code.  This occurs when (1) the response would otherwise contain
-  a 400 status code (e.g. the execution of the document has not yet begun), and (2) all errors
-  in the response prefer the same status code.  For practical purposes, this means that the included
-  errors triggered by the authorization validation rule will now return 401 or 403 when appropriate.
-- The `SelectResponseContentType` method now returns a `MediaTypeHeaderValue` instead of a string.
 - The `AuthorizationVisitorBase.GetRecursivelyReferencedUsedFragments` method has been removed as
   `ValidationContext` now provides an overload to `GetRecursivelyReferencedFragments` which will only
   return fragments in use by the specified operation.
