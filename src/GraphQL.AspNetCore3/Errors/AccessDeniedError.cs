@@ -5,7 +5,7 @@ namespace GraphQL.AspNetCore3.Errors;
 /// <summary>
 /// Represents an error indicating that the user is not allowed access to the specified resource.
 /// </summary>
-public class AccessDeniedError : ValidationError
+public class AccessDeniedError : ValidationError, IHasPreferredStatusCode
 {
     /// <inheritdoc cref="AccessDeniedError"/>
     public AccessDeniedError(string resource)
@@ -31,4 +31,7 @@ public class AccessDeniedError : ValidationError
     /// Returns the list of role memberships that would allow access to these node(s).
     /// </summary>
     public List<string>? RolesRequired { get; set; }
+
+    /// <inheritdoc/>
+    public HttpStatusCode PreferredStatusCode { get; set; } = HttpStatusCode.Forbidden;
 }

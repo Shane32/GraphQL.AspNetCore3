@@ -148,10 +148,11 @@ namespace GraphQL.AspNetCore3
                 "SingleRequest",
                 "BatchRequest"})]
         protected virtual System.Threading.Tasks.Task<System.ValueTuple<GraphQL.Transport.GraphQLRequest?, System.Collections.Generic.IList<GraphQL.Transport.GraphQLRequest?>?>?> ReadPostContentAsync(Microsoft.AspNetCore.Http.HttpContext context, Microsoft.AspNetCore.Http.RequestDelegate next, string? mediaType, System.Text.Encoding? sourceEncoding) { }
-        protected virtual string SelectResponseContentType(Microsoft.AspNetCore.Http.HttpContext context) { }
+        protected virtual Microsoft.Net.Http.Headers.MediaTypeHeaderValue SelectResponseContentType(Microsoft.AspNetCore.Http.HttpContext context) { }
         protected virtual System.Threading.Tasks.Task WriteErrorResponseAsync(Microsoft.AspNetCore.Http.HttpContext context, GraphQL.ExecutionError executionError) { }
         protected virtual System.Threading.Tasks.Task WriteErrorResponseAsync(Microsoft.AspNetCore.Http.HttpContext context, System.Net.HttpStatusCode httpStatusCode, GraphQL.ExecutionError executionError) { }
         protected virtual System.Threading.Tasks.Task WriteErrorResponseAsync(Microsoft.AspNetCore.Http.HttpContext context, System.Net.HttpStatusCode httpStatusCode, string errorMessage) { }
+        protected virtual System.Threading.Tasks.Task WriteJsonResponseAsync(Microsoft.AspNetCore.Http.HttpContext context, GraphQL.ExecutionResult result) { }
         protected virtual System.Threading.Tasks.Task WriteJsonResponseAsync<TResult>(Microsoft.AspNetCore.Http.HttpContext context, System.Net.HttpStatusCode httpStatusCode, TResult result) { }
     }
     public class GraphQLHttpMiddlewareOptions : GraphQL.AspNetCore3.IAuthorizationOptions
@@ -163,6 +164,7 @@ namespace GraphQL.AspNetCore3
         public System.Collections.Generic.List<string> AuthorizedRoles { get; set; }
         public bool CsrfProtectionEnabled { get; set; }
         public System.Collections.Generic.List<string> CsrfProtectionHeaders { get; set; }
+        public Microsoft.Net.Http.Headers.MediaTypeHeaderValue DefaultResponseContentType { get; set; }
         public bool EnableBatchedRequests { get; set; }
         public bool ExecuteBatchedRequestsInParallel { get; set; }
         public bool HandleGet { get; set; }
@@ -174,7 +176,7 @@ namespace GraphQL.AspNetCore3
         public bool ReadFormOnPost { get; set; }
         public bool ReadQueryStringOnPost { get; set; }
         public bool ReadVariablesFromQueryString { get; set; }
-        public bool ValidationErrorsReturnBadRequest { get; set; }
+        public bool? ValidationErrorsReturnBadRequest { get; set; }
         public GraphQL.AspNetCore3.WebSockets.GraphQLWebSocketOptions WebSockets { get; set; }
     }
     public class GraphQLHttpMiddleware<TSchema> : GraphQL.AspNetCore3.GraphQLHttpMiddleware
@@ -218,12 +220,13 @@ namespace GraphQL.AspNetCore3
 }
 namespace GraphQL.AspNetCore3.Errors
 {
-    public class AccessDeniedError : GraphQL.Validation.ValidationError
+    public class AccessDeniedError : GraphQL.Validation.ValidationError, GraphQL.AspNetCore3.Errors.IHasPreferredStatusCode
     {
         public AccessDeniedError(string resource) { }
         public AccessDeniedError(string resource, GraphQLParser.ROM originalQuery, params GraphQLParser.AST.ASTNode[] nodes) { }
         public Microsoft.AspNetCore.Authorization.AuthorizationResult? PolicyAuthorizationResult { get; set; }
         public string? PolicyRequired { get; set; }
+        public System.Net.HttpStatusCode PreferredStatusCode { get; set; }
         public System.Collections.Generic.List<string>? RolesRequired { get; set; }
     }
     public class BatchedRequestsNotSupportedError : GraphQL.Execution.RequestError
@@ -238,25 +241,27 @@ namespace GraphQL.AspNetCore3.Errors
     public class FileCountExceededError : GraphQL.Execution.RequestError, GraphQL.AspNetCore3.Errors.IHasPreferredStatusCode
     {
         public FileCountExceededError() { }
-        public System.Net.HttpStatusCode PreferredStatusCode { get; }
+        public System.Net.HttpStatusCode PreferredStatusCode { get; set; }
     }
     public class FileSizeExceededError : GraphQL.Execution.RequestError, GraphQL.AspNetCore3.Errors.IHasPreferredStatusCode
     {
         public FileSizeExceededError() { }
-        public System.Net.HttpStatusCode PreferredStatusCode { get; }
+        public System.Net.HttpStatusCode PreferredStatusCode { get; set; }
     }
-    public class HttpMethodValidationError : GraphQL.Validation.ValidationError
+    public class HttpMethodValidationError : GraphQL.Validation.ValidationError, GraphQL.AspNetCore3.Errors.IHasPreferredStatusCode
     {
         public HttpMethodValidationError(GraphQLParser.ROM originalQuery, GraphQLParser.AST.ASTNode node, string message) { }
+        public System.Net.HttpStatusCode PreferredStatusCode { get; set; }
     }
     public interface IHasPreferredStatusCode
     {
         System.Net.HttpStatusCode PreferredStatusCode { get; }
     }
-    public class InvalidContentTypeError : GraphQL.Execution.RequestError
+    public class InvalidContentTypeError : GraphQL.Execution.RequestError, GraphQL.AspNetCore3.Errors.IHasPreferredStatusCode
     {
         public InvalidContentTypeError() { }
         public InvalidContentTypeError(string message) { }
+        public System.Net.HttpStatusCode PreferredStatusCode { get; set; }
     }
     public class InvalidMapError : GraphQL.Execution.RequestError
     {
