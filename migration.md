@@ -2,6 +2,8 @@
 
 ## 8.0.0
 
+GraphQL.AspNetCore3 v8 requires GraphQL.NET v8.8.0 or newer.
+
 ### New features
 
 - Response content type negotiation now properly handles the `Accept` header, supporting
