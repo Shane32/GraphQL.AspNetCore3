@@ -145,7 +145,9 @@ public class AuthorizationTests
 
     private class MyMiddleware : GraphQLHttpMiddleware<ISchema>
     {
+#pragma warning disable CS0618 // Type or member is obsolete
         public MyMiddleware(RequestDelegate next, IGraphQLTextSerializer serializer, IDocumentExecuter<ISchema> documentExecuter, IServiceScopeFactory serviceScopeFactory, IHostApplicationLifetime hostApplicationLifetime)
+#pragma warning restore CS0618 // Type or member is obsolete
             : base(next, serializer, documentExecuter, serviceScopeFactory, new(), hostApplicationLifetime)
         {
         }

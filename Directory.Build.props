@@ -1,7 +1,7 @@
 <Project>
 
   <PropertyGroup>
-    <VersionPrefix>7.1.0-preview</VersionPrefix>
+    <VersionPrefix>8.0.0-preview</VersionPrefix>
     <LangVersion>12.0</LangVersion>
     <Copyright>Shane Krueger</Copyright>
     <Authors>Shane Krueger</Authors>
@@ -20,7 +20,7 @@
     <ImplicitUsings>true</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
-    <GraphQLVersion>8.2.1</GraphQLVersion>
+    <GraphQLVersion>8.8.0</GraphQLVersion>
     <NoWarn>$(NoWarn);IDE0056;IDE0057;NU1902;NU1903</NoWarn>
     <NuGetAuditMode>direct</NuGetAuditMode>
   </PropertyGroup>

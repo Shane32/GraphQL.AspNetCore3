@@ -63,7 +63,9 @@ public class FileUploadTests : IDisposable
     {
         private readonly IGraphQLTextSerializer _serializer;
 
+#pragma warning disable CS0618 // Type or member is obsolete
         public MyMiddleware(RequestDelegate next, IGraphQLTextSerializer serializer, IDocumentExecuter<MySchema> documentExecuter, IServiceScopeFactory serviceScopeFactory, GraphQLHttpMiddlewareOptions options, IHostApplicationLifetime hostApplicationLifetime)
+#pragma warning restore CS0618 // Type or member is obsolete
             : base(next, serializer, documentExecuter, serviceScopeFactory, options, hostApplicationLifetime)
         {
             _serializer = serializer;
