@@ -161,8 +161,7 @@ public class GraphQLHttpMiddlewareOptions : IAuthorizationOptions
     public MediaTypeHeaderValueMs DefaultResponseContentType
     {
         get => _defaultResponseContentType;
-        set
-        {
+        set {
             _defaultResponseContentType = value;
             DefaultResponseContentTypeString = value.ToString();
         }
