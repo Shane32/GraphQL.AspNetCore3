@@ -697,13 +697,15 @@ public class GraphQLHttpMiddleware : IUserContextBuilder
         } else if (acceptHeaders.Count > 0) {
             // enumerate through each content type and see if it matches a supported content type
             // give priority to specific types, then to types with wildcards
-            foreach (var acceptHeader in acceptHeaders.OrderBy(x => x.MatchesAllTypes ? 4 : x.MatchesAllSubTypes ? 3 : x.MatchesAllSubTypesWithoutSuffix ? 2 : 1)) {
+            var sortedAcceptHeaders = acceptHeaders
+                .OrderByDescending(x => x.Quality ?? 1.0)
+                .ThenBy(x => x.MatchesAllTypes ? 4 : x.MatchesAllSubTypes ? 3 : x.MatchesAllSubTypesWithoutSuffix ? 2 : 1);
+            foreach (var acceptHeader in sortedAcceptHeaders) {
                 var response = IsSupportedMediaType(acceptHeader);
                 if (response != null)
                     return response;
             }
         }
-
         // return the default content type if no match is found, or if there is no 'Accept' header
         return _options.DefaultResponseContentType;
     }
